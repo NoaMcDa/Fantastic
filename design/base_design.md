@@ -1,0 +1,297 @@
+# Base Design — SOLID Abstractions
+
+## Overview
+
+Every abstraction in Fantastic follows the five SOLID principles. This document defines the canonical contracts, their responsibilities, and how they relate across layers.
+
+---
+
+## S — Single Responsibility
+
+Each class owns exactly one reason to change.
+
+### Repository Interfaces (Domain Layer)
+Each Isar schema gets its own repository interface. A `MealRepository` never touches `StreakState`.
+
+```dart
+abstract interface class MealRepository {
+  Future<MealEntry> save(MealEntry entry);
+  Future<MealEntry?> findById(Id id);
+  Future<List<MealEntry>> findByDate(DateTime date);
+  Future<void> delete(Id id);
+}
+
+abstract interface class DailyLogRepository {
+  Future<DailyLog> upsert(DailyLog log);
+  Future<DailyLog?> findByDate(DateTime date);
+  Stream<DailyLog?> watchDate(DateTime date);
+}
+
+abstract interface class SymptomLogRepository {
+  Future<SymptomLog> save(SymptomLog log);
+  Future<List<SymptomLog>> findRange(DateTime from, DateTime to);
+}
+
+abstract interface class BiomarkerLogRepository {
+  Future<BiomarkerLog> save(BiomarkerLog log);
+  Future<List<BiomarkerLog>> findRange(DateTime from, DateTime to);
+}
+
+abstract interface class StreakRepository {
+  Future<StreakState> load();
+  Future<void> save(StreakState state);
+  Stream<StreakState> watch();
+}
+```
+
+### Service Classes (Application Layer)
+One service per use-case group. Never mix meal-logging logic with adaptation-phase logic.
+
+```dart
+class KetoRatioCalculator {
+  double calculate(double fatG, double netCarbsG, double proteinG);
+}
+
+class AdaptationPhaseService {
+  AdaptationPhase currentPhase(StreakState state);
+  StreakState recordCompliantDay(StreakState state, DateTime date);
+  StreakState handleBreach(StreakState state, DateTime date);
+}
+
+class ElectrolyteAdvisor {
+  ElectrolyteAdvice advise(AdaptationPhase phase, DailyLog log);
+}
+
+class LabelParser {
+  ParsedLabel parse(String rawOcrText);
+}
+
+class IngredientClassifier {
+  IngredientVerdict classify(List<String> ingredients);
+}
+```
+
+---
+
+## O — Open/Closed
+
+Open for extension, closed for modification. New behaviour is added by implementing existing interfaces, not by editing them.
+
+### Extension Points
+
+| Interface | Extend by adding... |
+|---|---|
+| `MealRepository` | New persistence backend (e.g., CloudKit sync) |
+| `IngredientClassifier` | New rule sets per dietary protocol |
+| `LabelParser` | New locale parsers (Arabic, Russian) without touching Hebrew parser |
+| `DirectorySource` | New data sources (remote API, static JSON) |
+
+### Example — Parser Strategy
+
+```dart
+abstract interface class LabelParser {
+  bool canParse(String rawText);
+  ParsedLabel parse(String rawText);
+}
+
+class HebrewLabelParser implements LabelParser { ... }
+class ArabicLabelParser  implements LabelParser { ... }  // future extension
+
+class LabelParserRegistry {
+  final List<LabelParser> _parsers;
+  ParsedLabel parse(String rawText) =>
+    _parsers.firstWhere((p) => p.canParse(rawText)).parse(rawText);
+}
+```
+
+---
+
+## L — Liskov Substitution
+
+Any implementation of a repository or service interface must be a drop-in replacement for any other without callers needing to know.
+
+### Contract Rules for Repositories
+- `save()` must always return the persisted entity (with a valid `id`).
+- `findByDate()` returns an empty list — never throws — when no records exist.
+- `watch()` streams must emit the current value on subscription.
+- Implementations must never expose Isar-specific types to callers.
+
+### Verified via Tests
+Each feature contains an `abstract_repository_contract_test.dart` that runs the same behavioural test suite against every concrete implementation.
+
+```dart
+void runMealRepositoryContractTests(MealRepository repo) {
+  test('save returns entity with non-zero id', () async { ... });
+  test('findByDate returns empty list when no records', () async { ... });
+  test('delete removes record permanently', () async { ... });
+}
+```
+
+---
+
+## I — Interface Segregation
+
+No class is forced to implement methods it does not use. Large interfaces are split along caller boundaries.
+
+### OCR Pipeline — Split Interfaces
+
+Instead of one fat `OcrService`:
+
+```dart
+abstract interface class ImageCapture {
+  Future<XFile?> captureFromCamera();
+  Future<XFile?> pickFromGallery();
+}
+
+abstract interface class TextRecognizer {
+  Future<String> recognize(XFile image);
+}
+
+abstract interface class LabelParser {
+  bool canParse(String rawText);
+  ParsedLabel parse(String rawText);
+}
+
+abstract interface class IngredientClassifier {
+  IngredientVerdict classify(List<String> ingredients);
+}
+```
+
+The screen only depends on `ImageCapture`; the classifier only depends on `IngredientClassifier`. Nothing is forced to import OCR logic to display a verdict badge.
+
+### Directory Feature — Split Read/Write
+
+```dart
+abstract interface class DirectoryReader {
+  Future<List<DirectoryEntry>> search(String query, DirectoryFilter filter);
+  Future<DirectoryEntry?> findById(String id);
+}
+
+abstract interface class DirectoryWriter {
+  Future<void> submitSuggestion(DirectoryEntry entry);
+}
+```
+
+Read-only screens depend only on `DirectoryReader`.
+
+---
+
+## D — Dependency Inversion
+
+High-level modules (application layer) depend on abstractions (domain interfaces), not on concrete Isar/Hive implementations (data layer). Wiring happens exclusively at the Riverpod provider level.
+
+### Wiring Pattern
+
+```dart
+// data/providers.dart — only place that knows about Isar
+@riverpod
+MealRepository mealRepository(Ref ref) {
+  final isar = ref.watch(isarProvider);
+  return IsarMealRepository(isar);
+}
+
+// application/providers.dart — depends only on domain interface
+@riverpod
+MealLoggingService mealLoggingService(Ref ref) {
+  final repo = ref.watch(mealRepositoryProvider);  // domain interface
+  final dailyLog = ref.watch(dailyLogRepositoryProvider);
+  return MealLoggingService(repo, dailyLog);
+}
+
+// presentation/ — depends only on application service
+@riverpod
+Future<List<MealEntry>> todaysMeals(Ref ref) {
+  final service = ref.watch(mealLoggingServiceProvider);
+  return service.fetchToday();
+}
+```
+
+### Dependency Graph
+
+```
+Presentation  →  Application Service  →  Domain Interface  ←  Data Implementation
+(widgets)        (use-case logic)         (abstract)           (Isar/Hive)
+```
+
+No arrow ever points left. Widgets never import `isar_meal_repository.dart`.
+
+---
+
+## Domain Models (Pure Dart)
+
+All domain models are immutable value objects with no Flutter or Isar annotations.
+
+```dart
+@immutable
+class MealEntry {
+  final Id? id;
+  final DateTime timestamp;
+  final double fatG;
+  final double netCarbsG;
+  final double proteinG;
+  final List<String> ingredients;
+  final String? imageRef;
+
+  const MealEntry({...});
+  MealEntry copyWith({...});
+}
+
+@immutable
+class DailyLog {
+  final DateTime date;
+  final double totalFatG;
+  final double totalNetCarbsG;
+  final double totalProteinG;
+  final double waterMl;
+  final double sodiumMg;
+  final double potassiumMg;
+  final double magnesiumMg;
+
+  const DailyLog({...});
+}
+
+@immutable
+class StreakState {
+  final int currentStreak;
+  final int highestStreak;
+  final AdaptationPhase phase;
+  final DateTime? lastCompliantDate;
+  final bool inGracePeriod;
+
+  const StreakState({...});
+}
+
+enum AdaptationPhase { induction, fatAdapted, deepKetosis }
+
+@immutable
+class IngredientVerdict {
+  final VerdictBadge badge;
+  final List<String> flaggedIngredients;
+  final String? cautionReason;
+
+  const IngredientVerdict({...});
+}
+
+enum VerdictBadge { cleanKeto, cautionQuantityDependent, nonKeto }
+```
+
+---
+
+## Error Handling Contract
+
+All repository methods return `Result<T>` (using a sealed class) rather than throwing. Services propagate `Result` upward; widgets pattern-match on success/failure.
+
+```dart
+sealed class Result<T> {
+  const Result();
+}
+final class Success<T> extends Result<T> {
+  final T value;
+  const Success(this.value);
+}
+final class Failure<T> extends Result<T> {
+  final Object error;
+  final StackTrace stackTrace;
+  const Failure(this.error, this.stackTrace);
+}
+```
