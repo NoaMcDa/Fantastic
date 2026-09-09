@@ -12,14 +12,30 @@ All design decisions are documented in `design/`. Read these before making archi
 
 | File | Contents |
 |---|---|
-| `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, Result<T> pattern |
-| `design/architecture.md` | Layer model, Isar schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
+| `design/tasks.md` | **Master task list** — all work broken into atomic subtasks, ordered by priority and dependency |
+| `design/developing_rules.md` | **Mandatory developer workflow SOP** — follow this for every issue without exception |
+| `design/issue_conventions.md` | **Issue authoring standard** — atomicity rules, branch/commit naming, label taxonomy, implementation description guidelines (API contracts, business logic, integration points), issue template, quality gates |
+| `design/milestone_conventions.md` | **Milestone/Epic standard** — scope discipline, MVP boundary, epic template, closure conditions, label taxonomy |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
+| `design/architecture.md` | Layer model, Isar schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
+| `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, Result<T> pattern |
+| `design/tests.md` | Testing strategy — pyramid, unit/widget/integration patterns, fixture conventions, CI gate |
 | `design/technology.md` | Per-feature technology evaluation and full pubspec.yaml dependency list |
 | `design/ui_ux_design.md` | Full RTL/Hebrew UI spec for all screens — colour palette, tab structure, page layouts |
-| `design/tests.md` | Testing strategy — pyramid, unit/widget/integration patterns, fixture conventions, CI gate |
-| `design/developing_rules.md` | **Mandatory developer workflow SOP** — follow this for every issue without exception |
 | `design/market_search.md` | Competitor analysis and differentiation strategy |
+
+## Issue Authoring Standard
+
+**Every issue must follow `design/issue_conventions.md` before it can be picked up.** Key requirements:
+
+- **Implementation Plan is not optional filler.** Every step must include: exact file path, full public API contract (Dart code snippet with types and annotations), business logic written out inline (no "see design doc"), and named integration points (which provider wires it, which interface it implements, which class consumes it).
+- **Technologies & Approach table** must be filled with every external package, version, and the reason it was chosen over alternatives.
+- **Context & Objective** must have three sub-fields: Background (full paragraph), Objective (observable outcome), Why Now (one sentence on build-order position).
+- An issue missing any of the above is sent back — it is not ready for implementation.
+
+Issue template, label taxonomy, and all quality gates are in `design/issue_conventions.md`.
+
+---
 
 ## Developer Workflow
 
