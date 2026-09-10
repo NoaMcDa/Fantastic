@@ -1,30 +1,48 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:fantastic/main.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('renders the dashboard tab at the initial route', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpAndSettle();
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    expect(find.text('בית'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  testWidgets('every one of the 5 tab routes navigates without error', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpAndSettle();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    final router = GoRouter.of(tester.element(find.text('בית')));
+
+    const routesAndLabels = {
+      '/': 'בית',
+      '/lens': 'מצלמה',
+      '/diary': 'יומן',
+      '/adaptation': 'התאמה',
+      '/profile': 'פרופיל',
+    };
+
+    for (final entry in routesAndLabels.entries) {
+      router.go(entry.key);
+      await tester.pumpAndSettle();
+      expect(find.text(entry.value), findsOneWidget);
+    }
+  });
+
+  testWidgets('an unknown route falls through to the error screen, not a '
+      'crash', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(tester.element(find.text('בית')));
+    router.go('/does-not-exist');
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 }
