@@ -8,9 +8,9 @@ do.
 ## Status — M1 is code-complete, pending merge
 
 **Every M1 issue is implemented.** The domain layer is on `main`; the data layer
-is in eight open PRs (#168–#175), each green: `flutter analyze` zero issues,
-`dart format --check` zero diffs, and **271 tests** at the tip of the chain, up
-from 133 when the domain layer merged and 30 at the end of M0.
+is in nine open PRs (#168–#175 and #178), each green: `flutter analyze` zero
+issues, `dart format --check` zero diffs, and **316 tests** at the tip of the
+chain, up from 133 when the domain layer merged and 30 at the end of M0.
 
 | Group | Issues | State |
 |---|---|---|
@@ -20,11 +20,12 @@ from 133 when the domain layer merged and 30 at the end of M0.
 | Remaining schemas + mappers | #36, #37, #38 | 🔵 PRs #168, #169, #170 |
 | Repository implementations + contract suites | #39, #40, #41, #42 | 🔵 PRs #171, #172, #173, #174 |
 | Provider wiring | #43 | 🔵 PR #175 |
+| Typed repository exceptions | #177 | 🔵 PR #178 |
 
-**These eight PRs must be merged in issue order** — `#36 → #37 → #38 → #39 →
-#40 → #41 → #42 → #43`. Every one targets `main`, but #36/#37/#38 each append a
-line to the same `appIsarSchemas` list, so merging out of order conflicts there.
-Each PR body restates this.
+**These PRs must be merged in issue order** — `#36 → #37 → #38 → #39 → #40 →
+#41 → #42 → #43 → #177`. Every one targets `main`, but #36/#37/#38 each append a
+line to the same `appIsarSchemas` list, and #177 rewrites all four repositories,
+so merging out of order conflicts. Each PR body restates this.
 
 The branches are chained (each cut from the previous), which is *not* the M0
 stacked-PR mistake — there, each PR's **base** was its parent branch, so merging
@@ -46,9 +47,10 @@ Epic **#5** (M1) closes with these merges. Epic **#4** (M0) remains open on the
 | Mappers | `.../data/mappers/*_mapper.dart` — four, each `abstract final` with `toIsar` / `toDomain` |
 | Repositories | `.../data/repositories/isar_*_repository.dart` — four |
 | Provider wiring | `lib/features/{diary,dashboard,adaptation}/data/providers.dart` |
-| Contract suites | `test/features/*/data/*_repository_contract_test.dart` — 78 cases across four files |
+| Contract suites | `test/features/*/data/*_repository_contract_test.dart` — 98 cases across four files |
 | Mapper tests | `test/features/*/data/mappers/` |
 | Provider smoke tests | `test/features/*/data/providers_test.dart` — 10 cases |
+| Typed failures | `lib/core/error/{repository_exception,persistence_guard}.dart`, 45 cases (#177) |
 
 `appIsarSchemas` in `lib/core/database/isar_provider.dart` now registers all
 four collections, and `main.dart` opens Isar at startup. **The app has a real
@@ -77,12 +79,17 @@ These are not restated in each issue body.
    `year * 10000 + month * 100 + day`, and the repositories call it to build
    their queries — they must use the same encoding the schema was written with.
 8. **Contract suites are top-level factory-parameterised functions**
-   (`runXxxRepositoryContractTests(XxxRepository Function() factory)`), so any
+   (`runXxxRepositoryContractTests(factory, {required breakStore})`), so any
    future implementation runs against the same cases. That is what enforces
    Liskov at the test level, and it is required for every repository.
+   `breakStore` lets the suite make the backing store fail without knowing what
+   it is — for Isar it closes the instance.
 9. **Providers return the domain interface, never the concrete class.** A
    consumer then cannot reach past the abstraction to an Isar-specific method —
    the layer rule as a compile error rather than a review comment.
+10. **Every repository method is wrapped in `guardPersistence`** so a storage
+    failure leaves the data layer as a `PersistenceException`, never as an
+    `IsarError`. See "Typed repository failures" below.
 
 ### `StreakState.copyWith` takes explicit clear flags
 
@@ -124,26 +131,65 @@ until the first write.
 
 ---
 
-## Known gap: the typed exceptions do not exist
+## Typed repository failures (#177)
 
-`design/base_design.md` §Error Handling Contract specifies
-`RepositoryException`, `EntityNotFoundException` and `PersistenceException`, and
-**all four repository interface doc comments** say their methods "throw typed
-domain exceptions on failure".
+`design/base_design.md` §Error Handling Contract specifies a sealed hierarchy —
+`RepositoryException`, `EntityNotFoundException`, `PersistenceException` — and
+all four repository interfaces tell callers their methods throw it. The types
+did not exist through #36–#43; **#177 created them and wired them in.**
 
-**No such type exists in `lib/`, and no M1 issue owns creating one.**
+They live in `lib/core/error/`:
 
-This was deliberate, not an oversight. Nothing in #39–#42's specified behaviour
-needs them — `delete` and `deleteByDate` are idempotent, `findById` and
-`findByDate` return null for absent, `load` returns null on first launch, and no
-contract test asserts an exception type. Building them would have exceeded every
-issue's Definition of Done.
+- `repository_exception.dart` — the sealed hierarchy. Import-free, so `domain/`
+  can use it. Each type overrides `toString()`, because the contract's own
+  presentation code renders a failure as `ErrorState(message: error.toString())`
+  and the default would put `Instance of 'PersistenceException'` in front of a
+  developer.
+- `persistence_guard.dart` — `guardPersistence` (futures) and
+  `guardPersistenceStream` (for `StreakRepository.watch`).
 
-**Whoever first needs typed failures should file an issue for it** — most likely
-M2's services, when they need to distinguish "the day has no log" from "the read
-failed". The doc comments are already written as though the types exist, so the
-work is to create them and make the repositories throw, not to redesign the
-contract.
+**All 16 repository methods are guarded.** A storage failure reaches
+`application/` and `presentation/` as a `PersistenceException` naming the
+operation (`'IsarMealRepository.findByDate failed'`) and carrying the original
+error as `cause`. No `IsarError` escapes the data layer.
+
+### The guard catches `Object`, and must
+
+`class IsarError extends Error` in `isar_community 3.3.2` — **not** `Exception`.
+An `on Exception` clause would silently miss every storage failure. If you write
+another guard, or narrow this one, that is the trap.
+
+The consequence is that a genuine bug thrown inside a guarded body is wrapped
+too. Acceptable because a guarded body holds only the storage call and its
+mapping, and a mapper throwing on stored data is itself a persistence-integrity
+failure. Do not widen a guard to cover application logic, or that stops being
+true.
+
+The guard passes an existing `RepositoryException` through untouched, so nesting
+one guarded call inside another never double-wraps, and it rethrows with
+`Error.throwWithStackTrace` so the originating frame survives.
+
+### `EntityNotFoundException` exists but is never thrown
+
+Deliberate, and documented on the type itself so it does not read as an
+oversight. Every current repository method treats absence as a valid outcome by
+explicit contract: the finders return null or an empty list, `load` returns null
+as the first-launch sentinel, and the deletes are documented no-ops. A throw
+would contradict those interfaces and break the contract cases asserting them.
+
+**Add the throw site when a real caller needs it** — most likely an M2 service
+updating a record it requires to exist — rather than changing a finder's
+documented null-means-absent behaviour to create one.
+
+### Failure is tested by closing the database
+
+Each contract suite has a `failure` group that closes the Isar instance and then
+calls the repository, producing a real `IsarError` from inside it. No mocks, and
+it exercises the same path a disk failure would. The group is part of
+`runXxxRepositoryContractTests`, so a future implementation must satisfy it too.
+
+`closeTestIsar` tolerates an already-closed instance for this reason — the
+suites close it themselves and the shared `tearDown` still runs afterwards.
 
 ---
 
@@ -271,8 +317,8 @@ Linux container.
 ## Loose ends
 
 - **Epic #4 (M0) is still open**, pending the `flutter run` check above.
-- **The typed-exception gap** described above — unowned, and M2 is the likely
-  first caller to need it.
+- **`EntityNotFoundException` has no throw site** — see above. Not a defect;
+  it needs a real caller before a throw site can be placed correctly.
 - **`pr_conventions.md` §1 deviations.** Four earlier PRs (#145, #155, #160,
   #161) carried several issues each on one pinned branch. The eight data-layer
   PRs restore one-PR-per-issue, so the convention now matches practice again —
