@@ -74,4 +74,4 @@ final class DailyLogRepositoryProvider
 }
 
 String _$dailyLogRepositoryHash() =>
-    r'd42d00157a157865360fef6b2bbf7dc3057c69ce';
+    r'805591d6a98492f39624a724ad7e310138cde784';

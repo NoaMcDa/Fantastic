@@ -1,5 +1,13 @@
 # Tasks — Fantastic
 
+> **Superseded in part:** the M0/M1 tasks below describe an Isar data layer.
+> Isar was replaced by **sembast + sembast_web** when web support landed —
+> `IsarMealRepository` and friends are now `SembastMealRepository`, the
+> `data/schemas/` directories are gone, and mappers became record codecs.
+> The tasks are kept as a record of what was built; see
+> `design/web_support.md` and `CLAUDE.md` §Local Persistence for the
+> current data layer.
+
 Ordered strictly by priority: foundation blockers first, MVP features in build-milestone order, polish and post-MVP last. Each task is a single atomic unit of work — one branch, one PR.
 
 Status: `[ ]` not started · `[~]` in progress · `[x]` done

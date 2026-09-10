@@ -64,17 +64,18 @@ void main() {
     // "Instance of 'PersistenceException'".
     test('toString includes both the message and the cause', () {
       final rendered = const PersistenceException(
-        'IsarMealRepository.save failed',
-        'IsarError: instance closed',
+        'SembastMealRepository.save failed',
+        'DatabaseException: [3] database is closed',
       ).toString();
 
-      expect(rendered, contains('IsarMealRepository.save failed'));
-      expect(rendered, contains('IsarError: instance closed'));
+      expect(rendered, contains('SembastMealRepository.save failed'));
+      expect(rendered, contains('DatabaseException: [3] database is closed'));
     });
 
     test('accepts any Object as a cause, not only an Exception', () {
-      // IsarError extends Error, so restricting `cause` to Exception would
-      // exclude the very failures this type is built to carry.
+      // A record codec decoding malformed stored data throws an Error, so
+      // restricting `cause` to Exception would exclude failures this type is
+      // built to carry.
       expect(
         PersistenceException('failed', StateError('boom')).cause,
         isA<Error>(),

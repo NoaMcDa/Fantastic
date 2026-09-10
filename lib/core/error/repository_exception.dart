@@ -9,7 +9,8 @@
 /// a second channel underneath it means every provider unwraps one to populate
 /// the other.
 ///
-/// Deliberately import-free. `domain/` may not see Flutter or Isar, and these
+/// Deliberately import-free. `domain/` may not see Flutter or the persistence
+/// package, and these
 /// types are part of the interface it declares.
 library;
 

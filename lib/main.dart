@@ -1,45 +1,33 @@
-import 'package:fantastic/core/database/isar_provider.dart';
+import 'package:fantastic/core/database/database_factory.dart';
+import 'package:fantastic/core/database/database_provider.dart';
 import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:isar_community/isar.dart';
-import 'package:path_provider/path_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Hebrew month and day names for the dashboard's date header. `DateFormat`
   // with an explicit locale throws without its symbol data loaded.
   await initializeDateFormatting('he');
-  final db = await openAppIsar();
-  runApp(
-    ProviderScope(
-      overrides: [if (db != null) isarProvider.overrideWithValue(db)],
-      child: const FantasticApp(),
-    ),
-  );
-}
 
-/// Opens the app's database, or returns `null` while no collection has been
-/// registered in [appIsarSchemas].
-///
-/// `Isar.open` rejects an empty schema list outright — its first act is to
-/// throw `IsarError: At least one collection needs to be opened` — so opening
-/// unconditionally killed `main()` before `runApp` and the app never launched.
-/// M0 registers no collections by design, so until M1 fills [appIsarSchemas]
-/// the right move is to not open Isar at all: `isarProvider` stays
-/// un-overridden, which already throws a descriptive error if anything reads
-/// it, and nothing in M0 does.
-@visibleForTesting
-Future<Isar?> openAppIsar() async {
-  if (appIsarSchemas.isEmpty) {
-    return null;
+  // A failure here used to escape `main` unhandled, which on iOS is a crash
+  // with a log and in a browser is a blank white page with nothing to read.
+  // Rendering the error instead means a broken storage layer is diagnosable
+  // on the device it broke on.
+  try {
+    final db = await openAppDatabase();
+    runApp(
+      ProviderScope(
+        overrides: [databaseProvider.overrideWithValue(db)],
+        child: const FantasticApp(),
+      ),
+    );
+  } on Object catch (error) {
+    runApp(StartupFailureApp(error: error));
   }
-
-  final dir = await getApplicationDocumentsDirectory();
-  return Isar.open(appIsarSchemas, directory: dir.path);
 }
 
 class FantasticApp extends ConsumerWidget {
@@ -55,6 +43,51 @@ class FantasticApp extends ConsumerWidget {
         locale: const Locale('he'),
         supportedLocales: const [Locale('he'), Locale('en')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      ),
+    );
+  }
+}
+
+/// Shown when the database cannot be opened, in place of the app.
+///
+/// Deliberately dependency-free — no router, no providers, no localisation
+/// delegates: whatever failed in [main] must not be able to fail again here.
+class StartupFailureApp extends StatelessWidget {
+  const StartupFailureApp({required this.error, super.key});
+
+  final Object error;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      theme: AppTheme.dark,
+      home: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: AppTheme.danger),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'לא ניתן לפתוח את מסד הנתונים',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$error',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

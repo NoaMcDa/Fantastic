@@ -1,39 +1,39 @@
-import 'package:fantastic/core/database/isar_provider.dart';
+import 'package:fantastic/core/database/database_provider.dart';
 import 'package:fantastic/features/adaptation/data/providers.dart';
-import 'package:fantastic/features/adaptation/data/schemas/isar_streak_state.dart';
+import 'package:fantastic/features/adaptation/data/repositories/sembast_streak_repository.dart';
 import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:isar_community/isar.dart';
+import 'package:sembast/sembast.dart';
 
 import '../../../fixtures/fixtures.dart';
-import '../../../helpers/test_isar.dart';
+import '../../../helpers/test_database.dart';
 
 void main() {
   group('adaptation repository providers', () {
-    late Isar isar;
+    late Database db;
     late ProviderContainer container;
 
     setUp(() async {
-      isar = await openTestIsar([IsarStreakStateSchema]);
+      db = await openTestDatabase();
       container = ProviderContainer(
-        overrides: [isarProvider.overrideWithValue(isar)],
+        overrides: [databaseProvider.overrideWithValue(db)],
       );
       addTearDown(container.dispose);
     });
 
-    tearDown(() async => closeTestIsar(isar));
+    tearDown(() async => closeTestDatabase(db));
 
     test('streakRepositoryProvider resolves to a StreakRepository', () {
       expect(container.read(streakRepositoryProvider), isA<StreakRepository>());
     });
 
-    test('the resolved repository writes to the overridden instance', () async {
+    test('the resolved repository writes to the overridden database', () async {
       await container
           .read(streakRepositoryProvider)
           .save(StreakStateFixture.withStreak(5));
 
-      expect(await isar.isarStreakStates.count(), 1);
+      expect(await streakStateStore.count(db), 1);
     });
 
     // The stream M3's streakStateProvider (#59) is built on has to survive the

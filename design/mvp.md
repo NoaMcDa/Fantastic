@@ -126,7 +126,7 @@ Build in this sequence — each milestone is shippable to TestFlight.
 
 ### Milestone 1 — Skeleton (Week 1–2)
 - Flutter project, routing, tab bar, RTL theme
-- Isar setup, all schemas
+- Database setup, all persistence schemas
 - Riverpod provider wiring
 - Onboarding flow (data collection only, no personalisation logic yet)
 

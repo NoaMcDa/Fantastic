@@ -10,7 +10,8 @@ import 'package:meta/meta.dart';
 /// That is why [gracePeriodEnd] exists alongside [inGracePeriod] — a boolean
 /// alone cannot tell the service whether the window has closed.
 ///
-/// Pure domain: no Flutter, Isar or Riverpod. There is no `id` field; the
+/// Pure domain: no Flutter, no persistence package, no Riverpod. There is no
+/// `id` field; the
 /// record is a singleton and the data layer pins it to a fixed row.
 @immutable
 class StreakState {

@@ -7,7 +7,7 @@ import 'package:meta/meta.dart';
 /// date. Belongs to the dashboard rather than the diary — the diary owns
 /// individual meals, the dashboard owns the roll-up.
 ///
-/// Pure domain: no Flutter, Isar or Riverpod.
+/// Pure domain: no Flutter, no persistence package, no Riverpod.
 @immutable
 class DailyLog {
   const DailyLog({
@@ -23,11 +23,12 @@ class DailyLog {
     this.ketoRatioAvg = 0,
   });
 
-  /// Null until first persisted. `int?`, never Isar's `Id`.
+  /// Null until first persisted. Carries the record's yyyyMMdd key once it
+  /// is — see `DailyLogMapper`.
   final int? id;
 
   /// Calendar day this log aggregates. The time component is not meaningful —
-  /// `IsarDailyLog` (#36) derives an indexed yyyyMMdd integer from it.
+  /// `DailyLogMapper.dateIndex` derives the yyyyMMdd record key from it.
   final DateTime date;
 
   final double totalFatG;

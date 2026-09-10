@@ -9,7 +9,7 @@ import 'package:meta/meta.dart';
 /// come from a fixed 1–5 picker — so the data layer does not rely on these
 /// holding at runtime.
 ///
-/// Pure domain: no Flutter, Isar or Riverpod.
+/// Pure domain: no Flutter, no persistence package, no Riverpod.
 @immutable
 class SymptomLog {
   const SymptomLog({
@@ -33,7 +33,8 @@ class SymptomLog {
        ),
        assert(moodScore >= 1 && moodScore <= 5, 'moodScore must be 1-5');
 
-  /// Null until first persisted. `int?`, never Isar's `Id`.
+  /// Null until first persisted. Carries the record's yyyyMMdd key once it
+  /// is — see `SymptomLogMapper`.
   final int? id;
 
   /// Calendar day this log covers — one record per day.

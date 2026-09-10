@@ -12,7 +12,8 @@ part 'meal_logging_service.g.dart';
 /// Orchestrates the app's main write path: persisting a meal and rolling the
 /// day's totals up into its [DailyLog].
 ///
-/// Talks only to the repository interfaces — never to Isar. `DailyLog` belongs
+/// Talks only to the repository interfaces — never to the store. `DailyLog`
+/// belongs
 /// to the dashboard feature even though meals belong to the diary, so this
 /// service deliberately spans both: the diary owns the individual meals, the
 /// dashboard owns the aggregate they roll into.

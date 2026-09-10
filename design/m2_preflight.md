@@ -1,5 +1,10 @@
 # M2 Pre-flight — corrections to the M2 issue text
 
+> **Superseded in part:** Isar was replaced by **sembast + sembast_web** when web
+> support landed — see `design/web_support.md` and `CLAUDE.md` §Local Persistence.
+> Everything below is kept as a record of what was true at the time and is not a
+> description of the current data layer.
+
 Read this before picking up any M2 issue (#44–#56). Tracked by **#165**.
 
 This is the third such file. `m0_handoff.md` catalogued seven things the M0

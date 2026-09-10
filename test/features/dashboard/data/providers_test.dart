@@ -1,28 +1,28 @@
-import 'package:fantastic/core/database/isar_provider.dart';
+import 'package:fantastic/core/database/database_provider.dart';
 import 'package:fantastic/features/dashboard/data/providers.dart';
-import 'package:fantastic/features/dashboard/data/schemas/isar_daily_log.dart';
+import 'package:fantastic/features/dashboard/data/repositories/sembast_daily_log_repository.dart';
 import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:isar_community/isar.dart';
+import 'package:sembast/sembast.dart';
 
 import '../../../fixtures/fixtures.dart';
-import '../../../helpers/test_isar.dart';
+import '../../../helpers/test_database.dart';
 
 void main() {
   group('dashboard repository providers', () {
-    late Isar isar;
+    late Database db;
     late ProviderContainer container;
 
     setUp(() async {
-      isar = await openTestIsar([IsarDailyLogSchema]);
+      db = await openTestDatabase();
       container = ProviderContainer(
-        overrides: [isarProvider.overrideWithValue(isar)],
+        overrides: [databaseProvider.overrideWithValue(db)],
       );
       addTearDown(container.dispose);
     });
 
-    tearDown(() async => closeTestIsar(isar));
+    tearDown(() async => closeTestDatabase(db));
 
     test('dailyLogRepositoryProvider resolves to a DailyLogRepository', () {
       expect(
@@ -31,12 +31,12 @@ void main() {
       );
     });
 
-    test('the resolved repository writes to the overridden instance', () async {
+    test('the resolved repository writes to the overridden database', () async {
       await container
           .read(dailyLogRepositoryProvider)
           .save(DailyLogFixture.fixture());
 
-      expect(await isar.isarDailyLogs.count(), 1);
+      expect(await dailyLogsStore.count(db), 1);
     });
   });
 }

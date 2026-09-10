@@ -68,9 +68,9 @@ Write code following the architecture defined in `design/architecture.md` and th
 
 ### Rules
 - Changes live in the correct layer: domain logic in `domain/`, persistence in `data/`, orchestration in `application/`, UI in `presentation/`
-- No Isar types leak into `domain/` or `presentation/`
+- No sembast types leak into `domain/` or `presentation/`
 - No widget imports in `application/` or `domain/`
-- No new provider calls raw `Isar` — always go through a repository interface
+- No new provider calls a raw `Database` — always go through a repository interface
 - No commented-out code committed
 - No `TODO` comments committed — open a follow-up issue instead
 - No magic numbers — use named constants in `lib/core/constants/`
@@ -87,7 +87,7 @@ dart format lib/ test/
 
 **Checklist:**
 - [ ] Code lives in the correct architectural layer
-- [ ] No cross-layer violations (Isar not in domain, Flutter not in application)
+- [ ] No cross-layer violations (sembast not in domain, Flutter not in application)
 - [ ] No magic numbers, no TODOs, no dead code
 - [ ] `flutter analyze` returns zero issues on changed files
 
@@ -108,7 +108,7 @@ test/features/<feature_name>/<layer>/<class_name>_test.dart
 |---|---|---|
 | `domain/` | 100% of public methods | Unit — no mocks |
 | `application/` | 100% of public methods | Unit — mock domain interfaces with `mocktail` |
-| `data/` | Repository contract suite | Integration — real in-memory Isar |
+| `data/` | Repository contract suite | Integration — in-memory sembast |
 | `presentation/` | Critical widgets and flows | Widget — provider overrides |
 
 ### Minimum test cases for every change

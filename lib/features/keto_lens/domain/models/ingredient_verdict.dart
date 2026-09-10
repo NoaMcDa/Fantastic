@@ -5,7 +5,7 @@ import 'package:meta/meta.dart';
 /// The result of classifying an ingredient list: the worst-case badge plus the
 /// tokens that earned it.
 ///
-/// Pure domain: no Flutter, Isar or Riverpod.
+/// Pure domain: no Flutter, no persistence package, no Riverpod.
 @immutable
 class IngredientVerdict {
   const IngredientVerdict({

@@ -105,7 +105,7 @@ Every issue must carry exactly **one Type label**, exactly **one Layer label**, 
 |---|---|
 | `layer:core` | `lib/core/` — constants, theme, utilities |
 | `layer:domain` | `domain/` — pure Dart models and repository interfaces |
-| `layer:data` | `data/` — Isar schemas, mappers, repository implementations |
+| `layer:data` | `data/` — sembast stores, record codecs, repository implementations |
 | `layer:application` | `application/` — services, use-cases, Riverpod providers |
 | `layer:presentation` | `presentation/` — widgets, screens, UI providers |
 | `layer:infra` | `main.dart`, routing, platform config, CI |
@@ -244,9 +244,9 @@ The dependency arrow flows in one direction only:
 Presentation  →  Application  →  Domain  ←  Data
 ```
 
-- **Presentation** may import Application providers and Domain models. Never imports Data or Isar directly.
-- **Application** may import Domain interfaces and models. Never imports Flutter widgets, Isar, or Data classes.
-- **Domain** imports nothing from the project. Pure Dart only. No Flutter SDK, no Isar, no Application.
+- **Presentation** may import Application providers and Domain models. Never imports Data or the persistence package directly.
+- **Application** may import Domain interfaces and models. Never imports Flutter widgets, the persistence package, or Data classes.
+- **Domain** imports nothing from the project. Pure Dart only. No Flutter SDK, no persistence package, no Application.
 - **Data** imports Domain (implements its interfaces). Never imported by Application or Presentation.
 
 Any PR that introduces a violation of these arrows is rejected, regardless of test coverage.
@@ -255,7 +255,7 @@ Any PR that introduces a violation of these arrows is rejected, regardless of te
 
 Every class in `domain/` must satisfy all of the following:
 
-- **Pure Dart** — zero imports from `flutter`, `isar`, `riverpod`, or any data/application layer file
+- **Pure Dart** — zero imports from `flutter`, `sembast`, `riverpod`, or any data/application layer file
 - **Immutable** — all fields are `final`; mutation is expressed via `copyWith`
 - **No side effects** — domain models hold data and define interfaces; they do not perform I/O, logging, or network calls
 - **Repository interfaces are abstract** — defined with `abstract interface class`; no implementation logic lives in `domain/`
@@ -285,16 +285,16 @@ abstract interface class MealRepository {
 
 ### Data Layer Rules
 
-- Isar schema classes live exclusively in `data/` and carry `@collection` annotations
-- Every schema file includes a mapper extension alongside it (`IsarMealEntry.toDomain()` / `MealEntry.toIsar()`)
-- Mappers are the only place where domain ↔ Isar conversion happens — never in services or widgets
+- sembast `StoreRef`s live exclusively in `data/`, declared beside the repository that owns them
+- Every persisted model has a codec in `data/mappers/` (`XxxMapper.toRecord` / `fromRecord`)
+- Codecs are the only place where domain ↔ record conversion happens — never in services or widgets
 - Schema classes are never passed across layer boundaries — always map to domain model first
-- Isar queries use the type-safe query builder only — no raw query strings
+- Queries use sembast's `Finder`/`Filter` API; record values stay JSON-compatible (see `CLAUDE.md` §Local Persistence)
 
 ### Application Layer Rules
 
 - One service class per use-case group (`MealLoggingService`, `AdaptationPhaseService`, not a god `AppService`)
-- Services declare dependencies via constructor injection (domain interfaces, never Isar)
+- Services declare dependencies via constructor injection (domain interfaces, never a `Database`)
 - All providers use `@riverpod` code generation — no manual `Provider(...)`, `StateNotifierProvider(...)`, etc.
 - Provider wiring lives in `<feature>/application/providers.dart` or `<feature>/data/providers.dart` — nowhere else
 - No `get_it`, `injectable`, or any service locator — Riverpod handles all injection
@@ -312,7 +312,6 @@ git status --short   # the real check — build_runner never exits, so exit 124
 
 | Annotation | Generator | Output |
 |---|---|---|
-| `@collection` (Isar schema) | `isar_community_generator` | `*.g.dart` schema descriptor, typed query builder, binary serialisation |
 | `@riverpod` (provider) | `riverpod_generator` | `*.g.dart` provider definitions |
 
 `json_serializable` is **not** a dependency. Earlier drafts of this document
@@ -320,7 +319,7 @@ and of `CLAUDE.md` listed `@JsonSerializable` as a third generator; nothing in
 the project uses it, and the MVP has no remote DTOs to deserialise. Add it only
 alongside a feature that actually needs it.
 
-Note the package names: the original `isar` / `isar_generator` were replaced in
+Persistence needs no generator at all. Note also that the original `isar` / `isar_generator` were replaced in
 M0 by the community fork, because they pin `analyzer <6.0.0` and cannot
 co-resolve with `riverpod_generator` (see `design/m0_handoff.md` §1).
 
@@ -368,7 +367,7 @@ Use this template verbatim when opening any implementation issue. Copy the raw M
 |---|---|---|---|
 | <e.g., OCR recognition> | <e.g., `google_mlkit_text_recognition`> | <e.g., ^0.13.0> | <e.g., on-device, no network call, Hebrew script supported> |
 | <e.g., State management> | <e.g., `flutter_riverpod` + `@riverpod`> | <e.g., ^2.5.0> | <e.g., code-generated provider, AsyncNotifier pattern> |
-| <e.g., Local persistence> | <e.g., `isar_community` + `isar_community_generator`> | <e.g., ^3.1.0> | <e.g., @collection schema, type-safe query builder> |
+| <e.g., Local persistence> | <e.g., `sembast` + `sembast_web`> | <e.g., ^3.8.10> | <e.g., pure-Dart document store, one implementation for iOS and web> |
 
 **Approach summary:**
 <1–3 sentences describing the chosen implementation strategy and why alternatives were not selected. E.g. "Using rule-based ingredient matching rather than ML classification because the rule set is deterministic, auditable, and works fully offline. A future issue will add Claude API as an optional fallback for ambiguous ingredients.">
@@ -381,7 +380,7 @@ Select exactly one:
 
 - [ ] `layer:core` — `lib/core/`
 - [ ] `layer:domain` — pure Dart models / repository interfaces
-- [ ] `layer:data` — Isar schemas, mappers, repository implementations
+- [ ] `layer:data` — sembast stores, record codecs, repository implementations
 - [ ] `layer:application` — services, use-cases, Riverpod providers
 - [ ] `layer:presentation` — widgets, screens, UI providers
 - [ ] `layer:infra` — routing, platform config, CI
@@ -485,7 +484,7 @@ Select exactly one:
 
 #### Contract Tests (data layer issues only)
 - [ ] Runs `runXxxRepositoryContractTests(factory)` against this implementation
-- [ ] All contract cases pass with the real in-memory Isar instance from `test/helpers/test_isar.dart`
+- [ ] All contract cases pass against the in-memory database from `test/helpers/test_database.dart`
 
 #### Regression (fix issues only)
 - [ ] A test that would have caught the original bug is added and named to describe the failure mode
@@ -506,7 +505,7 @@ Every item below must be checked before requesting review:
 
 **Code**
 - [ ] Implementation matches the plan above — no scope creep
-- [ ] No Isar types in `domain/` or `presentation/`
+- [ ] No sembast types in `domain/` or `presentation/`
 - [ ] No Flutter imports in `domain/` or `application/`
 - [ ] No `get_it` or service locator usage
 - [ ] No magic numbers — constants in `lib/core/constants/`

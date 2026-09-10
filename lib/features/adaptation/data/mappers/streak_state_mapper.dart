@@ -1,30 +1,38 @@
-import 'package:fantastic/features/adaptation/data/schemas/isar_streak_state.dart';
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 
-/// Converts between [StreakState] and its Isar persistence shape.
+/// Converts between [StreakState] and its sembast record shape.
 ///
-/// Called only by `IsarStreakRepository` (#41) — never from `domain/` or
-/// `presentation/`, which must not see Isar types at all.
+/// Called only by `SembastStreakRepository` — never from `domain/` or
+/// `presentation/`, which must not see a persistence shape at all.
+///
+/// There is exactly one record, at [singletonId], so this codec takes no key.
 abstract final class StreakStateMapper {
-  /// The row every streak record is pinned to. There is exactly one.
+  /// The record every streak write is pinned to. There is exactly one.
   static const int singletonId = 0;
 
-  static IsarStreakState toIsar(StreakState state) => IsarStreakState()
-    ..id = singletonId
-    ..currentStreak = state.currentStreak
-    ..highestStreak = state.highestStreak
-    ..phase = AdaptationPhaseIsar.values[state.phase.index]
-    ..inGracePeriod = state.inGracePeriod
-    ..gracePeriodEnd = state.gracePeriodEnd
-    ..lastCompliantDate = state.lastCompliantDate;
+  static Map<String, Object?> toRecord(StreakState state) => {
+    'currentStreak': state.currentStreak,
+    'highestStreak': state.highestStreak,
+    // Stored by `name`, not by ordinal. Isar required an ordinal; sembast does
+    // not, and a stored ordinal silently remaps every persisted row the day a
+    // value is inserted into the middle of `AdaptationPhase`.
+    'phase': state.phase.name,
+    'inGracePeriod': state.inGracePeriod,
+    'gracePeriodEnd': state.gracePeriodEnd?.millisecondsSinceEpoch,
+    'lastCompliantDate': state.lastCompliantDate?.millisecondsSinceEpoch,
+  };
 
-  static StreakState toDomain(IsarStreakState schema) => StreakState(
-    currentStreak: schema.currentStreak,
-    highestStreak: schema.highestStreak,
-    phase: AdaptationPhase.values[schema.phase.index],
-    inGracePeriod: schema.inGracePeriod,
-    gracePeriodEnd: schema.gracePeriodEnd,
-    lastCompliantDate: schema.lastCompliantDate,
+  static StreakState fromRecord(Map<String, Object?> record) => StreakState(
+    currentStreak: record['currentStreak']! as int,
+    highestStreak: record['highestStreak']! as int,
+    phase: AdaptationPhase.values.byName(record['phase']! as String),
+    inGracePeriod: record['inGracePeriod']! as bool,
+    gracePeriodEnd: _dateOrNull(record['gracePeriodEnd']),
+    lastCompliantDate: _dateOrNull(record['lastCompliantDate']),
   );
+
+  static DateTime? _dateOrNull(Object? millis) => millis == null
+      ? null
+      : DateTime.fromMillisecondsSinceEpoch(millis as int);
 }

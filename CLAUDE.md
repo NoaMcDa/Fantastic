@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Fantastic** is an all-in-one keto companion app built with Flutter, targeting iOS. It features on-device Hebrew label OCR, keto ratio & electrolyte tracking, adaptation phase tracking, restaurant menu analysis, recipe conversion, a biomarker/symptom diary, and a curated Israeli keto directory.
+**Fantastic** is an all-in-one keto companion app built with Flutter, targeting iOS and the web. It features on-device Hebrew label OCR, keto ratio & electrolyte tracking, adaptation phase tracking, restaurant menu analysis, recipe conversion, a biomarker/symptom diary, and a curated Israeli keto directory.
 
 ## Design Documents
 
@@ -23,12 +23,13 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/m2_preflight.md` | **M2 pre-flight corrections** — riverpod-2 `Ref` types, a `DailyLog.empty` factory that does not exist, and the `DailyLog` dashboard move that M2's text never picked up. Also lists the shipped model fields and repository methods M2 must code against. **Read before picking up any M2 issue** |
 | `design/m2_handoff.md` | **M2 handoff** — M2 shipped and the app became usable; the five conventions M3 inherits (the `pump_app` widget-test harness, date-only family keys held in state, parameters over un-overridable providers); **the RTL traps that cost the most time** (a horizontal `ListView` already starts right; `endToStart` drags *rightward*); Flutter/riverpod gotchas (`Dismissible` vs async delete, `AnimatedCrossFade` keeping both children, `Override` unexported by `flutter_riverpod`); coverage at closure; the gaps M3/M4/M5 inherit. **Read before picking up M3** |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
-| `design/architecture.md` | Layer model, Isar schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
+| `design/architecture.md` | Layer model, persistence schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
 | `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, and the **Error Handling Contract** (repositories throw typed exceptions; §"Why not `Result<T>`" records why that pattern was dropped before M1 — do not reintroduce it) |
 | `design/tests.md` | Testing strategy — pyramid, unit/widget/integration patterns, fixture conventions, CI gate |
 | `design/cicd_plan.md` | **CI/CD plan** — `.github/workflows/ci.yml` runs format, analyze and the full test suite on every PR (Phase 0, shipped). Phase 1 (codegen drift, dependabot) and Phase 2 (the `DA:`-counting coverage gate — `lcov.info` has no `LF:` lines) are next. **Integration/nightly-simulator CI and all fastlane/TestFlight/App Store CD are parked by decision — §7.1 has the entry conditions; do not build them early.** Also carries seven corrections to issue #102's YAML. **Read before touching `.github/`** |
 | `design/technology.md` | Per-feature technology evaluation and full pubspec.yaml dependency list |
 | `design/ui_ux_design.md` | Full RTL/Hebrew UI spec for all screens — colour palette, tab structure, page layouts |
+| `design/web_support.md` | **Web support** — why Isar was replaced by sembast, the store/key layout, the conditional-import factory, the CanvasKit and Hebrew-font notes, and the one known gap |
 | `design/design_system.md` | **Design system handoff** — link to the interactive component canvas (colour, type, spacing, elevation, icons, buttons, inputs, cards, badges, modals), token decisions not covered by `ui_ux_design.md`, and open questions for product/eng |
 | `design/market_search.md` | Competitor analysis and differentiation strategy |
 
@@ -107,6 +108,13 @@ PRs always target `main`. Never commit directly to `main`.
 # Run on iOS simulator
 flutter run
 
+# Run in a browser
+flutter run -d chrome
+
+# Build for web (release). --no-web-resources-cdn bundles CanvasKit locally
+# instead of fetching it from gstatic.com at run time, so the app boots offline.
+flutter build web --release --no-web-resources-cdn
+
 # Run on a specific device
 flutter run -d <device-id>
 
@@ -137,7 +145,7 @@ dart format --output=none --set-exit-if-changed lib/ test/
 # Get/update dependencies
 flutter pub get
 
-# Generate code (Isar schemas, Riverpod, JSON serialisation)
+# Generate code (Riverpod providers — sembast needs no generator)
 # The timeout is deliberate: build_runner finishes in ~1s but never exits, so
 # exit code 124 is success. Verify with `git status` rather than its exit code.
 # --verbose is required — without it a redirected run logs nothing at all.
@@ -159,17 +167,18 @@ Feature-first layered architecture. Each feature lives in `lib/features/<feature
 
 - **presentation/** — Flutter widgets, screens, and Riverpod UI providers
 - **application/** — Use-case services and business logic orchestration (e.g., streak calculation, phase state machine)
-- **domain/** — Pure Dart models and repository interfaces (no Flutter/Isar dependencies)
-- **data/** — Isar schema implementations of domain repositories
+- **domain/** — Pure Dart models and repository interfaces (no Flutter or persistence dependencies)
+- **data/** — sembast document-store implementations of domain repositories
 
 Shared code (constants, utilities, theming) lives in `lib/core/`.
 
 ### Layer Rules — Non-Negotiable
-- No Isar types in `domain/` or `presentation/`
+- No sembast types in `domain/` or `presentation/`
 - No Flutter imports in `application/` or `domain/`
-- No widget reads Isar directly — always through a repository interface
-- No new provider calls Isar directly — always through a service
-- **No Isar error escapes `data/`** — every repository method wraps its storage call in `guardPersistence`, so failures leave as `PersistenceException`. A layer above catching an `IsarError` is the same leak as importing one
+- No widget reads the database directly — always through a repository interface
+- No new provider calls the database directly — always through a service
+- **No storage error escapes `data/`** — every repository method wraps its storage call in `guardPersistence`, so failures leave as `PersistenceException`. A layer above catching a `DatabaseException` is the same leak as importing one
+- **No `dart:io` and no `path_provider` outside `lib/core/database/database_factory_io.dart`** — that file is the web build's only firewall against them, and `flutter analyze` cannot catch a breach. CI's `flutter build web` step is what does
 
 ### Features
 | Feature | Directory |
@@ -199,38 +208,80 @@ Riverpod is the sole state management solution. All providers use `@riverpod` (c
 
 Provider hierarchy:
 ```
-IsarProvider → Repository Providers → Service Providers → UI Providers
+DatabaseProvider → Repository Providers → Service Providers → UI Providers
 ```
 
-Providers are defined in `application/` (services) or `presentation/` (UI state). The one exception is repository wiring, which lives in each feature's `data/providers.dart` — a provider there returns the **domain interface**, never the Isar class, so consumers cannot reach past the abstraction. Never define a provider in `domain/`.
+Providers are defined in `application/` (services) or `presentation/` (UI state). The one exception is repository wiring, which lives in each feature's `data/providers.dart` — a provider there returns the **domain interface**, never the sembast class, so consumers cannot reach past the abstraction. Never define a provider in `domain/`.
 
-**riverpod 3, not 2.** Annotated functions take a bare `Ref` — the generated `XxxRef` types were removed. `isarProvider` is synchronous, so `ref.watch(isarProvider)` yields an `Isar` directly with no `.requireValue`. riverpod 3 also wraps an error thrown by a provider's create function in an internal, non-exported `ProviderException`, so a test asserting on it must match `toString()` rather than the type.
+**riverpod 3, not 2.** Annotated functions take a bare `Ref` — the generated `XxxRef` types were removed. `databaseProvider` is synchronous, so `ref.watch(databaseProvider)` yields a `Database` directly with no `.requireValue`. riverpod 3 also wraps an error thrown by a provider's create function in an internal, non-exported `ProviderException`, so a test asserting on it must match `toString()` rather than the type.
 
 ## Local Persistence
 
-**The package is `isar_community` ^3.3.2, not `isar`.** `import 'package:isar/isar.dart'` does not resolve — the original pins `analyzer <6.0.0` and cannot co-resolve with `riverpod_generator`. `isar_community_flutter_libs` must stay pinned to the same version.
+**The store is `sembast` ^3.8.10, with `sembast_web` ^2.4.6 for the browser.**
+Isar was dropped in the web-support change: `isar_community` 3.3.2's web
+`openIsar()` throws unconditionally — the real implementation is commented out
+upstream — so it can never open in a browser. sembast is pure Dart and runs the
+same repository code on every platform. See `design/web_support.md`.
 
-Offline-first NoSQL storage. Key schemas (all in `data/` layers):
-- `MealEntry` — macros, ingredients, timestamp, image reference
-- `DailyLog` — net carbs, fats, protein, water, electrolytes (Na/K/Mg)
-- `SymptomLog` — energy, mental clarity, hunger, physical symptoms (1–5 scales)
-- `BiomarkerLog` — blood/breath ketones, fasting glucose, body weight
-- `StreakState` — current streak, highest streak, adaptation phase enum, grace period state
-- `RecipeEntry` — converted keto recipes
+Offline-first NoSQL document storage. A record is a plain `Map<String, Object?>`
+in a named store, addressed by an `int` key.
 
-Every collection must be appended to `appIsarSchemas` in `lib/core/database/isar_provider.dart` — the single registration point, which `main.dart` opens at startup — **and** given a registration assertion in `test/core/database/isar_provider_test.dart`.
+| Domain model | Store | Key |
+|---|---|---|
+| `MealEntry` — macros, ingredients, timestamp, image reference | `meals` | sembast auto-increment |
+| `DailyLog` — net carbs, fats, protein, water, electrolytes (Na/K/Mg) | `daily_logs` | `dateIndex(date)` |
+| `SymptomLog` — energy, clarity, hunger, physical, mood (1–5 scales) | `symptom_logs` | `dateIndex(date)` |
+| `StreakState` — current/highest streak, phase, grace-period state | `streak_state` | `StreakStateMapper.singletonId` (0) |
 
-Each schema has a mapper in `data/mappers/`: an `abstract final class XxxMapper` with static `toIsar(domain)` / `toDomain(schema)` and a public `dateIndex(DateTime)` encoding `year * 10000 + month * 100 + day`. `dateIndex` is public because the repository builds its queries with it and must use the same encoding the schema was written with.
+**Keying a one-record-per-day collection on its own date is what makes `save` an
+upsert.** Isar needed `@Index(unique: true)` plus the generated `putByDateIndex`
+accessors to get that; here `store.record(dateIndex).put(...)` addresses the same
+record by construction, and a duplicate is impossible. `DailyLog.id` and
+`SymptomLog.id` therefore carry the yyyyMMdd key, not a generated id.
 
-A `@Index(unique: true)` on `dateIndex` changes how you write: a plain `put` violates the index and **throws** rather than replacing. Use the generated by-index accessors (`putByDateIndex`, `getByDateIndex`, `deleteByDateIndex`) for one-record-per-day collections.
+**Store names are declared next to the repository that owns them** (`mealsStore`
+in `sembast_meal_repository.dart`, and so on) and enumerated in
+`test/core/database/store_names_test.dart`. That test is the successor to the
+`appIsarSchemas` registration assertions and is not optional: sembast creates a
+store on first write, so two features choosing the same name does not fail — it
+silently merges two collections.
 
-Always run `build_runner build` after modifying any file annotated with `@collection`.
+Each model has a codec in `data/mappers/`: an `abstract final class XxxMapper`
+with static `toRecord(domain)` / `fromRecord(key, record)` and a public
+`dateIndex(DateTime)` encoding `year * 10000 + month * 100 + day`. `dateIndex`
+is public because the repository builds its keys and filters with it and must
+use the same encoding the record was written with.
+
+Record values must be JSON-compatible — `null`, `num`, `String`, `bool`, `List`,
+`Map`. Three rules follow, and all three are enforced by the mapper tests:
+
+- **`DateTime` is stored as `millisecondsSinceEpoch`**, never as a `DateTime`
+  (sembast rejects it at write time) and never as an ISO string (a lexicographic
+  sort is only chronological while every record shares one UTC offset).
+- **Enums are stored by `.name`, not by ordinal.** Isar required an ordinal;
+  sembast does not, and a stored ordinal silently reinterprets every existing
+  record the day a value is inserted mid-enum.
+- **Every number is decoded through `num`** — `(record['fatG']! as num).toDouble()`,
+  never `as double`. A whole `40.0` comes back from IndexedDB's JSON as an `int`,
+  and a direct cast throws.
+
+sembast is schemaless: nothing validates a record on the way in, so a codec
+mistake surfaces as a runtime failure on *read*. That is why every `toRecord`
+test asserts the emitted map is sembast-legal.
+
+**The database is opened once, in `main.dart`, and injected.**
+`lib/core/database/database_factory.dart` conditionally exports
+`database_factory_io.dart` (path_provider + `databaseFactoryIo`) or
+`database_factory_web.dart` (`databaseFactoryWeb`, IndexedDB, no path) on
+`dart.library.io`. `databaseProvider` is overridden with the result.
+`build_runner` is still required, but only for `@riverpod` — sembast has no
+generator.
 
 ### Error handling
 
 Repositories **throw**; they do not return a `Result<T>`. `lib/core/error/` holds the sealed hierarchy — `RepositoryException` with `EntityNotFoundException` and `PersistenceException` — plus `guardPersistence` / `guardPersistenceStream`, which every repository method wraps its storage call in.
 
-The guard catches `Object`, not `Exception`, because **`IsarError extends Error`**. An `on Exception` clause silently misses every storage failure. Services let these propagate without catching to convert; presentation reads them as `AsyncValue.error`.
+The guard catches `Object`, not `Exception`. sembast's own `DatabaseException` does implement `Exception`, but the guarded body also holds the codec that decodes the stored record, and a bad cast or a missing key there throws an `Error` — which an `on Exception` clause would miss. Wrapping those too is right: a codec that throws on stored data is itself a persistence-integrity failure. Services let these propagate without catching to convert; presentation reads them as `AsyncValue.error`.
 
 ## OCR & ML
 
@@ -267,15 +318,17 @@ Full testing strategy in `design/tests.md`. Summary:
 |---|---|---|---|
 | `domain/` | Unit — no mocks | `dart test` | 100% public methods |
 | `application/` | Unit — mock interfaces | `dart test` + `mocktail` | 100% public methods |
-| `data/` | Repository contract tests | Real in-memory Isar | Contract suite |
+| `data/` | Repository contract tests | In-memory sembast | Contract suite |
 | `presentation/` | Widget tests | `flutter_test` + provider overrides | Critical paths |
 | Full flows | Integration | `integration_test` on simulator | 7 key flows |
 
 - **CI runs the suite; you do not have to.** Push, open the PR, watch the run, and fix any failure on the same branch — see the Developer Workflow above
 - All fixtures live in `test/fixtures/` — never construct domain objects inline in tests
 - Repository contract tests must pass for every concrete implementation. Each is a top-level factory-parameterised function — `runXxxRepositoryContractTests(factory, {required breakStore})` — so any future backing store runs against the same cases. That is what enforces Liskov at the test level
-- `breakStore` lets a suite make the store fail without knowing what it is; for Isar it closes the instance, producing a real `IsarError` from inside the repository
-- Open a test instance with `openTestIsar([IsarXxxSchema])` — the schema list is required and must not be empty — and close it with `closeTestIsar(isar)`
+- `breakStore` lets a suite make the store fail without knowing what it is; for sembast it closes the database, so the next store access throws a real `DatabaseException` from inside the repository
+- Open a test database with `openTestDatabase()` — no schema list, no native binary — and close it with `closeTestDatabase(db)`. `newDatabaseFactoryMemory()` gives each call its own isolated store
+- The data-layer suite is now pure Dart: no `dart:io`, no `dart:ffi`, no library to dlopen. That makes `flutter test --platform chrome` possible, though CI does not run it yet
+- In a test file that imports both `flutter_test` and `package:sembast/sembast.dart`, **`Finder` is ambiguous** — both packages export one. Prefix the sembast import where you need its `Finder`
 - Beware a fixture whose fields all share one value (`SymptomLogFixture` defaults every scale to 3): a mapper that crosses two fields still passes. Use distinct values where a model has several same-typed fields
 - CI gate: 80% line coverage on `application/` and `domain/` layers
 
@@ -351,6 +404,11 @@ Steps, cheapest first so a formatting slip fails in seconds:
 3. `dart format --output=none --set-exit-if-changed lib/ test/` — zero diffs
 4. `flutter analyze --no-pub` — zero issues
 5. `flutter test --no-pub` — zero failures
+6. `flutter build web --release --no-pub --no-web-resources-cdn` — the web target compiles
+
+Step 6 is not redundant with `analyze`: a stray `dart:io` or `path_provider`
+import outside `lib/core/database/database_factory_io.dart` analyses clean and
+breaks only the web build.
 
 Two things CI checks but does not generate, because it builds what you committed:
 **generated `.g.dart` files** (run `build_runner` and commit) and **`pubspec.lock`**

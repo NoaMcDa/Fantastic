@@ -19,8 +19,8 @@ Milestones are numbered sequentially. Each milestone may only begin when all blo
 
 | Milestone | Label | North Star |
 |---|---|---|
-| M0 | `epic:m0-foundation` | Project skeleton, dependencies, routing, Isar wiring, test infra — the scaffold everything else builds on |
-| M1 | `epic:m1-domain-data` | All domain models, repository interfaces, Isar schemas, mappers, and contract tests — no UI, no services |
+| M0 | `epic:m0-foundation` | Project skeleton, dependencies, routing, database wiring, test infra — the scaffold everything else builds on |
+| M1 | `epic:m1-domain-data` | All domain models, repository interfaces, persistence schemas, mappers, and contract tests — no UI, no services |
 | M2 | `epic:m2-macro-tracker` | Daily meal logging, macro aggregation, keto ratio, and the dashboard/diary UI |
 | M3 | `epic:m3-adaptation` | Adaptation phase state machine, streak engine, push notifications, and phase UI |
 | M4 | `epic:m4-onboarding` | Personalised onboarding flow, macro target calculation, streak seeding |
@@ -75,8 +75,8 @@ One epic label per issue. These map directly to the milestone table above.
 
 | Label | Description |
 |---|---|
-| `epic:m0-foundation` | Project scaffold, deps, routing, Isar init, test infra |
-| `epic:m1-domain-data` | Domain models, repository interfaces, Isar schemas, contract tests |
+| `epic:m0-foundation` | Project scaffold, deps, routing, database init, test infra |
+| `epic:m1-domain-data` | Domain models, repository interfaces, persistence schemas, contract tests |
 | `epic:m2-macro-tracker` | Meal logging, macro tracking, dashboard, diary UI |
 | `epic:m3-adaptation` | Streak engine, phase state machine, notifications, phase UI |
 | `epic:m4-onboarding` | Onboarding flow, macro target calculation, first-launch gate |
@@ -141,10 +141,10 @@ Use this template when opening the tracking issue for a new milestone. One Epic 
 
 > Rules that every issue in this milestone must respect. Violations are grounds for PR rejection.
 
-- [ ] <invariant — e.g., "No Isar types may appear in domain/ or presentation/ layers">
+- [ ] <invariant — e.g., "No sembast types may appear in domain/ or presentation/ layers">
 - [ ] <invariant — e.g., "All new providers use @riverpod code generation; no manual Provider(...) calls">
 - [ ] <invariant — e.g., "Every new repository implementation must pass the shared contract test suite">
-- [ ] <invariant — e.g., "No feature reads Isar directly from a widget or service; always via a repository interface">
+- [ ] <invariant — e.g., "No feature reads the database directly from a widget or service; always via a repository interface">
 
 ---
 

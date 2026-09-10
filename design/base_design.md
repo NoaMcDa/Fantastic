@@ -11,10 +11,10 @@ Every abstraction in Fantastic follows the five SOLID principles. This document 
 Each class owns exactly one reason to change.
 
 ### Repository Interfaces (Domain Layer)
-Each Isar schema gets its own repository interface. A `MealRepository` never touches `StreakState`.
+Each persisted model gets its own repository interface. A `MealRepository` never touches `StreakState`.
 
-Ids are `int?` throughout — Isar's `Id` typedef lives in
-`package:isar_community`, which the domain layer never imports. All methods
+Ids are `int?` throughout — a record key is an `int`, and the domain layer
+imports nothing from the persistence package. All methods
 return plain futures and throw on failure (see **Error Handling Contract**).
 
 ```dart
@@ -52,7 +52,7 @@ abstract interface class StreakRepository {
 An earlier draft of this block differed from the M1 issues in four ways, all
 resolved in favour of the issues except the last:
 
-- `findById(Id id)` / `delete(Id id)` used Isar's `Id` in a domain interface.
+- `findById(Id id)` / `delete(Id id)` used a persistence-package type in a domain interface.
   Now `int`.
 - `DailyLogRepository.upsert` is named `save`, matching every other repository;
   the upsert semantics are documented rather than encoded in the name.
@@ -137,7 +137,7 @@ Any implementation of a repository or service interface must be a drop-in replac
 - `save()` must always return the persisted entity (with a valid `id`).
 - `findByDate()` returns an empty list — never throws — when no records exist.
 - `watch()` streams must emit the current value on subscription.
-- Implementations must never expose Isar-specific types to callers.
+- Implementations must never expose sembast-specific types to callers.
 
 ### Verified via Tests
 Each feature contains an `abstract_repository_contract_test.dart` that runs the same behavioural test suite against every concrete implementation.
@@ -201,16 +201,16 @@ Read-only screens depend only on `DirectoryReader`.
 
 ## D — Dependency Inversion
 
-High-level modules (application layer) depend on abstractions (domain interfaces), not on concrete Isar/Hive implementations (data layer). Wiring happens exclusively at the Riverpod provider level.
+High-level modules (application layer) depend on abstractions (domain interfaces), not on concrete sembast implementations (data layer). Wiring happens exclusively at the Riverpod provider level.
 
 ### Wiring Pattern
 
 ```dart
-// data/providers.dart — only place that knows about Isar
+// data/providers.dart — only place that knows about sembast
 @riverpod
 MealRepository mealRepository(Ref ref) {
-  final isar = ref.watch(isarProvider);
-  return IsarMealRepository(isar);
+  final db = ref.watch(databaseProvider);
+  return SembastMealRepository(db);
 }
 
 // application/providers.dart — depends only on domain interface
@@ -233,22 +233,22 @@ Future<List<MealEntry>> todaysMeals(Ref ref) {
 
 ```
 Presentation  →  Application Service  →  Domain Interface  ←  Data Implementation
-(widgets)        (use-case logic)         (abstract)           (Isar/Hive)
+(widgets)        (use-case logic)         (abstract)           (sembast)
 ```
 
-No arrow ever points left. Widgets never import `isar_meal_repository.dart`.
+No arrow ever points left. Widgets never import `sembast_meal_repository.dart`.
 
 ---
 
 ## Domain Models (Pure Dart)
 
-All domain models are immutable value objects with no Flutter or Isar annotations.
+All domain models are immutable value objects with no Flutter or persistence annotations.
 
 ```dart
 @immutable
 class MealEntry {
-  // `int?`, never Isar's `Id` — `Id` is a typedef from package:isar_community,
-  // and the domain layer imports no Isar. The data layer converts.
+  // `int?` — the record key. The domain layer imports nothing from the
+  // persistence package; the data layer converts.
   final int? id;
   final DateTime timestamp;
   final double fatG;
@@ -319,7 +319,7 @@ catch to convert. Presentation reads them as `AsyncValue.error` from the
 provider that wrapped the call.
 
 ```dart
-// Domain layer — one exception type per failure mode, no Isar/Flutter imports.
+// Domain layer — one exception type per failure mode, no persistence or Flutter imports.
 sealed class RepositoryException implements Exception {
   const RepositoryException(this.message);
   final String message;
