@@ -10,12 +10,14 @@ why the design docs now read as they do.
 via PR #161). `main` passes `flutter analyze` (zero issues), `dart format
 --check` (zero diffs), and **120 tests**, up from 30 at the end of M0.
 
-M1's remaining 14 issues split into two groups by one hard constraint:
+M1's remaining 14 issues are **all unblocked**. An earlier draft of this file
+said #35–#43 were gated on `build_runner`; that was wrong, and the correction is
+under "The `build_runner` hang" below — it works, it just never exits.
 
 | Group | Issues | State |
 |---|---|---|
-| Repository & service interfaces, fixtures | #29, #31, #32, #33, #34, #152 | **Ready now.** Pure Dart, no code generation. Blocked only on the models, which are merged. |
-| Isar schemas, repositories, providers | #35–#43 | **Blocked on `build_runner`** (see Known blockers). |
+| Repository & service interfaces, fixtures | #29, #31, #32, #33, #34, #152 | Pure Dart, no code generation |
+| Isar schemas, repositories, providers | #35–#43 | Code generation required — run it per the recipe below |
 
 What shipped, and where it lives:
 
@@ -93,31 +95,59 @@ awk '/^SF:/{f=substr($0,4); tot=0; hit=0} /^DA:/{split(substr($0,4),a,","); tot+
 
 ---
 
-## Known blockers
+## The `build_runner` hang — it works, it just never exits
 
-**`build_runner` does not complete in the Linux container.** A clean run sits at
-~0.1% CPU for 20+ minutes — blocked, not computing — and produces no output.
-This gates #35–#38 and #43, whose Definitions of Done require committed
-`.g.dart` files.
+**Code generation is not broken.** Verified by deleting
+`lib/core/utils/app_version.g.dart`, re-running the builder, and getting a
+byte-identical file back with a clean `git status`. All builders finish in
+about **one second**.
 
-Before concluding the toolchain is broken, **check for an orphaned
-`build_runner` process holding the build lock**:
+What it does not do is **terminate**. After the build completes it sits in
+`futex_do_wait` indefinitely — ~1.6s of CPU consumed in total, and **zero
+sockets open**, so it is not waiting on the network.
+
+That behaviour is why it looks broken. Running it as
+`dart run build_runner build | tail -8` prints *nothing at all*: `tail` cannot
+emit until the pipe closes, and the pipe never closes. Combined with a process
+showing ~0.1% CPU, it reads as "hung on something" when it is really "finished
+and idling".
+
+**Run it like this:**
 
 ```bash
-ps -eo pid,etime,pcpu,cmd | grep -E 'build_runner|build\.dart\.aot' | grep -v grep
+timeout 120 dart run build_runner build --verbose
+# exit code 124 means the timeout fired — expected, NOT a failure
+git status --short          # confirm the .g.dart files are what you expect
+flutter analyze && flutter test
 ```
 
-A stale run from an earlier command that timed out into the background will
-block every later invocation silently. That accounted for the first ~50 minutes
-of the original investigation. Killing the orphans did not fix the stall on its
-own, so there is a second cause still unidentified — likely a network call the
-agent proxy denies.
+`--verbose` is not optional here: without it the progress output is buffered
+and a redirected run produces an empty log.
+
+Two related notes:
+
+- **`--delete-conflicting-outputs` no longer exists.** build_runner 2.15.1
+  prints `W These options have been removed and were ignored`. `CLAUDE.md`'s
+  Common Commands, `developing_rules.md`, and the Definition of Done on
+  #35–#38 and #43 all still pass it. Harmless, but it is a dead flag.
+- **Watch for orphaned builder processes.** A run left in the background holds
+  the build lock and silently blocks every later invocation:
+  ```bash
+  ps -eo pid,etime,pcpu,cmd | grep -E 'build_runner|build\.dart\.aot' | grep -v grep
+  ```
+  This is a real and separate problem — it cost ~50 minutes once — but it is
+  not the cause of the non-exit above.
+
+## Known blockers
 
 **`flutter run` on an iOS simulator has never been verified.** No macOS host is
 available in this environment. This matters because #154 fixed a bug where the
 app could not launch at all (`Isar.open([])` throwing before `runApp`), and that
 fix is still unconfirmed on a real device. It is also why **Epic #4 is still
 open** — every other item on its checklist is green.
+
+This is now the *only* thing in M1's path that cannot be done from a Linux
+container.
 
 ---
 
@@ -175,4 +205,7 @@ All six are pure Dart and unblocked. Suggested order:
    fixtures take `int?`. Sequence this **before** #39–#42, whose contract suites
    consume the fixtures.
 
-Then M1 stops until `build_runner` is confirmed working.
+Then #35–#43: the Isar schemas, repositories and providers. Nothing gates them
+beyond the ordering their own bodies describe — run code generation per the
+recipe above, and remember that **#35 is the change that turns persistence on**
+by appending the first schema to `appIsarSchemas`.
