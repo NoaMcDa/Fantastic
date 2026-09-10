@@ -1,3 +1,7 @@
+import 'package:fantastic/features/adaptation/application/adaptation_phase_service.dart';
+import 'package:fantastic/features/adaptation/data/providers.dart';
+import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
+import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
 import 'package:fantastic/features/dashboard/application/keto_ratio_calculator.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
 import 'package:fantastic/features/dashboard/data/providers.dart';
@@ -16,9 +20,16 @@ class _MockMealRepository extends Mock implements MealRepository {}
 
 class _MockDailyLogRepository extends Mock implements DailyLogRepository {}
 
+class _MockAdaptationPhaseService extends Mock
+    implements AdaptationPhaseService {}
+
+class _MockStreakRepository extends Mock implements StreakRepository {}
+
 void main() {
   late _MockMealRepository mealRepository;
   late _MockDailyLogRepository dailyLogRepository;
+  late _MockAdaptationPhaseService adaptationPhaseService;
+  late _MockStreakRepository streakRepository;
   late MealLoggingService service;
 
   final date = MealEntryFixture.defaultTimestamp;
@@ -26,15 +37,24 @@ void main() {
   setUpAll(() {
     registerFallbackValue(MealEntryFixture.fixture());
     registerFallbackValue(DailyLogFixture.fixture());
+    registerFallbackValue(DateTime(2026));
+    registerFallbackValue(const StreakState());
   });
 
   setUp(() {
     mealRepository = _MockMealRepository();
     dailyLogRepository = _MockDailyLogRepository();
+    adaptationPhaseService = _MockAdaptationPhaseService();
+    streakRepository = _MockStreakRepository();
+    when(streakRepository.load).thenAnswer((_) async => null);
+    when(() => streakRepository.save(any())).thenAnswer(
+      (invocation) async => invocation.positionalArguments.first as StreakState,
+    );
     service = MealLoggingService(
       mealRepository: mealRepository,
       dailyLogRepository: dailyLogRepository,
       ketoRatioCalculator: const KetoRatioCalculator(),
+      adaptationPhaseService: adaptationPhaseService,
     );
 
     // Default: the save echoes back what it was given, the day holds just that
@@ -50,6 +70,12 @@ void main() {
     when(() => dailyLogRepository.save(any())).thenAnswer(
       (invocation) async => invocation.positionalArguments.first as DailyLog,
     );
+    when(
+      () => adaptationPhaseService.evaluateToday(
+        any(),
+        compliant: any(named: 'compliant'),
+      ),
+    ).thenAnswer((_) async => const StreakState());
   });
 
   /// The `DailyLog` handed to `dailyLogRepository.save`.
@@ -299,6 +325,10 @@ void main() {
         overrides: [
           mealRepositoryProvider.overrideWithValue(mealRepository),
           dailyLogRepositoryProvider.overrideWithValue(dailyLogRepository),
+          // #58 added the state machine to the service's dependencies, and it
+          // reaches databaseProvider through streakRepositoryProvider. Without
+          // this override the container tries to open a real database.
+          streakRepositoryProvider.overrideWithValue(streakRepository),
         ],
       );
       addTearDown(container.dispose);
@@ -328,6 +358,209 @@ void main() {
 
       verify(() => mealRepository.save(any())).called(1);
       verify(() => dailyLogRepository.save(any())).called(1);
+    });
+  });
+
+  // #58: the streak is re-evaluated from the day's totals after every write.
+  // Corrected against design/m3_preflight.md — the issue's own snippet
+  // evaluated unconditionally, which opens a grace period on a fat-only
+  // breakfast (§1.3), and rebuilt the DailyLog without ketoRatioAvg (§4.1).
+  group('streak evaluation', () {
+    /// Today, at a fixed time of day.
+    ///
+    /// The clock has to be read: "is this today" is the whole gate. Pinning
+    /// the time of day keeps everything else deterministic, and the only way
+    /// this is flaky is a run that straddles midnight.
+    DateTime todayAt(int hour) {
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day, hour);
+    }
+
+    /// Makes the day hold exactly [meals], whatever date is queried.
+    void dayHolds(List<MealEntry> meals) =>
+        when(() => mealRepository.findByDate(any())).thenAnswer((_) async {
+          return meals;
+        });
+
+    /// Whether the day was judged compliant.
+    bool judgedCompliant() =>
+        verify(
+              () => adaptationPhaseService.evaluateToday(
+                any(),
+                compliant: captureAny(named: 'compliant'),
+              ),
+            ).captured.single
+            as bool;
+
+    void verifyNotEvaluated() => verifyNever(
+      () => adaptationPhaseService.evaluateToday(
+        any(),
+        compliant: any(named: 'compliant'),
+      ),
+    );
+
+    test('a compliant day is recorded as compliant', () async {
+      // 40 / (2 + 15) = 2.35 — above the 2.0 threshold.
+      final meal = MealEntryFixture.fixture(
+        timestamp: todayAt(12),
+        fatG: 40,
+        netCarbsG: 2,
+        proteinG: 15,
+      );
+      dayHolds([meal]);
+
+      await service.logMeal(meal);
+
+      expect(judgedCompliant(), isTrue);
+    });
+
+    test('a day under the threshold is recorded as a breach', () async {
+      // 10 / (30 + 20) = 0.2.
+      final meal = MealEntryFixture.fixture(
+        timestamp: todayAt(12),
+        fatG: 10,
+        netCarbsG: 30,
+        proteinG: 20,
+      );
+      dayHolds([meal]);
+
+      await service.logMeal(meal);
+
+      expect(judgedCompliant(), isFalse);
+    });
+
+    // Exactly 2.0 is met, not missed — the same boundary convention
+    // ElectrolyteAdvisor uses for its targets.
+    test('exactly the threshold counts as compliant', () async {
+      // 40 / (5 + 15) = 2.0.
+      final meal = MealEntryFixture.fixture(
+        timestamp: todayAt(12),
+        fatG: 40,
+        netCarbsG: 5,
+        proteinG: 15,
+      );
+      dayHolds([meal]);
+
+      await service.logMeal(meal);
+
+      expect(judgedCompliant(), isTrue);
+    });
+
+    // The regression that design/m3_preflight.md §1.3 exists for. A first
+    // meal of pure fat gives `fat / 0`, which KetoRatioCalculator reports as
+    // 0 by design. Evaluating that would breach a perfectly compliant day —
+    // butter coffee, the most ordinary keto morning there is.
+    test('a day with no carbs and no protein is not evaluated', () async {
+      final meal = MealEntryFixture.fixture(
+        timestamp: todayAt(7),
+        fatG: 22,
+        netCarbsG: 0,
+        proteinG: 0,
+      );
+      dayHolds([meal]);
+
+      await service.logMeal(meal);
+
+      verifyNotEvaluated();
+    });
+
+    test('an empty day is not evaluated', () async {
+      dayHolds([]);
+
+      await service.deleteMeal(1, todayAt(12));
+
+      verifyNotEvaluated();
+    });
+
+    // Backdating a diary entry must not rewrite streak history — the state
+    // machine holds one current streak, not a per-day ledger.
+    test('a past day is not evaluated', () async {
+      final meal = MealEntryFixture.fixture(
+        timestamp: DateTime(2026, 1, 2, 12),
+        fatG: 40,
+        netCarbsG: 2,
+        proteinG: 15,
+      );
+      dayHolds([meal]);
+
+      await service.logMeal(meal);
+
+      verifyNotEvaluated();
+    });
+
+    test('deleting a meal re-evaluates the day', () async {
+      dayHolds([
+        MealEntryFixture.fixture(
+          timestamp: todayAt(12),
+          fatG: 10,
+          netCarbsG: 30,
+          proteinG: 20,
+        ),
+      ]);
+
+      await service.deleteMeal(1, todayAt(12));
+
+      expect(judgedCompliant(), isFalse);
+    });
+
+    // The instant matters downstream: handleBreach compares it against the
+    // grace-period expiry, so a midnight-normalised value would judge the
+    // window by its start rather than by when the breach happened.
+    test('the evaluated date keeps its time of day', () async {
+      final at = todayAt(21);
+      final meal = MealEntryFixture.fixture(
+        timestamp: at,
+        fatG: 40,
+        netCarbsG: 2,
+        proteinG: 15,
+      );
+      dayHolds([meal]);
+
+      await service.logMeal(meal);
+
+      final evaluated =
+          verify(
+                () => adaptationPhaseService.evaluateToday(
+                  captureAny(),
+                  compliant: any(named: 'compliant'),
+                ),
+              ).captured.single
+              as DateTime;
+      expect(evaluated, at);
+    });
+
+    // §4.1: the issue's snippet rebuilt DailyLog without ketoRatioAvg, which
+    // MacroSummaryCard reads. Evaluation must not have cost the field.
+    test('the saved log still carries its keto ratio', () async {
+      final meal = MealEntryFixture.fixture(
+        timestamp: todayAt(12),
+        fatG: 40,
+        netCarbsG: 2,
+        proteinG: 15,
+      );
+      dayHolds([meal]);
+
+      await service.logMeal(meal);
+
+      expect(capturedLog().ketoRatioAvg, closeTo(40 / 17, 0.000001));
+    });
+
+    test('a failure in the state machine is not swallowed', () async {
+      final meal = MealEntryFixture.fixture(
+        timestamp: todayAt(12),
+        fatG: 40,
+        netCarbsG: 2,
+        proteinG: 15,
+      );
+      dayHolds([meal]);
+      when(
+        () => adaptationPhaseService.evaluateToday(
+          any(),
+          compliant: any(named: 'compliant'),
+        ),
+      ).thenThrow(Exception('store gone'));
+
+      await expectLater(service.logMeal(meal), throwsA(isA<Exception>()));
     });
   });
 }

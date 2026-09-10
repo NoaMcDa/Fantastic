@@ -1,3 +1,5 @@
+import 'package:fantastic/core/constants/keto_constants.dart';
+import 'package:fantastic/features/adaptation/application/adaptation_phase_service.dart';
 import 'package:fantastic/features/dashboard/application/keto_ratio_calculator.dart';
 import 'package:fantastic/features/dashboard/data/providers.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
@@ -22,6 +24,7 @@ class MealLoggingService {
     required this.mealRepository,
     required this.dailyLogRepository,
     required this.ketoRatioCalculator,
+    required this.adaptationPhaseService,
   });
 
   // Public rather than private: Dart forbids a named parameter whose name
@@ -33,6 +36,7 @@ class MealLoggingService {
   final MealRepository mealRepository;
   final DailyLogRepository dailyLogRepository;
   final KetoRatioCalculator ketoRatioCalculator;
+  final AdaptationPhaseService adaptationPhaseService;
 
   /// Persists [entry] and updates its day's totals. Returns the saved copy,
   /// which carries the assigned id.
@@ -83,6 +87,48 @@ class MealLoggingService {
     );
 
     await dailyLogRepository.save(updated);
+    await _evaluateStreak(date, updated);
+  }
+
+  /// Feeds the day's ratio to the adaptation state machine.
+  ///
+  /// A proxy for end-of-day compliance, as #58 describes: there is no
+  /// background job yet, so the streak is re-evaluated every time the day's
+  /// totals move. [AdaptationPhaseService.recordCompliantDay] is idempotent
+  /// per day, which is what makes a per-meal trigger safe.
+  ///
+  /// Two days are deliberately left alone:
+  ///
+  /// - **Any day but today.** Backdating a diary entry must not rewrite
+  ///   streak history, and it cannot: the state machine holds one current
+  ///   streak, not a per-day ledger.
+  /// - **A day with no carbs and no protein logged.** The ratio is
+  ///   `fat / (netCarbs + protein)`, and [KetoRatioCalculator] returns `0`
+  ///   for a zero denominator — "nothing to divide by", not "a bad day".
+  ///   Treating that 0 as a breach would open a grace period on the most
+  ///   ordinary keto morning there is, a coffee with butter and nothing
+  ///   else. See `design/m3_preflight.md` §1.3.
+  Future<void> _evaluateStreak(DateTime date, DailyLog log) async {
+    if (!_isToday(date)) {
+      return;
+    }
+    if (log.totalNetCarbsG + log.totalProteinG == 0) {
+      return;
+    }
+
+    // The ratio the log already carries, not a second calculation — the two
+    // could otherwise drift and the streak would disagree with the dashboard.
+    await adaptationPhaseService.evaluateToday(
+      date,
+      compliant: log.ketoRatioAvg >= KetoConstants.targetKetoRatioIdeal,
+    );
+  }
+
+  static bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 }
 
@@ -91,4 +137,5 @@ MealLoggingService mealLoggingService(Ref ref) => MealLoggingService(
   mealRepository: ref.watch(mealRepositoryProvider),
   dailyLogRepository: ref.watch(dailyLogRepositoryProvider),
   ketoRatioCalculator: ref.watch(ketoRatioCalculatorProvider),
+  adaptationPhaseService: ref.watch(adaptationPhaseServiceProvider),
 );
