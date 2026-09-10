@@ -1,9 +1,35 @@
+import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/main.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 void main() {
+  testWidgets('sets RTL direction at the app root, inherited by nested '
+      'Scaffolds', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpAndSettle();
+
+    expect(
+      Directionality.of(tester.element(find.text('בית'))),
+      TextDirection.rtl,
+    );
+  });
+
+  testWidgets('applies the dark theme with AppTheme colour tokens', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpAndSettle();
+
+    final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(materialApp.theme!.scaffoldBackgroundColor, AppTheme.primary);
+    expect(materialApp.theme!.colorScheme.primary, AppTheme.accent);
+    expect(materialApp.theme!.colorScheme.surface, AppTheme.surface);
+    expect(materialApp.theme!.colorScheme.error, AppTheme.danger);
+  });
+
   testWidgets('renders the dashboard tab at the initial route', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
     await tester.pumpAndSettle();
