@@ -4,11 +4,15 @@ import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:isar_community/isar.dart';
 import 'package:path_provider/path_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Hebrew month and day names for the dashboard's date header. `DateFormat`
+  // with an explicit locale throws without its symbol data loaded.
+  await initializeDateFormatting('he');
   final db = await openAppIsar();
   runApp(
     ProviderScope(

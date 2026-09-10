@@ -1,10 +1,21 @@
 import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
+import 'package:fantastic/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:fantastic/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+
+/// Which tab the shell currently shows as active.
+///
+/// Read from the `NavigationBar` rather than by counting how many times a tab
+/// label appears. The old count-of-2 assertion relied on each tab's body being
+/// a placeholder whose text happened to equal its label — which stopped being
+/// true the moment #49 replaced the dashboard placeholder with a real screen,
+/// and will stop being true for each remaining tab as M3-M6 replace theirs.
+int activeTabIndex(WidgetTester tester) =>
+    tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex;
 
 void main() {
   testWidgets('sets RTL direction at the app root, inherited by nested '
@@ -35,11 +46,8 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
     await tester.pumpAndSettle();
 
-    // 2 matches for the active tab: the NavigationBar's label plus the
-    // placeholder screen's body. Every other tab's label still shows in
-    // the bar even when inactive, so this is what distinguishes "active"
-    // from "just listed in the tab bar".
-    expect(find.text('בית'), findsNWidgets(2));
+    expect(activeTabIndex(tester), 0);
+    expect(find.byType(DashboardScreen), findsOneWidget);
   });
 
   testWidgets('every one of the 5 tab routes navigates without error', (
@@ -58,10 +66,17 @@ void main() {
       '/profile': 'פרופיל',
     };
 
+    var index = 0;
     for (final entry in routesAndLabels.entries) {
       router.go(entry.key);
       await tester.pumpAndSettle();
-      expect(find.text(entry.value), findsNWidgets(2));
+      expect(
+        activeTabIndex(tester),
+        index,
+        reason: '${entry.key} should activate the ${entry.value} tab',
+      );
+      expect(tester.takeException(), isNull);
+      index++;
     }
   });
 
@@ -140,9 +155,10 @@ void main() {
     router.go('/dashboard');
     await tester.pumpAndSettle();
 
-    // 2 matches means the dashboard tab is active inside the shell — the
-    // redirect landed on '/', not on a second, parallel dashboard route.
-    expect(find.text('בית'), findsNWidgets(2));
+    // The dashboard tab is active inside the shell — the redirect landed on
+    // '/', not on a second, parallel dashboard route.
+    expect(activeTabIndex(tester), 0);
+    expect(find.byType(DashboardScreen), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
   });
 }

@@ -62,6 +62,11 @@ dependencies:
   # App-documents directory lookup, used to open Isar's on-disk store.
   path_provider: ^2.1.5
 
+  # Hebrew date formatting for the dashboard header (#49). Comes in
+  # transitively via flutter_localizations, but `depend_on_referenced_packages`
+  # flags importing a package that is not declared, so it is direct.
+  intl: any
+
   # @immutable for the domain models (#25-#28). Declared directly rather than
   # taken transitively from flutter: `depend_on_referenced_packages` (active
   # via flutter_lints) flags the undeclared import, and the domain layer may
