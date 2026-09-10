@@ -152,11 +152,23 @@ timestamp         date (indexed)    date (indexed)     date (indexed)
 fatG              totalFatG         energyScore 1-5    bloodKetones
 netCarbsG         totalNetCarbsG    clarityScore 1-5   breathKetones
 proteinG          totalProteinG     hungerScore 1-5    fastingGlucose
-calories          waterMl           physicalScore 1-5  bodyWeightKg
-ingredients[]     sodiumMg          moodScore 1-5      notes
-imageRef          potassiumMg       notes
-mealName          magnesiumMg
-ketoRatio         ketoRatioAvg
+ingredients[]     waterMl           physicalScore 1-5  bodyWeightKg
+imageRef          sodiumMg          moodScore 1-5      notes
+mealName          potassiumMg       notes
+                  magnesiumMg
+                  ketoRatioAvg
+```
+
+`MealEntry.ketoRatio` is a **computed getter**, not a stored column — a
+persisted copy can go stale against the macros it was derived from.
+`DailyLog.ketoRatioAvg` *is* stored, because it averages across meals that are
+no longer individually loaded when the dashboard reads the day.
+
+An earlier version of this table listed a `calories` column on `MealEntry`. No
+issue implements it and the MVP tracks fat / net carbs / protein only, so it
+has been dropped rather than left as a field nobody creates.
+
+```
 
 StreakState       RecipeEntry       DirectoryEntry (cached)
 ───────────       ───────────       ───────────────────────
@@ -174,7 +186,7 @@ gracePeriodEnd    savedAt           ketoTips[]
 
 - All schemas live in `data/` — never imported from `domain/` or `presentation/`.
 - Mappers (`IsarMealEntry.toDomain()` / `MealEntry.toIsar()`) live alongside schemas.
-- Collections are opened once in `main.dart` via `Isar.open([...])` and injected via `isarProvider`.
+- Collections are registered in `appIsarSchemas` (`lib/core/database/isar_provider.dart`), opened once in `main.dart`, and injected via `isarProvider`. `main.dart` skips `Isar.open` entirely while that list is empty — Isar rejects an empty schema list, which crashed the app at launch before #154.
 - Queries always use Isar's type-safe query builder, never raw strings.
 
 ---

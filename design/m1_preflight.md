@@ -236,6 +236,58 @@ M0 issues carried a DoD item to stage a file git was ignoring. Fixed by #159.
 
 ---
 
+## 10. Every model and its schema disagree on field names
+
+This is the most damaging class found, because each one compiles as a *mapper*
+error only once both issues have landed — the model issue looks fine on its own,
+and the schema issue looks fine on its own.
+
+The authority is `design/base_design.md` §Domain Models plus
+`architecture.md`'s schema table; both now agree with the model issues
+(#25–#28), so **the schema issues (#35–#38) are the ones that were wrong**:
+
+| Model | Field | Model issue says | Schema issue says | Correct |
+|---|---|---|---|---|
+| `MealEntry` | meal name | `mealName` (#25) | `name` (#35) | **`mealName`** |
+| `MealEntry` | ingredients | `List<String> ingredients` (#25) | *absent* (#35) | **must persist** |
+| `MealEntry` | image | `String? imageRef` (#25) | *absent* (#35) | **must persist** |
+| `DailyLog` | water | `waterMl` (#26) | `totalWaterMl` (#36) | **`waterMl`** |
+| `DailyLog` | avg ratio | `ketoRatioAvg` (#26) | *absent* (#36) | **must persist** |
+| `StreakState` | last compliant day | `lastCompliantDate` (#27) | `lastComplianceDate` (#37) | **`lastCompliantDate`** |
+| `SymptomLog` | 5th scale | `moodScore` (#28) | `brainFogScore` (#38) | **`moodScore`** |
+
+`moodScore` is confirmed four times over — `architecture.md`'s schema table,
+`mvp.md`'s "energy, mental clarity, hunger, mood, physical symptoms",
+`tasks.md`'s explicit field list, and `ui_ux_design.md`'s מצב רוח row. There is
+no brain-fog scale anywhere in the design.
+
+The three "absent" rows are silent data loss, not just a rename: #35's mapper
+never persists `ingredients` or `imageRef`, and #36's never persists
+`ketoRatioAvg`, so a round-trip through the repository would quietly drop them.
+
+## 11. `DailyLog` is a dashboard model, not a diary one
+
+#26 places it at `lib/features/dashboard/domain/models/daily_log.dart`, and
+`architecture.md` agrees. #36 and #43 put its schema and provider under
+`lib/features/diary/`. Dashboard wins: the diary owns individual meals, the
+dashboard owns the per-day aggregate. So `IsarDailyLog`, `DailyLogMapper`,
+`IsarDailyLogRepository` and `dailyLogRepositoryProvider` all live under
+`lib/features/dashboard/data/`.
+
+## 12. Two model issues fail the repo's own issue standard
+
+#26 and #27 have no API contract code block — just a prose sentence listing
+field names. `CLAUDE.md` and `issue_conventions.md` §2 both make a full Dart
+signature mandatory ("An issue missing any of the above is sent back"). They
+were rewritten to include one.
+
+Two smaller defects in the same set: `base_design.md` typed `MealEntry.id` as
+Isar's `Id`, which the domain layer may not import (now `int?`), and #28's
+Objective says the constructor throws `ArgumentError` while its asserts throw
+`AssertionError` — the Testing Requirements had it right.
+
+---
+
 ## Summary — what to fix before starting M1
 
 1. ~~Merge #147, #148 and #154~~ — done, PR #155.

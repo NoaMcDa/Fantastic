@@ -224,13 +224,20 @@ All domain models are immutable value objects with no Flutter or Isar annotation
 ```dart
 @immutable
 class MealEntry {
-  final Id? id;
+  // `int?`, never Isar's `Id` — `Id` is a typedef from package:isar_community,
+  // and the domain layer imports no Isar. The data layer converts.
+  final int? id;
   final DateTime timestamp;
   final double fatG;
   final double netCarbsG;
   final double proteinG;
+  final String mealName;
   final List<String> ingredients;
   final String? imageRef;
+
+  /// Computed, never stored — a persisted copy can go stale against its macros.
+  double get ketoRatio =>
+      (netCarbsG + proteinG) == 0 ? 0 : fatG / (netCarbsG + proteinG);
 
   const MealEntry({...});
   MealEntry copyWith({...});
@@ -238,6 +245,7 @@ class MealEntry {
 
 @immutable
 class DailyLog {
+  final int? id;
   final DateTime date;
   final double totalFatG;
   final double totalNetCarbsG;
@@ -246,6 +254,7 @@ class DailyLog {
   final double sodiumMg;
   final double potassiumMg;
   final double magnesiumMg;
+  final double ketoRatioAvg;
 
   const DailyLog({...});
 }
@@ -257,6 +266,8 @@ class StreakState {
   final AdaptationPhase phase;
   final DateTime? lastCompliantDate;
   final bool inGracePeriod;
+  /// When the 24-hour grace period expires. Null unless [inGracePeriod].
+  final DateTime? gracePeriodEnd;
 
   const StreakState({...});
 }
