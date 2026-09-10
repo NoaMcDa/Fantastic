@@ -107,19 +107,38 @@ abstraction was not decoration, and it paid for itself.
   will not boot offline. `--no-web-resources-cdn` bundles it into the build, and
   the CI step uses that flag. Use it for any deploy.
 
-## 6. Known gap — Hebrew glyphs on web depend on a font download
+## 6. Hebrew glyphs — fixed by bundling the UI face
 
-CanvasKit has no Hebrew glyphs of its own. It fetches Noto Sans Hebrew from
-`fonts.gstatic.com` on first paint. With a working connection this is invisible.
-**Offline, or behind a network that blocks Google Fonts, every Hebrew string
-renders as tofu boxes** — verified in a sandboxed Chromium, where the layout,
-theme, RTL direction and data were all correct and only the glyphs were missing.
+CanvasKit has no Hebrew glyphs of its own. Left to itself, Flutter web fetches
+a Hebrew face from `fonts.gstatic.com` on first paint, so an offline launch —
+or any network that blocks Google Fonts — rendered **every string in the app as
+tofu boxes**. Layout, theme, RTL direction and data were all correct; only the
+glyphs were missing. For a Hebrew-first, offline-first app that is not a
+cosmetic gap, it is the app being unreadable.
 
-The fix is to bundle a Hebrew font as an asset and set `fontFamily` on
-`AppTheme.dark`. That is deliberately **not** in this change: it adds a binary
-asset, changes typography on iOS as well as web, and the font choice belongs to
-`design/ui_ux_design.md` and `design/design_system.md` rather than to a storage
-migration. It should be its own issue.
+**Assistant 400/700 is now bundled** (`assets/fonts/`, ~35 KB per weight,
+Hebrew+Latin subset, SIL OFL 1.1 with the licence vendored beside it), and
+`AppTheme.fontFamily` names it. This implements the choice
+`design/design_system.md` §Typography had already made — it picked Assistant
+for Hebrew/Latin UI text precisely because SF Pro is unavailable outside an
+Apple toolchain — and closes the "font-fallback gap for Hebrew" that document
+lists as an open question.
+
+Two things to know if you touch this:
+
+- **Google Fonts serves subsets, and the default subset has no Hebrew.**
+  Fetching `?family=Assistant:400,700` without `&subset=hebrew` returns a
+  208-codepoint Latin file that looks fine until every Hebrew string is a box.
+  Verify coverage against real UI strings after any font change, not by
+  eyeballing the download.
+- **The static instances Google serves carry `Assistant ExtraLight` in their
+  name table**, an artifact of the variable-font source. It is cosmetic —
+  `usWeightClass` is a correct 400 and 700, and Flutter matches on the `weight:`
+  declared in `pubspec.yaml`, not on the internal name.
+
+Archivo Narrow for tabular numerals, the other half of the design system's
+typography decision, is **not** implemented — that is a type-scale change
+rather than a rendering fix, and belongs to a design-system issue.
 
 ## 7. Verification performed
 
@@ -131,3 +150,5 @@ migration. It should be its own issue.
   flash, `fantastic.db` appears in IndexedDB, zero console errors.
 - **Logged a meal through the UI, hard-reloaded the page, and the meal came
   back** — the actual proof that IndexedDB persistence works end to end.
+- **Hebrew renders**, with `fonts.gstatic.com` still blocked in the sandbox and
+  the page making **zero external requests** — the app is fully self-contained.

@@ -115,10 +115,10 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  # Bundled so the app does not depend on a font download at run time.
+  # The OFL requires the licence to travel with the font.
+  assets:
+    - assets/fonts/OFL.txt
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -126,22 +126,30 @@ flutter:
   # For details regarding adding assets from package dependencies, see
   # https://flutter.dev/to/asset-from-package
 
-  # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
+  # Hebrew is the primary locale, and CanvasKit — the web renderer — ships no
+  # Hebrew glyphs of its own. Unbundled, Flutter web fetches a Hebrew face from
+  # fonts.gstatic.com on first paint, so an offline launch, or any network that
+  # blocks Google Fonts, renders every string in the app as tofu boxes. iOS is
+  # unaffected either way (its system fonts do cover Hebrew), but bundling is
+  # what makes an offline-first app actually work offline, and it gives both
+  # platforms the same typography.
   #
+  # Assistant is the face `design/design_system.md` §Typography already chose
+  # for Hebrew/Latin UI text — see its note on SF Pro being unavailable outside
+  # an Apple toolchain. Archivo Narrow for tabular numerals, the other half of
+  # that decision, is not implemented here; it is a type-scale change rather
+  # than a rendering fix.
+  #
+  # Only 400 and 700 are shipped: they are the only weights the app asks for,
+  # and Flutter snaps any other request to the nearest declared weight.
+  # Hebrew+Latin subset, ~35 KB per weight. SIL OFL 1.1 — assets/fonts/OFL.txt.
+  fonts:
+    - family: Assistant
+      fonts:
+        - asset: assets/fonts/Assistant-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Assistant-Bold.ttf
+          weight: 700
+
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
