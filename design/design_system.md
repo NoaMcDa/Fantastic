@@ -70,10 +70,16 @@ proposed defaults, not settled:
 
 ## Known open questions for product/eng
 
-- **Font licensing**: Archivo Narrow and Assistant are both licensed for
-  app bundling (SIL Open Font License) — confirm before adding to
-  `pubspec.yaml` fonts, or swap for closer SF Pro / SF Pro Rounded
-  system-font equivalents if iOS-only distribution makes that preferable.
+- **Font licensing** — *resolved for Assistant.* It is SIL OFL 1.1, and
+  **Assistant 400/700 is now bundled** in `assets/fonts/` with the licence
+  vendored beside it, named by `AppTheme.fontFamily`. Web support forced the
+  question: CanvasKit carries no Hebrew glyphs, so an unbundled app renders
+  its whole UI as tofu boxes offline (`design/web_support.md` §6). The
+  "swap for SF Pro if iOS-only distribution makes that preferable" option is
+  therefore closed — distribution is no longer iOS-only.
+  **Archivo Narrow (tabular numerals) is still open**: its licence is equally
+  fine, but nothing bundles or applies it yet, and doing so is a type-scale
+  change rather than a rendering fix.
 - **Data-series colours** (macro trio, electrolyte trio) are new and don't
   appear in `ui_ux_design.md` — worth a product sign-off since they'll show
   up on every dashboard chart.

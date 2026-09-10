@@ -340,6 +340,7 @@ Full testing strategy in `design/tests.md`. Summary:
 - Minimum touch target: 44×44pt (Apple HIG)
 - Dark-mode first colour palette — see `design/ui_ux_design.md` for full token list
 - Accent colour: `#F5A623` (keto gold)
+- **Assistant 400/700 is bundled** (`assets/fonts/`) and named by `AppTheme.fontFamily`. This is not optional polish: CanvasKit ships no Hebrew glyphs, so without a bundled family Flutter web downloads one from Google Fonts on first paint and renders the whole UI as tofu boxes offline. When changing fonts, request the **`hebrew` subset** from Google Fonts — the default subset is Latin-only — and verify coverage against real UI strings
 
 ---
 
