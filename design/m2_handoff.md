@@ -143,7 +143,7 @@ reaches the totals and poisons every figure derived from them.
 - **Macro targets are the `KetoConstants` defaults.** M4's onboarding persists
   per-user targets; `MacroSummaryCard` reads the constants until then.
 - **The streak ring slot is empty.** `DashboardScreen` has a comment where M3's
-  `StreakRingWidget` (#64) goes, between the macro card and the meal list.
+  `StreakRingWidget` (#63) goes, between the macro card and the meal list.
 - **`DiaryDayScreen`'s symptom slot is a named placeholder widget**, so M5 (#75–#78)
   swaps it without touching the screen's layout.
 - **`EntityNotFoundException` still has no throw site** (from M1, #177). M2 did not
@@ -175,6 +175,9 @@ Two things to check first, since M2 already knows the answers:
 
 - **`StreakRepository.watch()` exists and emits immediately** (`fireImmediately:
   true`). #59's `streakStateProvider` is specified as a stream watching it.
-- **`AdaptationPhase` is stored as an ordinal** via a mirror enum. Both enums are
-  append-only; the parity tests in `streak_state_mapper_test.dart` fail loudly if
-  they drift.
+- **`AdaptationPhase` is stored by `.name`, not by ordinal.** This paragraph
+  originally said ordinal, via a mirror enum — that was true under Isar. The
+  sembast migration changed it, because a stored ordinal silently reinterprets
+  every existing record the day a value is inserted mid-enum. `StreakStateMapper`
+  writes `.name`; renaming a value is what would orphan stored records, and
+  reordering is safe. See `design/m3_preflight.md` §5.4.
