@@ -25,6 +25,7 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/architecture.md` | Layer model, Isar schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
 | `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, and the **Error Handling Contract** (repositories throw typed exceptions; §"Why not `Result<T>`" records why that pattern was dropped before M1 — do not reintroduce it) |
 | `design/tests.md` | Testing strategy — pyramid, unit/widget/integration patterns, fixture conventions, CI gate |
+| `design/cicd_plan.md` | **CI/CD plan** — the repo has no pipeline today; seven corrections to issue #102's workflow YAML, the `verify`/`codegen` job design, the `DA:`-counting coverage gate (`lcov.info` has no `LF:` lines), fastlane/TestFlight/App Store CD, phased rollout, and the macOS-minute budget. **Read before touching `.github/`** |
 | `design/technology.md` | Per-feature technology evaluation and full pubspec.yaml dependency list |
 | `design/ui_ux_design.md` | Full RTL/Hebrew UI spec for all screens — colour palette, tab structure, page layouts |
 | `design/design_system.md` | **Design system handoff** — link to the interactive component canvas (colour, type, spacing, elevation, icons, buttons, inputs, cards, badges, modals), token decisions not covered by `ui_ux_design.md`, and open questions for product/eng |
