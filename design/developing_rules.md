@@ -135,30 +135,32 @@ flutter test
 
 ---
 
-## Step 5 — Validation & Pre-Commit Verification
+## Step 5 — Validation
 
-Nothing is staged until the full validation suite passes locally. Zero tolerance for committing broken code.
+**CI is the validation gate, not your terminal.** `.github/workflows/ci.yml`
+runs the whole gate on every PR — lockfile freshness, `dart format`,
+`flutter analyze`, `flutter test` — on a pinned Flutter 3.47.3. Its result is
+the authority on whether a change is sound.
+
+You do **not** need to run the suite locally before pushing. Push the branch,
+open the PR, then **wait for CI and read the result**.
 
 ```bash
-# 1. Static analysis — must return zero issues
-flutter analyze
+# 1. Push and open the PR (Steps 6-7).
+# 2. Wait for the run to finish, then read it.
+gh pr checks <pr-number> --watch
+# or: gh run watch
+```
 
-# 2. Format check — must return no diffs
-dart format --output=none --set-exit-if-changed lib/ test/
+### Code generation still runs locally
 
-# 3. Full test suite — must return zero failures
-flutter test
+CI does not run `build_runner`; it checks out what you committed. If any
+`@collection` or `@riverpod` annotation changed, regenerate and commit the
+`.g.dart` files, or CI fails on code that does not compile:
 
-# 4. Test coverage report — confirm domain + application layers ≥ 80%
-flutter test --coverage
-genhtml coverage/lcov.info -o coverage/html
-# Open coverage/html/index.html and verify
-
-# 5. Code generation — if any @collection or @riverpod annotation was changed
+```bash
 timeout 120 dart run build_runner build --verbose
 git status --short   # this is the check, NOT the exit code — see below
-flutter analyze  # re-run after generation
-flutter test     # re-run after generation
 ```
 
 > **`build_runner` finishes in about a second but never exits.** Exit code 124
@@ -169,14 +171,31 @@ flutter test     # re-run after generation
 > does. If it produces nothing at all, check for an orphaned run holding the
 > build lock: `ps -eo pid,etime,cmd | grep build_runner`.
 
-**All five must pass before proceeding. If any fails, fix it — do not skip.**
+`pubspec.lock` is likewise checked, not generated: CI fails if `flutter pub get`
+would rewrite it, so run `flutter pub get` and commit the result whenever
+`pubspec.yaml` changes.
+
+### A red CI run belongs to the issue that caused it
+
+**Fix it on the same branch, in the same PR, under the same issue.** Do not
+open a follow-up issue, do not merge around it, and do not close the issue
+while its PR is red. A failure CI found is part of the work the issue asked
+for — the issue is not done until CI is green.
+
+Push the fix, wait for the new run, and repeat until it passes.
+
+### Running things locally is still allowed
+
+Nothing forbids `flutter analyze` or `flutter test` while you work, and a quick
+local run is often the fastest way to iterate on a specific failing test. What
+changed is that it is **no longer a required step before pushing**, and a local
+pass is **not** evidence a change is sound — only the CI run is.
 
 **Checklist:**
-- [ ] `flutter analyze` — zero issues
-- [ ] `dart format` — zero diffs
-- [ ] `flutter test` — zero failures
-- [ ] Coverage gate met (≥ 80% on domain + application)
-- [ ] `build_runner` re-run if any generated file was touched, and re-validated
+- [ ] Generated files regenerated and committed, if any annotation changed
+- [ ] `pubspec.lock` committed, if `pubspec.yaml` changed
+- [ ] PR opened, and **CI watched to completion**
+- [ ] CI green — every failure fixed on this same branch
 
 ---
 
@@ -338,8 +357,10 @@ These rules are never relaxed, regardless of urgency or scope:
 
 1. **Never commit directly to `main`.** Every change goes through a branch and PR.
 2. **Never skip tests.** A feature without tests is not done.
-3. **Never commit with `flutter analyze` failures.** Fix them first.
-4. **Never use `git add .`** — always stage files explicitly.
-5. **Never merge your own PR without review** — request at least one reviewer.
-6. **Never use `--no-verify`** to bypass hooks.
-7. **One issue per branch, one branch per PR.** No bundling unrelated changes.
+3. **Never leave CI red.** A failing run is fixed on the branch that caused it,
+   in the same PR, under the same issue — never deferred to a follow-up.
+4. **Never mark an issue done on an unfinished CI run.** Wait for the result.
+5. **Never use `git add .`** — always stage files explicitly.
+6. **Never merge your own PR without review** — request at least one reviewer.
+7. **Never use `--no-verify`** to bypass hooks.
+8. **One issue per branch, one branch per PR.** No bundling unrelated changes.

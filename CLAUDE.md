@@ -61,15 +61,12 @@ flutter analyze
 dart format lib/ test/
 
 # 4. Write tests alongside implementation
-flutter test test/features/<feature>/
 
-# 5. Full validation gate — all must pass before committing
-flutter analyze
-dart format --output=none --set-exit-if-changed lib/ test/
-flutter test
-flutter test --coverage
-# if @collection or @riverpod changed:
-timeout 120 dart run build_runner build --verbose && flutter test
+# 5. Regenerate what CI cannot generate for itself
+#    - if @collection or @riverpod changed:
+timeout 120 dart run build_runner build --verbose   # check git status, not exit code
+#    - if pubspec.yaml changed:
+flutter pub get                                      # commit the updated pubspec.lock
 
 # 6. Commit (stage specific files only — never git add .)
 git add <specific files>
@@ -80,7 +77,24 @@ Closes #<n>"
 # 7. Push and open PR
 git push -u origin <branch>
 gh pr create --base main --title "..." --body "..."
+
+# 8. Wait for CI, and fix any failure on this same branch
+gh pr checks <pr-number> --watch
 ```
+
+**CI is the validation gate — do not run the suite locally to qualify a push.**
+`.github/workflows/ci.yml` runs lockfile freshness, `dart format`,
+`flutter analyze` and `flutter test` on every PR, on a pinned Flutter 3.47.3.
+Its result is the authority; a green local terminal is not.
+
+**Always wait for the run to finish, and treat a red run as part of the issue
+that caused it** — push the fix to the same branch, in the same PR, under the
+same issue. Never defer it to a follow-up issue, and never call an issue done
+while its PR is red or its run unfinished.
+
+Running `flutter analyze` or `flutter test` while iterating is still fine and
+often the quickest way to chase one failing test. It is simply no longer a
+required step before pushing.
 
 Branch naming: `feat/issue-<n>-<desc>` · `fix/issue-<n>-<desc>` · `chore/...` · `refactor/...`  
 Commit style: Conventional Commits — `feat(#12): add Hebrew OCR scanner`  
@@ -256,6 +270,7 @@ Full testing strategy in `design/tests.md`. Summary:
 | `presentation/` | Widget tests | `flutter_test` + provider overrides | Critical paths |
 | Full flows | Integration | `integration_test` on simulator | 7 key flows |
 
+- **CI runs the suite; you do not have to.** Push, open the PR, watch the run, and fix any failure on the same branch — see the Developer Workflow above
 - All fixtures live in `test/fixtures/` — never construct domain objects inline in tests
 - Repository contract tests must pass for every concrete implementation. Each is a top-level factory-parameterised function — `runXxxRepositoryContractTests(factory, {required breakStore})` — so any future backing store runs against the same cases. That is what enforces Liskov at the test level
 - `breakStore` lets a suite make the store fail without knowing what it is; for Isar it closes the instance, producing a real `IsarError` from inside the repository
@@ -324,9 +339,25 @@ Every issue carries exactly **3 labels**: one `type:*`, one `layer:*`, one `epic
 
 ### CI workflow
 
-Defined in `.github/workflows/ci.yml` (created as issue #102 — M8). Runs on every PR:
-- `flutter analyze` — zero issues required
-- `dart format --output=none --set-exit-if-changed lib/ test/` — zero diffs required
-- `flutter test --coverage` — 80% line coverage gate on `application/` and `domain/` layers
+`.github/workflows/ci.yml` — **the project's validation gate.** Runs on every PR
+to `main`, on every push to `main`, and on demand via `workflow_dispatch`. Uses a
+pinned Flutter 3.47.3 (the pubspec needs Dart ^3.13.2; older toolchains cannot
+resolve it), and cancels a superseded PR run but never one on `main`.
 
-Integration tests (`integration_test/`) run nightly on an iOS simulator, not per-PR.
+Steps, cheapest first so a formatting slip fails in seconds:
+1. `flutter pub get`
+2. **`pubspec.lock` unchanged** — fails if `pub get` rewrote the committed lockfile
+3. `dart format --output=none --set-exit-if-changed lib/ test/` — zero diffs
+4. `flutter analyze --no-pub` — zero issues
+5. `flutter test --no-pub` — zero failures
+
+Two things CI checks but does not generate, because it builds what you committed:
+**generated `.g.dart` files** (run `build_runner` and commit) and **`pubspec.lock`**
+(run `flutter pub get` and commit).
+
+Coverage is not enforced by the workflow today. The 80% target on `application/`
+and `domain/` (`design/tests.md`) remains a review expectation until a coverage
+step is added.
+
+Integration tests (`integration_test/`) are scoped to run nightly on an iOS
+simulator, not per-PR. That directory does not exist yet (#150).

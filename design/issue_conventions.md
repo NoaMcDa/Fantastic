@@ -326,7 +326,9 @@ co-resolve with `riverpod_generator` (see `design/m0_handoff.md` §1).
 
 - Never manually edit `.g.dart` files
 - Always commit `.g.dart` files alongside the annotated source file in the same PR
-- Re-run `flutter analyze` and `flutter test` after every `build_runner` run before committing
+- Commit the regenerated output — CI checks out generated files rather than
+  building them, so an uncommitted `.g.dart` fails the run on code that does
+  not compile
 
 ---
 
@@ -512,13 +514,15 @@ Every item below must be checked before requesting review:
 - [ ] No commented-out code
 - [ ] All new providers use `@riverpod` code generation
 
-**Validation Gate** (all must pass locally before opening PR)
-- [ ] `flutter analyze` — zero issues
-- [ ] `dart format --output=none --set-exit-if-changed lib/ test/` — zero diffs
-- [ ] `flutter test` — zero failures
-- [ ] `flutter test --coverage` — coverage target met for this layer
-- [ ] `timeout 120 dart run build_runner build --verbose` — no conflicts (if generated files touched)
-- [ ] Re-ran `flutter analyze` and `flutter test` after `build_runner`
+**Validation Gate** (CI is the authority — see `design/pr_conventions.md` §4)
+- [ ] Generated `.g.dart` files regenerated and committed, if any `@collection`
+      or `@riverpod` annotation changed. CI checks them out, it does not build
+      them — judge `build_runner` by `git status`, not its exit code
+- [ ] `pubspec.lock` committed, if `pubspec.yaml` changed — CI fails on a stale one
+- [ ] **CI run watched to completion on the PR** (`gh pr checks <n> --watch`)
+- [ ] **CI green** — every failure fixed on this same branch, in this same PR.
+      A red run is part of this issue, never a follow-up
+- [ ] Coverage target met for this layer (review expectation; not yet a CI step)
 
 **Git & PR**
 - [ ] Branch named `<type>/issue-<number>-<slug>` created from latest `main`

@@ -73,23 +73,41 @@ to the diff.
 
 ---
 
-## 4. Required Validation Gate Before Opening
+## 4. CI Is the Validation Gate
 
-Every command in the validation gate (`design/developing_rules.md` Step 5)
-must pass locally before a PR is opened or marked ready for review:
+**Do not run the gate locally before opening a PR.** `.github/workflows/ci.yml`
+runs it on every pull request against `main`, on a pinned Flutter 3.47.3:
 
-| Command | Must show |
+| CI step | Must show |
 |---|---|
-| `flutter analyze` | Zero issues |
+| `pubspec.lock` freshness | `flutter pub get` does not rewrite the committed lockfile |
 | `dart format --output=none --set-exit-if-changed lib/ test/` | Zero diffs |
-| `flutter test` | Zero failures |
-| `flutter test --coverage` | ≥ 80% line coverage on touched `domain/` and `application/` files |
-| `timeout 120 dart run build_runner build --verbose` (if `@collection` or `@riverpod` changed) | Regenerated `.g.dart` committed. **Judge by `git status`, not the exit code** — build_runner never exits, so `timeout`'s 124 is expected |
+| `flutter analyze --no-pub` | Zero issues |
+| `flutter test --no-pub` | Zero failures |
 
-A PR opened before this gate passes will be closed. This is restated here,
-not just in `developing_rules.md`, because it is a PR-eligibility rule, not
-only a pre-commit habit — CI (`design/issue_conventions.md` §5, wired by
-issue #102) re-runs the same gate and is the final authority once M8 lands.
+Open the PR, then **watch the run to completion** (`gh pr checks <n> --watch`).
+A PR whose CI has not finished is not ready for review, and a green local
+terminal is not a substitute — only the run on the PR counts.
+
+**Two things CI cannot do for you**, because it checks out what you committed
+rather than regenerating it:
+
+- **Generated files.** If any `@collection` or `@riverpod` annotation changed,
+  run `timeout 120 dart run build_runner build --verbose` and commit the
+  `.g.dart` output. Judge it by `git status`, not the exit code — build_runner
+  never exits, so `timeout`'s 124 is expected.
+- **`pubspec.lock`.** Run `flutter pub get` and commit the result whenever
+  `pubspec.yaml` changes, or the lockfile step fails.
+
+### A red run is fixed in the same PR
+
+A CI failure belongs to the issue whose PR is red. Push the fix to the same
+branch, wait for the new run, repeat until green. Never open a follow-up issue
+for it, never merge around it, and never close the issue while its PR is red.
+
+Coverage is not enforced per-PR by the workflow today. The ≥ 80% target on
+`domain/` and `application/` (`design/tests.md`) still stands as a review
+expectation; wire it into CI when a coverage step is added.
 
 Documentation-only and design-canvas-only PRs (§7) are exempt from the
 Flutter-specific rows (analyze, format, test, coverage, build_runner) —
