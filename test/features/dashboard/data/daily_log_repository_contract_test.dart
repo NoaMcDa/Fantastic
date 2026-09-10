@@ -1,3 +1,4 @@
+import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/features/dashboard/data/repositories/isar_daily_log_repository.dart';
 import 'package:fantastic/features/dashboard/data/schemas/isar_daily_log.dart';
 import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
@@ -12,7 +13,10 @@ import '../../../helpers/test_isar.dart';
 /// A top-level function taking a factory rather than a fixed implementation,
 /// so any future backing store runs against these same cases — Liskov
 /// substitution enforced at the test level.
-void runDailyLogRepositoryContractTests(DailyLogRepository Function() factory) {
+void runDailyLogRepositoryContractTests(
+  DailyLogRepository Function() factory, {
+  required Future<void> Function() breakStore,
+}) {
   late DailyLogRepository repo;
 
   setUp(() => repo = factory());
@@ -204,6 +208,55 @@ void runDailyLogRepositoryContractTests(DailyLogRepository Function() factory) {
       expect((await repo.findByDate(date))!.date, date);
     });
   });
+
+  // Every method must surface a storage failure as a typed
+  // PersistenceException rather than letting the backing store's own error
+  // escape — otherwise `application/` and `presentation/` can only handle a
+  // failed write by catching an Isar type, which is the leak the repository
+  // abstraction exists to prevent.
+  group('failure', () {
+    setUp(() async => breakStore());
+
+    test('save throws a PersistenceException', () async {
+      await expectLater(
+        repo.save(DailyLogFixture.fixture()),
+        throwsA(isA<PersistenceException>()),
+      );
+    });
+
+    test('findByDate throws a PersistenceException', () async {
+      await expectLater(
+        repo.findByDate(DailyLogFixture.defaultDate),
+        throwsA(isA<PersistenceException>()),
+      );
+    });
+
+    test('findAll throws a PersistenceException', () async {
+      await expectLater(repo.findAll(), throwsA(isA<PersistenceException>()));
+    });
+
+    test('deleteByDate throws a PersistenceException', () async {
+      await expectLater(
+        repo.deleteByDate(DailyLogFixture.defaultDate),
+        throwsA(isA<PersistenceException>()),
+      );
+    });
+
+    test('the failure names the operation and keeps its cause', () async {
+      await expectLater(
+        repo.findAll(),
+        throwsA(
+          isA<PersistenceException>()
+              .having(
+                (e) => e.message,
+                'message',
+                contains('DailyLogRepository.findAll'),
+              )
+              .having((e) => e.cause, 'cause', isNotNull),
+        ),
+      );
+    });
+  });
 }
 
 void main() {
@@ -213,6 +266,9 @@ void main() {
     setUp(() async => isar = await openTestIsar([IsarDailyLogSchema]));
     tearDown(() async => closeTestIsar(isar));
 
-    runDailyLogRepositoryContractTests(() => IsarDailyLogRepository(isar));
+    runDailyLogRepositoryContractTests(
+      () => IsarDailyLogRepository(isar),
+      breakStore: () => isar.close(),
+    );
   });
 }
