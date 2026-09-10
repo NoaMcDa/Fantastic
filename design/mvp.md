@@ -59,7 +59,7 @@ Everything in the MVP serves one of those two goals. Features that don't serve t
 - Streak counter: compliant days logged consecutively
 - Three phases with day ranges and plain-language descriptions:
   - Phase 1 (Days 1–7): Induction & Keto-Flu Management
-  - Phase 2 (Days 8–28): Fat-Adapted Transition
+  - Phase 2 (Days 8–27): Fat-Adapted Transition
   - Phase 3 (Days 28+): Deep Ketosis
 - Phase state machine: compliant day → advance; breach → grace period (24h) → reset
 - Phase detail screen: what to expect, electrolyte advice for current phase

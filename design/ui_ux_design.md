@@ -201,7 +201,7 @@ Tap → opens an edit sheet to log electrolyte supplement intake.
 #### Phase Progress Timeline
 Vertical stepper:
 - ● Phase 1 (Days 1–7): Induction — current or completed
-- ● Phase 2 (Days 8–28): Fat Adaptation — current or locked
+- ● Phase 2 (Days 8–27): Fat Adaptation — current or locked
 - ● Phase 3 (Days 28+): Deep Ketosis — current or locked
 
 Current phase card is expanded with:

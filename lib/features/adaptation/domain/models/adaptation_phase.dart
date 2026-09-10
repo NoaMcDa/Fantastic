@@ -12,7 +12,7 @@ enum AdaptationPhase {
   /// Days 1–7 — Induction & Keto-Flu Management.
   induction,
 
-  /// Days 8–28 — Fat-Adapted Transition.
+  /// Days 8–27 — Fat-Adapted Transition.
   fatAdapted,
 
   /// Days 28+ — Deep Ketosis & Long-Term Maintenance.
