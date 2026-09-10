@@ -13,36 +13,59 @@ Each class owns exactly one reason to change.
 ### Repository Interfaces (Domain Layer)
 Each Isar schema gets its own repository interface. A `MealRepository` never touches `StreakState`.
 
+Ids are `int?` throughout — Isar's `Id` typedef lives in
+`package:isar_community`, which the domain layer never imports. All methods
+return plain futures and throw on failure (see **Error Handling Contract**).
+
 ```dart
 abstract interface class MealRepository {
   Future<MealEntry> save(MealEntry entry);
-  Future<MealEntry?> findById(Id id);
+  Future<MealEntry?> findById(int id);
   Future<List<MealEntry>> findByDate(DateTime date);
-  Future<void> delete(Id id);
+  Future<List<MealEntry>> findAll();
+  Future<void> delete(int id);
 }
 
 abstract interface class DailyLogRepository {
-  Future<DailyLog> upsert(DailyLog log);
+  Future<DailyLog> save(DailyLog log);          // upsert by date
   Future<DailyLog?> findByDate(DateTime date);
-  Stream<DailyLog?> watchDate(DateTime date);
+  Future<List<DailyLog>> findAll();
+  Future<void> deleteByDate(DateTime date);
 }
 
 abstract interface class SymptomLogRepository {
-  Future<SymptomLog> save(SymptomLog log);
-  Future<List<SymptomLog>> findRange(DateTime from, DateTime to);
-}
-
-abstract interface class BiomarkerLogRepository {
-  Future<BiomarkerLog> save(BiomarkerLog log);
-  Future<List<BiomarkerLog>> findRange(DateTime from, DateTime to);
+  Future<SymptomLog> save(SymptomLog log);      // upsert by date
+  Future<SymptomLog?> findByDate(DateTime date);
+  Future<List<SymptomLog>> findAll();
+  Future<void> deleteByDate(DateTime date);
 }
 
 abstract interface class StreakRepository {
-  Future<StreakState> load();
-  Future<void> save(StreakState state);
-  Stream<StreakState> watch();
+  /// Null before the user's first compliant day — the first-launch sentinel.
+  Future<StreakState?> load();
+  Future<StreakState> save(StreakState state);
+  /// Emits on every write. Required by `streakStateProvider` (#59).
+  Stream<StreakState?> watch();
 }
 ```
+
+An earlier draft of this block differed from the M1 issues in four ways, all
+resolved in favour of the issues except the last:
+
+- `findById(Id id)` / `delete(Id id)` used Isar's `Id` in a domain interface.
+  Now `int`.
+- `DailyLogRepository.upsert` is named `save`, matching every other repository;
+  the upsert semantics are documented rather than encoded in the name.
+- `SymptomLogRepository.findRange(from, to)` is replaced by `findAll()`. MVP
+  data volumes are one record per day, and the diary's date-strip filters in
+  memory; a range query can be added when something needs it.
+- `StreakRepository.watch()` is **kept**, because `streakStateProvider` (#59)
+  is specified as a stream watching this repository. `DailyLogRepository`'s
+  `watchDate` was dropped — the dashboard refreshes by provider invalidation
+  after a meal log, which needs no stream.
+
+`BiomarkerLogRepository` is deferred with biomarker logging to v1.1 and has no
+M1 issue.
 
 ### Service Classes (Application Layer)
 One service per use-case group. Never mix meal-logging logic with adaptation-phase logic.
