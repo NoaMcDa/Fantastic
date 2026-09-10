@@ -1,20 +1,20 @@
 {
   "artboards": [
-    { "file": "Main.dc.html",       "x": 0,    "y": 0,    "w": 1040, "h": 1560, "title": "01 · Color" },
-    { "file": "Typography.dc.html", "x": 1160, "y": 0,    "w": 920,  "h": 1560, "title": "02 · Typography" },
-    { "file": "Spacing.dc.html",    "x": 2200, "y": 0,    "w": 860,  "h": 1560, "title": "03 · Spacing & layout" },
-    { "file": "Elevation.dc.html",  "x": 3180, "y": 0,    "w": 800,  "h": 1560, "title": "04 · Elevation" },
-    { "file": "Icons.dc.html",      "x": 0,    "y": 1720, "w": 1560, "h": 1480, "title": "05 · Iconography" },
-    { "file": "Buttons.dc.html",    "x": 0,    "y": 3360, "w": 1040, "h": 1440, "title": "06 · Buttons" },
-    { "file": "Inputs.dc.html",     "x": 1160, "y": 3360, "w": 960,  "h": 1440, "title": "07 · Inputs" },
-    { "file": "Cards.dc.html",      "x": 2240, "y": 3360, "w": 1000, "h": 1440, "title": "08 · Cards" },
-    { "file": "Badges.dc.html",     "x": 0,    "y": 4960, "w": 880,  "h": 1440, "title": "09 · Badges & progress" },
-    { "file": "Modals.dc.html",     "x": 1000, "y": 4960, "w": 1180, "h": 1440, "title": "10 · Modal states", "is_interactive": true }
+    { "file": "Main.dc.html",       "x": 0,    "y": 0,    "w": 1040, "h": 1700, "title": "01 · Color" },
+    { "file": "Typography.dc.html", "x": 1160, "y": 0,    "w": 920,  "h": 1820, "title": "02 · Typography" },
+    { "file": "Spacing.dc.html",    "x": 2200, "y": 0,    "w": 900,  "h": 1620, "title": "03 · Spacing & layout" },
+    { "file": "Elevation.dc.html",  "x": 3220, "y": 0,    "w": 800,  "h": 1560, "title": "04 · Elevation" },
+    { "file": "Icons.dc.html",      "x": 0,    "y": 1980, "w": 1560, "h": 1480, "title": "05 · Iconography" },
+    { "file": "Buttons.dc.html",    "x": 0,    "y": 3620, "w": 1040, "h": 1440, "title": "06 · Buttons" },
+    { "file": "Inputs.dc.html",     "x": 1160, "y": 3620, "w": 960,  "h": 1440, "title": "07 · Inputs" },
+    { "file": "Cards.dc.html",      "x": 2240, "y": 3620, "w": 1000, "h": 1440, "title": "08 · Cards" },
+    { "file": "Badges.dc.html",     "x": 0,    "y": 5220, "w": 880,  "h": 1440, "title": "09 · Badges & progress" },
+    { "file": "Modals.dc.html",     "x": 1000, "y": 5220, "w": 1180, "h": 1440, "title": "10 · Modal states", "is_interactive": true }
   ],
   "annotations": [
-    { "id": "row-foundation", "x": 0, "y": -120, "w": 420, "text": "Visual foundation — colour, type, spacing and elevation. Every value below is lifted from design/ui_ux_design.md and extended into a full ramp." },
-    { "id": "row-icons", "x": 0, "y": 1600, "w": 420, "text": "Iconography — one 24pt stroke family. Fill is reserved for the selected tab and an active streak." },
-    { "id": "row-components", "x": 0, "y": 3240, "w": 420, "text": "UI library — Hebrew RTL specimens with the spec beside them. Buttons respond to hover and press; the modal board is clickable." }
+    { "id": "row-foundation", "x": 0, "y": -120, "w": 420, "text": "Visual foundation — colour, type, spacing and elevation. Every value is lifted from design/ui_ux_design.md and extended into a full ramp, with measured contrast." },
+    { "id": "row-icons", "x": 0, "y": 1860, "w": 420, "text": "Iconography — one 24pt stroke family. Fill is reserved for the selected tab and an active streak." },
+    { "id": "row-components", "x": 0, "y": 3500, "w": 420, "text": "UI library — Hebrew RTL specimens with the spec beside them. Buttons respond to hover and press; the modal board is clickable." }
   ],
   "launch": { "view": "canvas" }
 }

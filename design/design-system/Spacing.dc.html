@@ -19,15 +19,15 @@
     }
     a { color: #F5A623; text-decoration: none; }
     a:hover { color: #FFBE55; }
-    .mono { font-family: "Archivo Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; }
-    .eyebrow { font-family: "Archivo Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #F5A623; }
+    .mono { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; }
+    .eyebrow { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #F5A623; }
     .sec-t { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(235,235,245,0.45); }
     .rule { flex-grow: 1; height: 1px; background: rgba(235,235,245,0.10); }
     .srow { display: flex; align-items: center; gap: 16px; }
     .stok { width: 96px; font-size: 13px; font-weight: 600; color: rgba(235,235,245,0.85); }
-    .sval { width: 44px; font-family: "Archivo Narrow", "Roboto Condensed", Arial, sans-serif; font-variant-numeric: tabular-nums; font-size: 13px; color: rgba(235,235,245,0.50); }
+    .sval { width: 44px; font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", Arial, sans-serif; font-variant-numeric: tabular-nums; font-size: 13px; color: rgba(235,235,245,0.50); }
     .suse { font-size: 13px; color: rgba(235,235,245,0.42); }
-    .bar { height: 14px; border-radius: 3px; background: #F5A623; }
+    .bar { height: 14px; border-radius: 2px; background: #F5A623; }
   </style>
 </helmet>
 
@@ -45,10 +45,10 @@
       <div class="srow"><div class="stok">space/2</div><div class="sval">2</div><div class="bar" style="width: 2px;"></div><div class="suse">Hairline offsets</div></div>
       <div class="srow"><div class="stok">space/4</div><div class="sval">4</div><div class="bar" style="width: 4px;"></div><div class="suse">Icon-to-label in dense chips</div></div>
       <div class="srow"><div class="stok">space/8</div><div class="sval">8</div><div class="bar" style="width: 8px;"></div><div class="suse">Icon-to-label, chip padding</div></div>
-      <div class="srow"><div class="stok">space/12</div><div class="sval">12</div><div class="bar" style="width: 12px;"></div><div class="suse">Between related rows</div></div>
+      <div class="srow"><div class="stok">space/12</div><div class="sval">12</div><div class="bar" style="width: 12px;"></div><div class="suse">Between cards in a stack</div></div>
       <div class="srow"><div class="stok">space/16</div><div class="sval">16</div><div class="bar" style="width: 16px;"></div><div class="suse">Card inner padding (compact), grid gap</div></div>
       <div class="srow"><div class="stok">space/20</div><div class="sval">20</div><div class="bar" style="width: 20px;"></div><div class="suse">Screen gutter, card inner padding</div></div>
-      <div class="srow"><div class="stok">space/24</div><div class="sval">24</div><div class="bar" style="width: 24px;"></div><div class="suse">Between cards in a stack</div></div>
+      <div class="srow"><div class="stok">space/24</div><div class="sval">24</div><div class="bar" style="width: 24px;"></div><div class="suse">Around a section heading</div></div>
       <div class="srow"><div class="stok">space/32</div><div class="sval">32</div><div class="bar" style="width: 32px;"></div><div class="suse">Between sections</div></div>
       <div class="srow"><div class="stok">space/40</div><div class="sval">40</div><div class="bar" style="width: 40px;"></div><div class="suse">Above a primary CTA</div></div>
       <div class="srow"><div class="stok">space/48</div><div class="sval">48</div><div class="bar" style="width: 48px;"></div><div class="suse">Onboarding block rhythm</div></div>
@@ -58,7 +58,7 @@
 
   <div style="display: flex; flex-direction: column; gap: 14px;">
     <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Corner radius</div><div class="rule"></div></div>
-    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px;">
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px;">
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <div style="height: 68px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.12); border-radius: 8px;"></div>
         <div style="font-size: 13px; font-weight: 600;">radius/sm &middot; <span class="mono">8</span></div>
@@ -73,6 +73,11 @@
         <div style="height: 68px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.12); border-radius: 16px;"></div>
         <div style="font-size: 13px; font-weight: 600;">radius/lg &middot; <span class="mono">16</span></div>
         <div style="font-size: 12.5px; color: rgba(235,235,245,0.42); line-height: 1.35;">Cards</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="height: 68px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.12); border-radius: 20px;"></div>
+        <div style="font-size: 13px; font-weight: 600;">radius/dialog &middot; <span class="mono">20</span></div>
+        <div style="font-size: 12.5px; color: rgba(235,235,245,0.42); line-height: 1.35;">Alerts and confirmations</div>
       </div>
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <div style="height: 68px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.12); border-radius: 24px 24px 0 0;"></div>
@@ -91,9 +96,9 @@
     <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Screen layout</div><div class="rule"></div></div>
     <div style="display: flex; gap: 20px; align-items: stretch;">
       <div dir="rtl" style="width: 232px; flex-shrink: 0; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.12); border-radius: 20px; padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 12px; position: relative;">
-        <div style="position: absolute; top: 0; bottom: 0; right: 0; width: 20px; background: rgba(245,166,35,0.10);"></div>
-        <div style="position: absolute; top: 0; bottom: 0; left: 0; width: 20px; background: rgba(245,166,35,0.10);"></div>
-        <div style="height: 26px; border-radius: 6px; background: rgba(235,235,245,0.10);"></div>
+        <div style="position: absolute; top: 0; bottom: 0; right: 0; width: 20px; background: rgba(245,166,35,0.08);"></div>
+        <div style="position: absolute; top: 0; bottom: 0; left: 0; width: 20px; background: rgba(245,166,35,0.08);"></div>
+        <div style="height: 26px; border-radius: 8px; background: rgba(235,235,245,0.10);"></div>
         <div style="height: 96px; border-radius: 16px; background: #2C2C2E;"></div>
         <div style="height: 72px; border-radius: 16px; background: #2C2C2E;"></div>
         <div style="height: 72px; border-radius: 16px; background: #2C2C2E;"></div>
@@ -113,13 +118,13 @@
   <div style="display: flex; flex-direction: column; gap: 14px;">
     <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Touch targets &amp; RTL</div><div class="rule"></div></div>
     <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
-      <div style="display: flex; gap: 16px; align-items: center; padding: 18px 20px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 14px;">
+      <div style="display: flex; gap: 16px; align-items: center; padding: 18px 20px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
         <div style="width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; border: 1px dashed rgba(245,166,35,0.55); display: flex; align-items: center; justify-content: center;">
-          <div style="width: 20px; height: 20px; border-radius: 5px; background: rgba(235,235,245,0.30);"></div>
+          <div style="width: 20px; height: 20px; border-radius: 4px; background: rgba(235,235,245,0.30);"></div>
         </div>
         <div style="font-size: 13.5px; line-height: 1.55; color: rgba(235,235,245,0.62);"><span style="color: #FFFFFF; font-weight: 600;">44 &times; 44 minimum.</span> A 20px icon keeps its 44pt hit box through invisible padding &mdash; the visual size and the tappable size are separate decisions.</div>
       </div>
-      <div style="display: flex; gap: 16px; align-items: center; padding: 18px 20px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 14px;">
+      <div style="display: flex; gap: 16px; align-items: center; padding: 18px 20px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
         <div style="display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F5A623" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.30)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>

@@ -19,12 +19,12 @@
     }
     a { color: #F5A623; text-decoration: none; }
     a:hover { color: #FFBE55; }
-    .mono { font-family: "Archivo Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; }
-    .eyebrow { font-family: "Archivo Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #F5A623; }
+    .mono { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; }
+    .eyebrow { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #F5A623; }
     .sec-t { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(235,235,245,0.45); }
     .rule { flex-grow: 1; height: 1px; background: rgba(235,235,245,0.10); }
     .ico { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 8px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.08); border-radius: 12px; }
-    .ico-n { font-family: "Archivo Narrow", "Roboto Condensed", Arial, sans-serif; font-size: 12.5px; color: rgba(235,235,245,0.50); text-align: center; }
+    .ico-n { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", Arial, sans-serif; font-size: 12.5px; color: rgba(235,235,245,0.50); text-align: center; }
     .grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px; }
   </style>
 </helmet>
@@ -55,9 +55,9 @@
         <div style="font-size: 15px; font-weight: 700;">Construction</div>
         <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; line-height: 1.5; color: rgba(235,235,245,0.60);">
           <div><span class="mono" style="color: #F5A623;">24 &times; 24</span> canvas, <span class="mono" style="color: #F5A623;">20 &times; 20</span> live area &mdash; the dashed box. Nothing crosses it.</div>
-          <div>Stroke <span class="mono" style="color: #F5A623;">1.75</span>, round caps, round joins, no scaling of stroke with size.</div>
+          <div>Stroke <span class="mono" style="color: #F5A623;">1.75</span> at 20&ndash;28, round caps, round joins. Glyphs drawn small inside a component step up to <span class="mono" style="color: #F5A623;">2&ndash;2.4</span> so the line still reads.</div>
           <div>Inner corners never sharper than <span class="mono" style="color: #F5A623;">2</span>. Diagonals at 45&deg; where the subject allows.</div>
-          <div>Colour is inherited &mdash; every icon paints in <span class="mono" style="color: #F5A623;">currentColor</span>.</div>
+          <div>Every icon ships as <span class="mono" style="color: #F5A623;">currentColor</span> and inherits its colour &mdash; this sheet paints them white to show the shape.</div>
         </div>
       </div>
     </div>
@@ -79,7 +79,7 @@
         </div>
         <div style="width: 1px; align-self: stretch; background: rgba(235,235,245,0.10);"></div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.40)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a2 2 0 0 1-2 2h-3v-6H9v6H6a2 2 0 0 1-2-2z"></path></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.60)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a2 2 0 0 1-2 2h-3v-6H9v6H6a2 2 0 0 1-2-2z"></path></svg>
           <div class="ico-n">inactive</div>
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
@@ -87,7 +87,7 @@
           <div class="ico-n" style="color: #F5A623;">active</div>
         </div>
       </div>
-      <div style="font-size: 13.5px; line-height: 1.55; color: rgba(235,235,245,0.55);">Inactive tabs use text/secondary at 40%, active tabs fill with accent/500. Every icon-only control carries a VoiceOver label in Hebrew &mdash; an icon is never the only name of an action.</div>
+      <div style="font-size: 13.5px; line-height: 1.55; color: rgba(235,235,245,0.55);">Inactive tabs use text/secondary, active tabs fill with accent/500. Every icon-only control carries a VoiceOver label in Hebrew &mdash; an icon is never the only name of an action.</div>
     </div>
 
   </div>
