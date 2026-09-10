@@ -301,3 +301,32 @@ Defined in `.github/workflows/ci.yml` (created as issue #102 — M8). Runs on ev
 - `flutter test --coverage` — 80% line coverage gate on `application/` and `domain/` layers
 
 Integration tests (`integration_test/`) run nightly on an iOS simulator, not per-PR.
+
+### `gh` CLI notes
+
+- `gh project item-add` intermittently times out against the GraphQL endpoint. Never chain it with `gh issue create` using `&&` — a timeout silently skips the issue creation. Run them as separate commands.
+- Create issues strictly sequentially; parallel/background `gh issue create` calls have caused shell parse failures.
+
+---
+
+## Current Status
+
+No application code exists yet beyond the Flutter scaffold (`lib/main.dart`, `pubspec.yaml`, `ios/`, `analysis_options.yaml`). All planning artefacts — design docs, milestones, epics, and the 115 atomic issues — are complete.
+
+**Next up: M0 — Foundation.** Work the issues in this dependency order:
+
+| Order | Issue | Title |
+|---|---|---|
+| 1 | #14 | Add all MVP dependencies to `pubspec.yaml` |
+| 2 | #15 | Configure `build_runner` and verify code generation end-to-end |
+| 3 | #16 | Set up `analysis_options.yaml` with strict linting rules |
+| 4 | #20 | Create `lib/core/constants/` with app-wide constants |
+| 5 | #21 | Open Isar and expose via `isarProvider` in `main.dart` |
+| 6 | #17 | Configure `go_router` with all MVP routes and `ShellRoute` tab bar |
+| 7 | #18 | Implement RTL app root with Hebrew locale and dark theme |
+| 8 | #19 | Build bottom tab bar shell (5 tabs) |
+| 9 | #22 | Scaffold all 7 feature directories with placeholder screens |
+| 10 | #23 | Create `test/fixtures/` with base fixture helpers |
+| 11 | #24 | Create `test/helpers/test_isar.dart` — in-memory Isar helper |
+
+A milestone may only begin once every issue in the previous milestone is closed and `main` is green — see `design/milestone_conventions.md`.
