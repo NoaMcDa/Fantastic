@@ -35,9 +35,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // 2 matches for the active tab: the NavigationBar's label plus the
-    // (interim) screen body. Every other tab's label still shows in the
-    // bar even when inactive, so this is what distinguishes "active" from
-    // "just listed in the tab bar".
+    // placeholder screen's body. Every other tab's label still shows in
+    // the bar even when inactive, so this is what distinguishes "active"
+    // from "just listed in the tab bar".
     expect(find.text('בית'), findsNWidgets(2));
   });
 
@@ -75,4 +75,29 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'the 3 deferred-feature routes (outside the tab shell) render their '
+    'placeholders',
+    (tester) async {
+      await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+      await tester.pumpAndSettle();
+
+      final router = GoRouter.of(tester.element(find.text('בית').first));
+
+      const routesAndLabels = {
+        '/restaurants': 'מסעדות',
+        '/recipe': 'מתכונים',
+        '/directory': 'ספרייה',
+      };
+
+      for (final entry in routesAndLabels.entries) {
+        router.go(entry.key);
+        await tester.pumpAndSettle();
+        // Only 1 match: these routes sit outside the ShellRoute, so no
+        // NavigationBar (and no second, tab-label match) wraps them.
+        expect(find.text(entry.value), findsOneWidget);
+      }
+    },
+  );
 }
