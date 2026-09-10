@@ -1,6 +1,7 @@
 import 'package:fantastic/features/adaptation/data/schemas/isar_streak_state.dart';
 import 'package:fantastic/features/dashboard/data/schemas/isar_daily_log.dart';
 import 'package:fantastic/features/diary/data/schemas/isar_meal_entry.dart';
+import 'package:fantastic/features/diary/data/schemas/isar_symptom_log.dart';
 import 'package:isar_community/isar.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -17,6 +18,7 @@ const List<CollectionSchema<dynamic>> appIsarSchemas = [
   IsarMealEntrySchema,
   IsarDailyLogSchema,
   IsarStreakStateSchema,
+  IsarSymptomLogSchema,
 ];
 
 @Riverpod(keepAlive: true)
