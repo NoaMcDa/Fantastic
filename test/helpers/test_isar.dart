@@ -26,8 +26,15 @@ Future<Isar> openTestIsar(List<CollectionSchema<dynamic>> schemas) async {
 
 /// Closes [isar] and deletes its on-disk files, leaving no leftovers in
 /// the system temp directory.
+///
+/// Safe to call on an instance that is already closed. The repository contract
+/// suites close it themselves to inject a storage failure, and this still runs
+/// afterwards as their `tearDown` — a second `close` would otherwise throw and
+/// mask the test's real result.
 Future<void> closeTestIsar(Isar isar) async {
-  await isar.close(deleteFromDisk: true);
+  if (isar.isOpen) {
+    await isar.close(deleteFromDisk: true);
+  }
 }
 
 /// Path of the Isar Core native binary shipped inside the already-installed

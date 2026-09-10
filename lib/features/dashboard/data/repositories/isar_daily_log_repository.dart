@@ -1,3 +1,4 @@
+import 'package:fantastic/core/error/persistence_guard.dart';
 import 'package:fantastic/features/dashboard/data/mappers/daily_log_mapper.dart';
 import 'package:fantastic/features/dashboard/data/schemas/isar_daily_log.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
@@ -10,43 +11,55 @@ import 'package:isar_community/isar.dart';
 /// unique index on `dateIndex`, so every write goes through the by-index
 /// accessors the generator produced for it. A plain `put` would violate that
 /// index and throw instead of replacing.
+///
+/// Every method is wrapped in [guardPersistence] so a storage failure surfaces
+/// as a `PersistenceException` rather than an `IsarError`.
 class IsarDailyLogRepository implements DailyLogRepository {
   const IsarDailyLogRepository(this._isar);
 
   final Isar _isar;
 
   @override
-  Future<DailyLog> save(DailyLog log) async {
-    final schema = DailyLogMapper.toIsar(log);
-    // Replaces whatever record already holds this date — the
-    // one-record-per-day guarantee, without a read-modify-write cycle. Like
-    // `put`, it writes the resulting id back into `schema` in place, so a log
-    // saved with a null id comes back carrying the row it landed on.
-    await _isar.writeTxn(() => _isar.isarDailyLogs.putByDateIndex(schema));
-    return DailyLogMapper.toDomain(schema);
-  }
+  Future<DailyLog> save(DailyLog log) =>
+      guardPersistence('IsarDailyLogRepository.save', () async {
+        final schema = DailyLogMapper.toIsar(log);
+        // Replaces whatever record already holds this date — the
+        // one-record-per-day guarantee, without a read-modify-write cycle.
+        // Like `put`, it writes the resulting id back into `schema` in place,
+        // so a log saved with a null id comes back carrying the row it landed
+        // on.
+        await _isar.writeTxn(() => _isar.isarDailyLogs.putByDateIndex(schema));
+        return DailyLogMapper.toDomain(schema);
+      });
 
   @override
-  Future<DailyLog?> findByDate(DateTime date) async {
-    final schema = await _isar.isarDailyLogs.getByDateIndex(
-      DailyLogMapper.dateIndex(date),
-    );
-    return schema == null ? null : DailyLogMapper.toDomain(schema);
-  }
+  Future<DailyLog?> findByDate(DateTime date) =>
+      guardPersistence('IsarDailyLogRepository.findByDate', () async {
+        final schema = await _isar.isarDailyLogs.getByDateIndex(
+          DailyLogMapper.dateIndex(date),
+        );
+        return schema == null ? null : DailyLogMapper.toDomain(schema);
+      });
 
   @override
-  Future<List<DailyLog>> findAll() async {
-    final results = await _isar.isarDailyLogs
-        .where()
-        .sortByDateIndexDesc()
-        .findAll();
-    return results.map(DailyLogMapper.toDomain).toList();
-  }
+  Future<List<DailyLog>> findAll() =>
+      guardPersistence('IsarDailyLogRepository.findAll', () async {
+        final results = await _isar.isarDailyLogs
+            .where()
+            .sortByDateIndexDesc()
+            .findAll();
+        return results.map(DailyLogMapper.toDomain).toList();
+      });
 
   /// Idempotent — the generated accessor returns `false` for a date with no
   /// record rather than throwing.
   @override
-  Future<void> deleteByDate(DateTime date) => _isar.writeTxn(
-    () => _isar.isarDailyLogs.deleteByDateIndex(DailyLogMapper.dateIndex(date)),
-  );
+  Future<void> deleteByDate(DateTime date) =>
+      guardPersistence('IsarDailyLogRepository.deleteByDate', () async {
+        await _isar.writeTxn(
+          () => _isar.isarDailyLogs.deleteByDateIndex(
+            DailyLogMapper.dateIndex(date),
+          ),
+        );
+      });
 }

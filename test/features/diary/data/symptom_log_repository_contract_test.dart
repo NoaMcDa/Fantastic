@@ -1,3 +1,4 @@
+import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/features/diary/data/repositories/isar_symptom_log_repository.dart';
 import 'package:fantastic/features/diary/data/schemas/isar_symptom_log.dart';
 import 'package:fantastic/features/diary/domain/repositories/symptom_log_repository.dart';
@@ -13,8 +14,9 @@ import '../../../helpers/test_isar.dart';
 /// so any future backing store runs against these same cases — Liskov
 /// substitution enforced at the test level.
 void runSymptomLogRepositoryContractTests(
-  SymptomLogRepository Function() factory,
-) {
+  SymptomLogRepository Function() factory, {
+  required Future<void> Function() breakStore,
+}) {
   late SymptomLogRepository repo;
 
   setUp(() => repo = factory());
@@ -217,6 +219,55 @@ void runSymptomLogRepositoryContractTests(
       expect((await repo.findByDate(date))!.date, date);
     });
   });
+
+  // Every method must surface a storage failure as a typed
+  // PersistenceException rather than letting the backing store's own error
+  // escape — otherwise `application/` and `presentation/` can only handle a
+  // failed write by catching an Isar type, which is the leak the repository
+  // abstraction exists to prevent.
+  group('failure', () {
+    setUp(() async => breakStore());
+
+    test('save throws a PersistenceException', () async {
+      await expectLater(
+        repo.save(SymptomLogFixture.fixture()),
+        throwsA(isA<PersistenceException>()),
+      );
+    });
+
+    test('findByDate throws a PersistenceException', () async {
+      await expectLater(
+        repo.findByDate(SymptomLogFixture.defaultDate),
+        throwsA(isA<PersistenceException>()),
+      );
+    });
+
+    test('findAll throws a PersistenceException', () async {
+      await expectLater(repo.findAll(), throwsA(isA<PersistenceException>()));
+    });
+
+    test('deleteByDate throws a PersistenceException', () async {
+      await expectLater(
+        repo.deleteByDate(SymptomLogFixture.defaultDate),
+        throwsA(isA<PersistenceException>()),
+      );
+    });
+
+    test('the failure names the operation and keeps its cause', () async {
+      await expectLater(
+        repo.findAll(),
+        throwsA(
+          isA<PersistenceException>()
+              .having(
+                (e) => e.message,
+                'message',
+                contains('SymptomLogRepository.findAll'),
+              )
+              .having((e) => e.cause, 'cause', isNotNull),
+        ),
+      );
+    });
+  });
 }
 
 void main() {
@@ -226,6 +277,9 @@ void main() {
     setUp(() async => isar = await openTestIsar([IsarSymptomLogSchema]));
     tearDown(() async => closeTestIsar(isar));
 
-    runSymptomLogRepositoryContractTests(() => IsarSymptomLogRepository(isar));
+    runSymptomLogRepositoryContractTests(
+      () => IsarSymptomLogRepository(isar),
+      breakStore: () => isar.close(),
+    );
   });
 }

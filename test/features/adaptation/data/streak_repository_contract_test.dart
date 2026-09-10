@@ -1,3 +1,4 @@
+import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/features/adaptation/data/repositories/isar_streak_repository.dart';
 import 'package:fantastic/features/adaptation/data/schemas/isar_streak_state.dart';
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
@@ -14,7 +15,10 @@ import '../../../helpers/test_isar.dart';
 /// A top-level function taking a factory rather than a fixed implementation,
 /// so any future backing store runs against these same cases — Liskov
 /// substitution enforced at the test level.
-void runStreakRepositoryContractTests(StreakRepository Function() factory) {
+void runStreakRepositoryContractTests(
+  StreakRepository Function() factory, {
+  required Future<void> Function() breakStore,
+}) {
   late StreakRepository repo;
 
   setUp(() => repo = factory());
@@ -162,6 +166,49 @@ void runStreakRepositoryContractTests(StreakRepository Function() factory) {
       expect(await repo.watch().first, isNotNull);
     });
   });
+
+  // Every method must surface a storage failure as a typed
+  // PersistenceException rather than letting the backing store's own error
+  // escape — otherwise `application/` and `presentation/` can only handle a
+  // failed write by catching an Isar type, which is the leak the repository
+  // abstraction exists to prevent.
+  group('failure', () {
+    setUp(() async => breakStore());
+
+    test('load throws a PersistenceException', () async {
+      await expectLater(repo.load(), throwsA(isA<PersistenceException>()));
+    });
+
+    test('save throws a PersistenceException', () async {
+      await expectLater(
+        repo.save(StreakStateFixture.initial()),
+        throwsA(isA<PersistenceException>()),
+      );
+    });
+
+    // The stream is the case a future-only guard would miss: a closed store
+    // throws while the stream is being *built*, before any event, and
+    // streakStateProvider (#59) needs that to arrive as AsyncValue.error like
+    // any other failure.
+    test('watch surfaces the failure on the stream', () async {
+      await expectLater(repo.watch(), emitsError(isA<PersistenceException>()));
+    });
+
+    test('the failure names the operation and keeps its cause', () async {
+      await expectLater(
+        repo.load(),
+        throwsA(
+          isA<PersistenceException>()
+              .having(
+                (e) => e.message,
+                'message',
+                contains('StreakRepository.load'),
+              )
+              .having((e) => e.cause, 'cause', isNotNull),
+        ),
+      );
+    });
+  });
 }
 
 void main() {
@@ -171,6 +218,9 @@ void main() {
     setUp(() async => isar = await openTestIsar([IsarStreakStateSchema]));
     tearDown(() async => closeTestIsar(isar));
 
-    runStreakRepositoryContractTests(() => IsarStreakRepository(isar));
+    runStreakRepositoryContractTests(
+      () => IsarStreakRepository(isar),
+      breakStore: () => isar.close(),
+    );
   });
 }

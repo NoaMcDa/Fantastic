@@ -1,3 +1,4 @@
+import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/features/diary/data/repositories/isar_meal_repository.dart';
 import 'package:fantastic/features/diary/data/schemas/isar_meal_entry.dart';
 import 'package:fantastic/features/diary/domain/repositories/meal_repository.dart';
@@ -13,7 +14,10 @@ import '../../../helpers/test_isar.dart';
 /// any future backing store is run against these same cases, which is what
 /// enforces Liskov substitution at the test level. [factory] is called fresh
 /// in `setUp`, after the enclosing group has opened its own storage.
-void runMealRepositoryContractTests(MealRepository Function() factory) {
+void runMealRepositoryContractTests(
+  MealRepository Function() factory, {
+  required Future<void> Function() breakStore,
+}) {
   late MealRepository repo;
 
   setUp(() => repo = factory());
@@ -200,6 +204,56 @@ void runMealRepositoryContractTests(MealRepository Function() factory) {
       expect((await repo.findById(saved.id!))!.imageRef, isNull);
     });
   });
+
+  // Every method must surface a storage failure as a typed
+  // PersistenceException rather than letting the backing store's own error
+  // escape — otherwise `application/` and `presentation/` can only handle a
+  // failed write by catching an Isar type, which is the leak the repository
+  // abstraction exists to prevent.
+  group('failure', () {
+    setUp(() async => breakStore());
+
+    test('save throws a PersistenceException', () async {
+      await expectLater(
+        repo.save(MealEntryFixture.fixture()),
+        throwsA(isA<PersistenceException>()),
+      );
+    });
+
+    test('findById throws a PersistenceException', () async {
+      await expectLater(repo.findById(1), throwsA(isA<PersistenceException>()));
+    });
+
+    test('findByDate throws a PersistenceException', () async {
+      await expectLater(
+        repo.findByDate(MealEntryFixture.defaultTimestamp),
+        throwsA(isA<PersistenceException>()),
+      );
+    });
+
+    test('findAll throws a PersistenceException', () async {
+      await expectLater(repo.findAll(), throwsA(isA<PersistenceException>()));
+    });
+
+    test('delete throws a PersistenceException', () async {
+      await expectLater(repo.delete(1), throwsA(isA<PersistenceException>()));
+    });
+
+    test('the failure names the operation and keeps its cause', () async {
+      await expectLater(
+        repo.findAll(),
+        throwsA(
+          isA<PersistenceException>()
+              .having(
+                (e) => e.message,
+                'message',
+                contains('MealRepository.findAll'),
+              )
+              .having((e) => e.cause, 'cause', isNotNull),
+        ),
+      );
+    });
+  });
 }
 
 void main() {
@@ -209,6 +263,9 @@ void main() {
     setUp(() async => isar = await openTestIsar([IsarMealEntrySchema]));
     tearDown(() async => closeTestIsar(isar));
 
-    runMealRepositoryContractTests(() => IsarMealRepository(isar));
+    runMealRepositoryContractTests(
+      () => IsarMealRepository(isar),
+      breakStore: () => isar.close(),
+    );
   });
 }
