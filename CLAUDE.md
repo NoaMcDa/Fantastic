@@ -242,3 +242,62 @@ Full testing strategy in `design/tests.md`. Summary:
 - Minimum touch target: 44×44pt (Apple HIG)
 - Dark-mode first colour palette — see `design/ui_ux_design.md` for full token list
 - Accent colour: `#F5A623` (keto gold)
+
+---
+
+## GitHub Project Board
+
+**Repository:** `NoaMcDa/Fantastic` · **Project board:** #2
+
+All 115 atomic issues are created, labelled, milestoned, and added to project board #2. Ten Epic tracking issues (#4–#13) pin the milestone scope.
+
+### Issue ranges by milestone
+
+| Milestone | Label | Issues | Count |
+|---|---|---|---|
+| M0 — Foundation | `epic:m0-foundation` | #14–#24 | 11 |
+| M1 — Domain & Data | `epic:m1-domain-data` | #25–#43 | 19 |
+| M2 — Macro Tracker | `epic:m2-macro-tracker` | #44–#56 | 13 |
+| M3 — Adaptation & Streak | `epic:m3-adaptation` | #57–#68 | 12 |
+| M4 — Onboarding | `epic:m4-onboarding` | #69–#74 | 6 |
+| M5 — Symptom Diary | `epic:m5-symptom-diary` | #75–#78 | 4 |
+| M6 — Keto Lens | `epic:m6-keto-lens` | #79–#87 | 9 |
+| M7 — Polish | `epic:m7-polish` | #88–#94 | 7 |
+| M8 — CI & Integration | `epic:m8-ci-integration` | #95–#102 | 8 |
+| v1.1 — Post-MVP | `epic:post-mvp` | #103–#128 | 26 |
+
+### Epic tracking issues
+
+| Epic | Issue |
+|---|---|
+| M0 Foundation | #4 |
+| M1 Domain & Data | #5 |
+| M2 Macro Tracker | #6 |
+| M3 Adaptation & Streak | #7 |
+| M4 Onboarding | #8 |
+| M5 Symptom Diary | #9 |
+| M6 Keto Lens | #10 |
+| M7 Polish | #11 |
+| M8 CI & Integration | #12 |
+| v1.1 Post-MVP | #13 |
+
+### Label taxonomy
+
+**Type labels** (7) — prefix `type:`:
+`type:feat` · `type:fix` · `type:test` · `type:refactor` · `type:chore` · `type:docs` · `type:perf`
+
+**Layer labels** (7) — prefix `layer:`:
+`layer:core` · `layer:domain` · `layer:data` · `layer:application` · `layer:presentation` · `layer:infra` · `layer:test`
+
+**Epic labels** (10) — prefix `epic:` — see milestone table above.
+
+Every issue carries exactly **3 labels**: one `type:*`, one `layer:*`, one `epic:*`.
+
+### CI workflow
+
+Defined in `.github/workflows/ci.yml` (created as issue #102 — M8). Runs on every PR:
+- `flutter analyze` — zero issues required
+- `dart format --output=none --set-exit-if-changed lib/ test/` — zero diffs required
+- `flutter test --coverage` — 80% line coverage gate on `application/` and `domain/` layers
+
+Integration tests (`integration_test/`) run nightly on an iOS simulator, not per-PR.
