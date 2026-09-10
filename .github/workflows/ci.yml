@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same PR makes the in-flight run obsolete. Cancel it, but
+# never cancel a run on main — those are the ones worth having a record of.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: analyze · format · test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned exactly, not a range: this is the version the gate was
+          # verified against, and it ships Dart 3.13.3 — the pubspec requires
+          # `sdk: ^3.13.2`, which anything older cannot satisfy.
+          flutter-version: 3.47.3
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Lockfile is unchanged
+        # pubspec.lock is committed deliberately (#159) so every machine and
+        # this runner resolve identical versions. If `pub get` rewrote it, the
+        # committed lockfile is stale and the run below is not reproducible.
+        run: |
+          if ! git diff --exit-code -- pubspec.lock; then
+            echo "::error file=pubspec.lock::pubspec.lock is stale — run 'flutter pub get' locally and commit the result."
+            exit 1
+          fi
+
+      # Cheapest first: a formatting slip should fail in seconds, not after the
+      # full suite. Each step below re-uses the resolution above via --no-pub.
+      - name: Format
+        run: dart format --output=none --set-exit-if-changed lib/ test/
+
+      - name: Analyze
+        run: flutter analyze --no-pub
+
+      - name: Test
+        # Unit + widget tests only. integration_test/ does not exist yet and is
+        # scoped to run nightly on a macOS simulator, not per-PR (design/tests.md).
+        run: flutter test --no-pub

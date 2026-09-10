@@ -168,9 +168,11 @@ template — no `Test Coverage` section, no `Closes #<n>` line:
   was created — `design/issue_conventions.md` §5 rule 7 prohibits rebasing
   or force-pushing a branch with an open PR. Merge `main` into the branch
   instead.
-- **CI must be green** on the merge commit before merging is allowed, once
-  the CI workflow (issue #102, M8) exists. Until then, the local
-  validation gate (§4) is the enforced gate.
+- **CI must be green** before merging is allowed. `.github/workflows/ci.yml`
+  runs `flutter pub get` (asserting `pubspec.lock` is unchanged), `dart format
+  --set-exit-if-changed`, `flutter analyze` and `flutter test` on every PR
+  targeting `main`. The local validation gate (§4) is now a fast pre-flight,
+  not the only enforcement. See `design/cicd_plan.md`.
 
 ---
 

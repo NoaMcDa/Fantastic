@@ -1,6 +1,11 @@
 # CI/CD Plan
 
-Status: **proposal** — nothing in this document is implemented yet.
+Status: **Phase 0 implemented** (`.github/workflows/ci.yml`); Phases 1–5 proposed.
+
+Revision 2 corrects five things revision 1 got wrong — the Flutter version pin,
+the Isar network dependency, the stale M0 "failing tests" claim, the current
+coverage number, and a companion check that would have failed CI on seven
+declaration-only files. Each is marked **[r2]** where it appears.
 
 ---
 
@@ -16,7 +21,7 @@ pre-commit habit:
 | `flutter analyze` clean | `design/developing_rules.md` §4 | the developer, by hand |
 | `dart format` clean | `design/developing_rules.md` §4 | the developer, by hand |
 | `flutter test` green | `design/developing_rules.md` §4 | the developer, by hand |
-| 80% coverage, `domain/` + `application/` | `design/tests.md` §CI Integration | **nobody — never measured** |
+| 80% coverage, `domain/` + `application/` | `design/tests.md` §CI Integration | nobody — measured for the first time in §5.3 **[r2]** |
 | Codegen up to date | `CLAUDE.md` §Common Commands | the developer, by hand |
 | Integration tests | `design/tests.md` §CI Integration | nobody — none written |
 
@@ -43,8 +48,9 @@ manual checkboxes in `design/tasks.md` under "App Store Submission":
 - [ ] Address beta feedback; submit to App Store
 ```
 
-So: **the answer to "do we have any?" is no — we have one planned CI issue,
-scheduled last, and no CD plan at all.** This document is that plan.
+So: **the answer to "do we have any?" was no — one planned CI issue, scheduled
+last, and no CD plan at all.** This document is that plan. Phase 0 of it has
+since landed; the table above describes the state it replaced.
 
 ---
 
@@ -54,20 +60,28 @@ CI is currently the ~100th issue to be merged. The project is at **M2 of M8**.
 Scheduling the regression gate to arrive after the regressions is backwards, and
 three concrete facts make it worse than a general principle:
 
-1. **Three tests have never been observed passing.** `design/m0_handoff.md`
-   §"Known issues" records that all of `test/helpers/test_isar_test.dart` fails
-   in this environment because `Isar.initializeIsarCore(download: true)` fetches
-   the native engine from `binaries.isar-community.dev`, which the sandbox
-   blocks (403, policy — not transient). A GitHub-hosted runner has unrestricted
-   egress. **The first CI run is the first honest `flutter test` this project has
-   ever had**, and every repository contract test in M1 is built on that helper.
-2. **The coverage gate has never been measured.** 80% on `domain/` +
-   `application/` is asserted in two documents and enforced by nothing. Nobody
-   knows the current number.
+1. **No automated gate has ever run against this repository.** Not once, on
+   any commit, in any milestone. Whatever the local habit has been, nothing has
+   ever mechanically verified it.
+2. **The coverage gate had never been measured** — asserted in two documents,
+   enforced by nothing. §5.3 measures it for the first time. **[r2]**
 3. **The gate is currently vacuous on half its scope.** `lib/` contains
    **zero** files under any `application/` directory (14 under `domain/`). A
    gate written naively against "domain + application" passes today by having
    nothing to measure — see §5.3.
+
+> **[r2] Correction to revision 1.** This section previously argued that three
+> tests in `test/helpers/test_isar_test.dart` had never been observed passing,
+> citing `design/m0_handoff.md` §"Known issues" — which says they fail because
+> `Isar.initializeIsarCore(download: true)` fetches the engine from the
+> sandbox-blocked `binaries.isar-community.dev`. **That note is stale.** The
+> helper was rewritten during M1: `test/helpers/test_isar.dart` now resolves
+> `libisar.so` from the installed `isar_community_flutter_libs` package via
+> `.dart_tool/package_config.json`, and its first test is named *"the Isar Core
+> binary resolves from the installed package, with no network access"*. All
+> **316 tests pass on Linux with no network access and no special setup** —
+> verified before writing §5.1. `m0_handoff.md` should not be trusted on this
+> point.
 
 Bringing analyze/format/test online during M2 costs one afternoon and starts
 paying immediately. The coverage gate and integration tests can still land in
@@ -89,13 +103,15 @@ discovered at 2am.
 | 3 | CI regenerates `.g.dart` before testing | All 10 `.g.dart` files are **committed** and not gitignored | CI should **verify committed codegen is current**, not regenerate it. This is a drift check, and it is strictly more useful |
 | 4 | `very_good_coverage` on `coverage/lcov.info` | This project's lcov output has **no `LF:`/`LH:` summary lines**, only `DA:` records (`design/m1_handoff.md`). An `LF`-based reader computes `0/0` and reports **100% for every file** | Custom `DA:`-counting script (§5.3). A gate that always passes is worse than no gate |
 | 5 | `min_coverage: 80` over the whole report | The stated gate is 80% on **`domain/` + `application/` only**; `data/` and `presentation/` are explicitly excluded (`design/tests.md`) | Filter by path before computing the percentage |
-| 6 | `flutter-version: '3.27.x'` | `pubspec.yaml` requires Dart `^3.13.2`, and `.metadata` pins revision `d3b14c876900e553bc736ca19295fc09e3853e8e` on `stable`. Flutter 3.27 ships Dart 3.6 and **cannot resolve this pubspec** | Pin an exact version matching `.metadata`. Confirm with `flutter --version` on the machine that produced it before writing the number down |
+| 6 | `flutter-version: '3.27.x'` | `pubspec.yaml` requires Dart `^3.13.2`. Flutter 3.27 ships Dart 3.6 and **cannot resolve this pubspec** | Pin **`3.47.3`** exactly — current stable, ships Dart 3.13.3. Verified against this repo **[r2]** |
 | 7 | Three jobs, each installing Flutter | Runner setup (~1–2 min) dominates; `analyze` and `format` take seconds. Three jobs triples the setup cost for a serial gain of nothing | One `verify` job, steps ordered cheapest-first. Split only if per-check status granularity is wanted for branch protection |
 
-An eighth, not a correction but an operational note: **the Isar native binary is
-downloaded from `binaries.isar-community.dev` on every test run.** That is a
-third-party host in the critical path of every CI run. Cache it (§5.4) so an
-outage there does not turn every PR red.
+> **[r2] Revision 1 added an eighth item here** — that the Isar native binary is
+> downloaded from `binaries.isar-community.dev` on every test run, putting a
+> third-party host in CI's critical path, and should be cached. **That is wrong,
+> for the same reason as the correction in §2:** the M1 helper loads the binary
+> out of the pub cache. There is no download, nothing to cache, and no
+> third-party host involved. The step has been dropped from §5.1.
 
 ---
 
@@ -167,9 +183,9 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  # Must match .metadata's pinned revision. See §3 correction 6 — confirm the
-  # exact patch with `flutter --version` before changing this.
-  FLUTTER_VERSION: '3.35.x'
+  # Pinned exactly — the version the gate was verified against. Ships Dart
+  # 3.13.3, satisfying pubspec's `sdk: ^3.13.2`. See §3 correction 6.
+  FLUTTER_VERSION: 3.47.3
 
 jobs:
   verify:
@@ -195,18 +211,6 @@ jobs:
 
       - name: Analyze
         run: flutter analyze --no-pub
-
-      - name: Cache Isar native engine
-        # initializeIsarCore(download: true) pulls libisar from
-        # binaries.isar-community.dev on every run. Cache it so a third-party
-        # outage does not redden every PR. Confirm the emitted path on the
-        # first green run and correct this glob if needed.
-        uses: actions/cache@v4
-        with:
-          path: |
-            libisar*.so
-            .dart_tool/isar*
-          key: isar-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
 
       - name: Test
         run: flutter test --coverage --no-pub
@@ -319,29 +323,65 @@ awk -v min="$MIN" '
 directory yet; without the guard, a future refactor that renames a layer would
 turn the gate into a no-op and nobody would notice.
 
-**Known gap — untested files are invisible.** `flutter test --coverage` emits an
-`SF:` record only for files some test imports. A `domain/` file with no test at
-all does not appear in `lcov.info` and therefore cannot drag the percentage
-down. Close it with a companion check:
+**The number today, measured. [r2]** Running the script above against a real
+`flutter test --coverage` run on this repo:
 
-```bash
-# Every gated source file must appear in the report.
-comm -23 \
-  <(find lib -path '*/domain/*' -o -path '*/application/*' | grep -v '\.g\.dart$' | sort) \
-  <(grep '^SF:' coverage/lcov.info | cut -c4- | sort) \
-  | grep . && { echo "::error::Files above have no coverage record — no test imports them."; exit 1; } || true
+```
+Gated coverage (domain + application): 155/155 = 100.00%
 ```
 
-Land this as part of Phase 2, once M2 has produced enough `application/` code
-for the number to mean something. Enabling an 80% gate against 14 domain files
-today mostly measures fixture quality.
+155 executable lines, all covered. Two things follow. First, an 80% gate would
+pass today with 20 points of headroom — it costs nothing to turn on, but it also
+proves nothing yet, because `application/` is empty and 155 lines of pure domain
+models are the easiest code in the project to cover. Second, **the number will
+fall** the moment M2 lands real services. That is the point at which the gate
+starts doing work, which is why Phase 2 is scheduled there and not now.
+
+**Known gap — untested files are invisible.** `flutter test --coverage` emits an
+`SF:` record only for files some test imports. A file with no test at all does
+not appear in `lcov.info` and so cannot drag the percentage down.
+
+**[r2] Revision 1 proposed a companion check for this. As written it fails CI
+on seven false positives.** Run against the repo today it flags:
+
+```
+lib/features/adaptation/domain/models/adaptation_phase.dart
+lib/features/adaptation/domain/repositories/streak_repository.dart
+lib/features/dashboard/domain/repositories/daily_log_repository.dart
+lib/features/diary/domain/repositories/meal_repository.dart
+lib/features/diary/domain/repositories/symptom_log_repository.dart
+lib/features/keto_lens/domain/services/ingredient_classifier.dart
+lib/features/keto_lens/domain/services/label_parser.dart
+```
+
+All seven are **declaration-only** — five `abstract interface class`
+definitions, one bare `enum`, one more interface. They contain no executable
+statements, so lcov is right to emit no record for them and there is nothing a
+test could cover. The check cannot distinguish "untested" from "nothing to
+test" using `lcov.info` alone, because both produce exactly the same absence.
+
+So the gap is real in principle but has **no live victims today**. Fix it in
+Phase 2 with an explicit ignore list rather than by inference:
+
+```bash
+# tool/coverage_ignore.txt — declaration-only files, reviewed on each addition.
+comm -23 \
+  <(find lib \( -path '*/domain/*' -o -path '*/application/*' \) -type f -name '*.dart' \
+      ! -name '*.g.dart' | sort) \
+  <(cat <(grep '^SF:' coverage/lcov.info | cut -c4-) tool/coverage_ignore.txt | sort) \
+  | grep . && { echo "::error::Files above have no coverage record and are not on the ignore list."; exit 1; } || true
+```
+
+An ignore list is reviewable in a diff; an inference is not. Note the
+revision-1 snippet also had a shell bug — the unparenthesised
+`-path A -o -path B` binds so that `-type`/`-name` filters apply to only one
+branch, which is why bare directories appeared in its output.
 
 ### 5.4 Caching
 
 | What | Key | Saves |
 |---|---|---|
 | Flutter SDK + pub cache | `subosito/flutter-action`'s `cache: true` | ~90s/run |
-| Isar native engine | `pubspec.lock` hash | ~10s + removes a third-party host from the critical path |
 | `.dart_tool/build` | `pubspec.lock` hash, `codegen` job only | minutes on a cold builder cache |
 
 ### 5.5 Branch protection
@@ -487,7 +527,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.x'
+          flutter-version: 3.47.3
           channel: stable
           cache: true
 
@@ -538,7 +578,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
-        with: { flutter-version: '3.35.x', channel: stable, cache: true }
+        with: { flutter-version: 3.47.3, channel: stable, cache: true }
       - run: flutter pub get
       - name: Boot simulator
         run: |
@@ -575,7 +615,7 @@ per `design/issue_conventions.md` §atomicity.
 
 | Phase | When | Contents | Proposed issues |
 |---|---|---|---|
-| **0** | **Now (during M2)** | `ci.yml` `verify` job: analyze, format, test. No coverage gate yet. Branch protection on. | Re-scope **#102**, pull out of M8 |
+| **0** | ✅ **done** | `ci.yml` `verify` job: lockfile check, format, analyze, test. No coverage gate yet. Branch protection still to enable. | Re-scope **#102**, pull out of M8 |
 | **1** | Now + 1 | `codegen` drift job; Isar binary cache; `dependabot.yml` for `pub` + `github-actions` | new |
 | **2** | M4–M5, once `application/` has real services | `tool/check_coverage.sh`, gate at 80%, missing-file check; ratchet the number up as it rises | new |
 | **3** | M8, after #95–#101 land | `integration.yml` nightly on simulator | new, alongside **#150** |
@@ -638,9 +678,26 @@ work to Codemagic's free tier and keep Linux CI on GitHub. Decide before Phase 3
 
 ## 10. Verification status
 
-Nothing in this document has been executed. Flutter is not installed in this
-container (`design/m0_handoff.md` §"Notes for a fresh session"), and the YAML
-here has never been run by GitHub Actions. It is written against the repository
-as it stands and against the corrections recorded in the M0/M1 handoffs, but the
-first run of Phase 0 will find something — expect the Flutter version pin and
-the Isar cache path (§5.4) to be the two most likely to need adjusting.
+**Phase 0 — verified locally. [r2]** Flutter 3.47.3 was installed in this
+container and every command in `.github/workflows/ci.yml` was run against this
+repository, in workflow order:
+
+| Step | Result |
+|---|---|
+| `flutter pub get` | resolved; `pubspec.lock` unchanged (the lockfile guard passes) |
+| `dart format --output=none --set-exit-if-changed lib/ test/` | `Formatted 93 files (0 changed)`, exit 0 |
+| `flutter analyze --no-pub` | `No issues found!` in 14.0s, exit 0 |
+| `flutter test --no-pub` | **316/316 passed**, exit 0, ~14s |
+| `flutter test --coverage --no-pub` | exit 0; gated coverage 155/155 = 100% |
+
+What that does **not** prove: no GitHub Actions runner has executed this file.
+`subosito/flutter-action@v2`, the SDK cache, and the runner image are untested
+here, and the local run was as root on Linux rather than as the runner user.
+The residual risk is in the action wiring, not in the commands — those are now
+known-good against this exact tree. Opening one pull request is what closes it.
+
+**Phases 1–5 remain unexecuted**, and the iOS half of §6 is more speculative
+than the rest: no macOS host has ever built this app (`design/m1_handoff.md`
+§"Known blockers"), and `ios/` still has no `Podfile`. Expect the first
+`testflight.yml` run to surface Podfile and entitlement problems rather than
+pipeline problems.
