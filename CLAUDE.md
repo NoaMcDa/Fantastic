@@ -19,11 +19,11 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/milestone_conventions.md` | **Milestone/Epic standard** — scope discipline, MVP boundary, epic template, closure conditions, label taxonomy |
 | `design/m0_handoff.md` | **M0 closing handoff** — what shipped, seven corrections the M0 issue text got wrong (read before trusting a closed issue), known failing tests, environment setup notes, loose ends, M1 starting points |
 | `design/m1_preflight.md` | **M1 pre-flight corrections** — eight things the M1 issue text (#25–#43) gets wrong: wrong Isar package, lint-failing imports, a non-compiling `Isar.open` snippet, repository cross-references off by two, a feature directory that does not exist. **Read before picking up any M1 issue** |
-| `design/m1_handoff.md` | **M1 progress handoff** — M1's domain layer is merged, its data layer (#35–#43) is not; the five conventions every later issue inherits; three gotchas (`const` canonicalisation in equality tests, `lcov` with no `LF:` lines, `build_runner` completing but never exiting) |
+| `design/m1_handoff.md` | **M1 handoff** — M1 is code-complete; the ten conventions every later issue inherits; the data-layer decisions M2 needs (unique-index writes, the singleton streak row, enum ordinal storage); typed repository failures; gotchas (`const` canonicalisation in equality tests, all-neutral fixtures hiding cross-wiring, `lcov` with no `LF:` lines, `build_runner` completing but never exiting). **Read before picking up M2** |
 | `design/m2_preflight.md` | **M2 pre-flight corrections** — riverpod-2 `Ref` types, a `DailyLog.empty` factory that does not exist, and the `DailyLog` dashboard move that M2's text never picked up. Also lists the shipped model fields and repository methods M2 must code against. **Read before picking up any M2 issue** |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
 | `design/architecture.md` | Layer model, Isar schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
-| `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, Result<T> pattern |
+| `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, and the **Error Handling Contract** (repositories throw typed exceptions; §"Why not `Result<T>`" records why that pattern was dropped before M1 — do not reintroduce it) |
 | `design/tests.md` | Testing strategy — pyramid, unit/widget/integration patterns, fixture conventions, CI gate |
 | `design/technology.md` | Per-feature technology evaluation and full pubspec.yaml dependency list |
 | `design/ui_ux_design.md` | Full RTL/Hebrew UI spec for all screens — colour palette, tab structure, page layouts |
@@ -153,6 +153,7 @@ Shared code (constants, utilities, theming) lives in `lib/core/`.
 - No Flutter imports in `application/` or `domain/`
 - No widget reads Isar directly — always through a repository interface
 - No new provider calls Isar directly — always through a service
+- **No Isar error escapes `data/`** — every repository method wraps its storage call in `guardPersistence`, so failures leave as `PersistenceException`. A layer above catching an `IsarError` is the same leak as importing one
 
 ### Features
 | Feature | Directory |
@@ -185,11 +186,15 @@ Provider hierarchy:
 IsarProvider → Repository Providers → Service Providers → UI Providers
 ```
 
-Providers are defined in `application/` (services) or `presentation/` (UI state). Never define a provider in `domain/` or `data/`.
+Providers are defined in `application/` (services) or `presentation/` (UI state). The one exception is repository wiring, which lives in each feature's `data/providers.dart` — a provider there returns the **domain interface**, never the Isar class, so consumers cannot reach past the abstraction. Never define a provider in `domain/`.
+
+**riverpod 3, not 2.** Annotated functions take a bare `Ref` — the generated `XxxRef` types were removed. `isarProvider` is synchronous, so `ref.watch(isarProvider)` yields an `Isar` directly with no `.requireValue`. riverpod 3 also wraps an error thrown by a provider's create function in an internal, non-exported `ProviderException`, so a test asserting on it must match `toString()` rather than the type.
 
 ## Local Persistence
 
-Isar for offline-first NoSQL storage. Key schemas (all in `data/` layers):
+**The package is `isar_community` ^3.3.2, not `isar`.** `import 'package:isar/isar.dart'` does not resolve — the original pins `analyzer <6.0.0` and cannot co-resolve with `riverpod_generator`. `isar_community_flutter_libs` must stay pinned to the same version.
+
+Offline-first NoSQL storage. Key schemas (all in `data/` layers):
 - `MealEntry` — macros, ingredients, timestamp, image reference
 - `DailyLog` — net carbs, fats, protein, water, electrolytes (Na/K/Mg)
 - `SymptomLog` — energy, mental clarity, hunger, physical symptoms (1–5 scales)
@@ -197,8 +202,19 @@ Isar for offline-first NoSQL storage. Key schemas (all in `data/` layers):
 - `StreakState` — current streak, highest streak, adaptation phase enum, grace period state
 - `RecipeEntry` — converted keto recipes
 
-Always run `build_runner build` after modifying any file annotated with `@collection`.  
-Each schema has a domain mapper (`IsarXxx.toDomain()` / `Xxx.toIsar()`) that lives alongside the schema file.
+Every collection must be appended to `appIsarSchemas` in `lib/core/database/isar_provider.dart` — the single registration point, which `main.dart` opens at startup — **and** given a registration assertion in `test/core/database/isar_provider_test.dart`.
+
+Each schema has a mapper in `data/mappers/`: an `abstract final class XxxMapper` with static `toIsar(domain)` / `toDomain(schema)` and a public `dateIndex(DateTime)` encoding `year * 10000 + month * 100 + day`. `dateIndex` is public because the repository builds its queries with it and must use the same encoding the schema was written with.
+
+A `@Index(unique: true)` on `dateIndex` changes how you write: a plain `put` violates the index and **throws** rather than replacing. Use the generated by-index accessors (`putByDateIndex`, `getByDateIndex`, `deleteByDateIndex`) for one-record-per-day collections.
+
+Always run `build_runner build` after modifying any file annotated with `@collection`.
+
+### Error handling
+
+Repositories **throw**; they do not return a `Result<T>`. `lib/core/error/` holds the sealed hierarchy — `RepositoryException` with `EntityNotFoundException` and `PersistenceException` — plus `guardPersistence` / `guardPersistenceStream`, which every repository method wraps its storage call in.
+
+The guard catches `Object`, not `Exception`, because **`IsarError extends Error`**. An `on Exception` clause silently misses every storage failure. Services let these propagate without catching to convert; presentation reads them as `AsyncValue.error`.
 
 ## OCR & ML
 
@@ -240,7 +256,10 @@ Full testing strategy in `design/tests.md`. Summary:
 | Full flows | Integration | `integration_test` on simulator | 7 key flows |
 
 - All fixtures live in `test/fixtures/` — never construct domain objects inline in tests
-- Repository contract tests (`runXxxRepositoryContractTests`) must pass for every concrete implementation
+- Repository contract tests must pass for every concrete implementation. Each is a top-level factory-parameterised function — `runXxxRepositoryContractTests(factory, {required breakStore})` — so any future backing store runs against the same cases. That is what enforces Liskov at the test level
+- `breakStore` lets a suite make the store fail without knowing what it is; for Isar it closes the instance, producing a real `IsarError` from inside the repository
+- Open a test instance with `openTestIsar([IsarXxxSchema])` — the schema list is required and must not be empty — and close it with `closeTestIsar(isar)`
+- Beware a fixture whose fields all share one value (`SymptomLogFixture` defaults every scale to 3): a mapper that crosses two fields still passes. Use distinct values where a model has several same-typed fields
 - CI gate: 80% line coverage on `application/` and `domain/` layers
 
 ## UI & Localisation
@@ -265,7 +284,7 @@ All 115 atomic issues are created, labelled, milestoned, and added to project bo
 | Milestone | Label | Issues | Count |
 |---|---|---|---|
 | M0 — Foundation | `epic:m0-foundation` | #14–#24 | 11 |
-| M1 — Domain & Data | `epic:m1-domain-data` | #25–#43 | 19 |
+| M1 — Domain & Data | `epic:m1-domain-data` | #25–#43, #177 | 20 |
 | M2 — Macro Tracker | `epic:m2-macro-tracker` | #44–#56 | 13 |
 | M3 — Adaptation & Streak | `epic:m3-adaptation` | #57–#68 | 12 |
 | M4 — Onboarding | `epic:m4-onboarding` | #69–#74 | 6 |
