@@ -1,0 +1,182 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Assistant:wght@400;600;700&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0E0E10;
+      color: #FFFFFF;
+      font-family: "Assistant", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #F5A623; text-decoration: none; }
+    a:hover { color: #FFBE55; }
+    .mono {
+      font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+    .eyebrow {
+      font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
+      font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #F5A623;
+    }
+    .sec-t { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(235,235,245,0.45); }
+    .rule { flex-grow: 1; height: 1px; background: rgba(235,235,245,0.10); }
+    .tile-cap { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px 14px; background: #1C1C1E; }
+    .tile-name { font-size: 13px; font-weight: 700; letter-spacing: 0.01em; }
+    .tile-hex { font-size: 12.5px; color: rgba(235,235,245,0.60); }
+    .tile-use { font-size: 12.5px; color: rgba(235,235,245,0.42); line-height: 1.35; }
+    .tile { display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; border: 1px solid rgba(235,235,245,0.10); }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; gap: 40px; padding: 48px 48px 56px;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div class="eyebrow">Fantastic &middot; Design System &middot; 01</div>
+    <h1 style="margin: 0; font-size: 38px; font-weight: 700; letter-spacing: -0.02em;">Color</h1>
+    <div style="max-width: 680px; font-size: 16px; line-height: 1.5; color: rgba(235,235,245,0.62);">Dark-mode first, clinical rather than wellness-green. Surfaces step in lightness and never in hue; one gold accent carries every action; the verdict colours belong to the Keto&nbsp;Lens judgement and to nothing else.</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div class="sec-t">Surfaces</div><div class="rule"></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px;">
+      <div class="tile">
+        <div style="height: 84px; background: #0E0E10;"></div>
+        <div class="tile-cap"><div class="tile-name">surface/sunken</div><div class="tile-hex mono">#0E0E10</div><div class="tile-use">Behind scroll content, canvas</div></div>
+      </div>
+      <div class="tile">
+        <div style="height: 84px; background: #1C1C1E;"></div>
+        <div class="tile-cap"><div class="tile-name">surface/base</div><div class="tile-hex mono">#1C1C1E</div><div class="tile-use">App background</div></div>
+      </div>
+      <div class="tile">
+        <div style="height: 84px; background: #2C2C2E;"></div>
+        <div class="tile-cap"><div class="tile-name">surface/raised</div><div class="tile-hex mono">#2C2C2E</div><div class="tile-use">Cards, list rows</div></div>
+      </div>
+      <div class="tile">
+        <div style="height: 84px; background: #3A3A3C;"></div>
+        <div class="tile-cap"><div class="tile-name">surface/overlay</div><div class="tile-hex mono">#3A3A3C</div><div class="tile-use">Sheets, dialogs, raised controls</div></div>
+      </div>
+      <div class="tile">
+        <div style="height: 84px; background: #1C1C1E;"><div style="height: 84px; background: rgba(235,235,245,0.16);"></div></div>
+        <div class="tile-cap"><div class="tile-name">hairline/base</div><div class="tile-hex mono">rgba(235,235,245,0.16)</div><div class="tile-use">Card, input and divider edges</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div class="sec-t">Accent &mdash; keto gold</div><div class="rule"></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;">
+      <div class="tile">
+        <div style="height: 84px; background: #FFBE55;"></div>
+        <div class="tile-cap"><div class="tile-name">accent/400</div><div class="tile-hex mono">#FFBE55</div><div class="tile-use">Hover, focus ring core</div></div>
+      </div>
+      <div class="tile">
+        <div style="height: 84px; background: #F5A623;"></div>
+        <div class="tile-cap"><div class="tile-name">accent/500 &mdash; base</div><div class="tile-hex mono">#F5A623</div><div class="tile-use">Primary CTA, streak ring, active tab</div></div>
+      </div>
+      <div class="tile">
+        <div style="height: 84px; background: #D98E17;"></div>
+        <div class="tile-cap"><div class="tile-name">accent/600</div><div class="tile-hex mono">#D98E17</div><div class="tile-use">Pressed state</div></div>
+      </div>
+      <div class="tile">
+        <div style="height: 84px; background: #1C1C1E;">
+          <div style="height: 84px; background: rgba(245,166,35,0.16);"></div>
+        </div>
+        <div class="tile-cap"><div class="tile-name">accent/tint</div><div class="tile-hex mono">rgba(245,166,35,0.16)</div><div class="tile-use">Selected chip, ring track fill</div></div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; border-radius: 12px; background: rgba(245,166,35,0.08); border: 1px solid rgba(245,166,35,0.22);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F5A623" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01"></path><path d="M11 12h1v4h1"></path></svg>
+      <div style="font-size: 13.5px; line-height: 1.5; color: rgba(235,235,245,0.72);">One accent, one meaning: gold marks the single primary action on a screen and the user's own progress. It is never used to signal that food is good or bad &mdash; that is the verdict palette's job.</div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 18px;">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <div class="sec-t">Verdict &amp; status</div><div class="rule"></div>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+      <div class="tile">
+        <div style="display: flex; height: 84px;">
+          <div style="flex-grow: 1; background: #30D158;"></div>
+          <div style="width: 96px; background: #1C1C1E;"><div style="height: 100%; background: rgba(48,209,88,0.16);"></div></div>
+        </div>
+        <div class="tile-cap"><div class="tile-name" style="color: #30D158;">success &mdash; <span dir="rtl">קטו נקי</span></div><div class="tile-hex mono">#30D158 &middot; tint 16% &middot; 8.4:1</div><div class="tile-use">Clean Keto badge, compliant day, on-target macro</div></div>
+      </div>
+      <div class="tile">
+        <div style="display: flex; height: 84px;">
+          <div style="flex-grow: 1; background: #FFD60A;"></div>
+          <div style="width: 96px; background: #1C1C1E;"><div style="height: 100%; background: rgba(255,214,10,0.16);"></div></div>
+        </div>
+        <div class="tile-cap"><div class="tile-name" style="color: #FFD60A;">caution &mdash; <span dir="rtl">זהירות</span></div><div class="tile-hex mono">#FFD60A &middot; tint 16% &middot; 12.1:1</div><div class="tile-use">Quantity-dependent verdict, grace period</div></div>
+      </div>
+      <div class="tile">
+        <div style="display: flex; height: 84px;">
+          <div style="flex-grow: 1; background: #FF453A;"></div>
+          <div style="width: 96px; background: #1C1C1E;"><div style="height: 100%; background: rgba(255,69,58,0.16);"></div></div>
+        </div>
+        <div class="tile-cap"><div class="tile-name" style="color: #FF453A;">danger &mdash; <span dir="rtl">לא קטו</span></div><div class="tile-hex mono">#FF453A &middot; tint 16% &middot; 5.0:1</div><div class="tile-use">Non-Keto badge, streak break, destructive</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px;">
+
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div class="sec-t">Text on surface/base</div><div class="rule"></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 1px; border-radius: 16px; overflow: hidden; border: 1px solid rgba(235,235,245,0.10);">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; background: #1C1C1E;">
+          <div style="font-size: 16px; font-weight: 600; color: #FFFFFF;">text/primary &mdash; <span dir="rtl">יחס קטו 2.4</span></div>
+          <div class="mono" style="font-size: 12.5px; color: rgba(235,235,245,0.55);">#FFFFFF &middot; 17.0:1</div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; background: #1C1C1E;">
+          <div style="font-size: 16px; color: rgba(235,235,245,0.60);">text/secondary &mdash; <span dir="rtl">שומן, פחמימות, חלבון</span></div>
+          <div class="mono" style="font-size: 12.5px; color: rgba(235,235,245,0.55);">#EBEBF5 60% &middot; 5.9:1</div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; background: #1C1C1E;">
+          <div style="font-size: 16px; color: rgba(235,235,245,0.30);">text/tertiary &mdash; placeholder</div>
+          <div class="mono" style="font-size: 12.5px; color: rgba(235,235,245,0.55);">#EBEBF5 30% &middot; 2.5:1</div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; background: #1C1C1E;">
+          <div style="font-size: 16px; color: rgba(235,235,245,0.18);">text/disabled</div>
+          <div class="mono" style="font-size: 12.5px; color: rgba(235,235,245,0.55);">#EBEBF5 18% &middot; 1.7:1</div>
+        </div>
+      </div>
+      <div style="font-size: 13px; line-height: 1.5; color: rgba(235,235,245,0.45);">Primary and secondary clear WCAG&nbsp;AA for body text. Tertiary and disabled are below AA by design &mdash; they may only carry placeholder, decorative or duplicated information, never the only copy of a fact.</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <div class="sec-t">Data &mdash; macros &amp; electrolytes</div><div class="rule"></div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 44px; border-radius: 12px; background: #F5A623;"></div><div dir="rtl" style="font-size: 13px; font-weight: 600;">שומן / Fat</div><div class="mono" style="font-size: 12px; color: rgba(235,235,245,0.50);">#F5A623</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 44px; border-radius: 12px; background: #BF5AF2;"></div><div dir="rtl" style="font-size: 13px; font-weight: 600;">פחמימות / Net carbs</div><div class="mono" style="font-size: 12px; color: rgba(235,235,245,0.50);">#BF5AF2</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 44px; border-radius: 12px; background: #64D2FF;"></div><div dir="rtl" style="font-size: 13px; font-weight: 600;">חלבון / Protein</div><div class="mono" style="font-size: 12px; color: rgba(235,235,245,0.50);">#64D2FF</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 44px; border-radius: 12px; background: #5E5CE6;"></div><div dir="rtl" style="font-size: 13px; font-weight: 600;">נתרן / Na</div><div class="mono" style="font-size: 12px; color: rgba(235,235,245,0.50);">#5E5CE6</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 44px; border-radius: 12px; background: #66D4CF;"></div><div dir="rtl" style="font-size: 13px; font-weight: 600;">אשלגן / K</div><div class="mono" style="font-size: 12px; color: rgba(235,235,245,0.50);">#66D4CF</div></div>
+        <div style="display: flex; flex-direction: column; gap: 8px;"><div style="height: 44px; border-radius: 12px; background: #FF6482;"></div><div dir="rtl" style="font-size: 13px; font-weight: 600;">מגנזיום / Mg</div><div class="mono" style="font-size: 12px; color: rgba(235,235,245,0.50);">#FF6482</div></div>
+      </div>
+      <div style="font-size: 13px; line-height: 1.5; color: rgba(235,235,245,0.45);">Two separate series that never share a chart: the macro trio splits one bar, the electrolyte trio fills three gauges. Fat borrows the accent deliberately &mdash; on this app fat is the hero macro.</div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

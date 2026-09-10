@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Assistant:wght@400;600;700&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0E0E10;
+      color: #FFFFFF;
+      font-family: "Assistant", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #F5A623; text-decoration: none; }
+    a:hover { color: #FFBE55; }
+    .mono { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; }
+    .eyebrow { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #F5A623; }
+    .sec-t { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(235,235,245,0.45); }
+    .rule { flex-grow: 1; height: 1px; background: rgba(235,235,245,0.10); }
+    .cap { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", Arial, sans-serif; font-size: 12.5px; color: rgba(235,235,245,0.45); }
+    .note { font-size: 13px; line-height: 1.55; color: rgba(235,235,245,0.50); }
+    .panel { display: flex; flex-direction: column; gap: 16px; padding: 22px 24px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; font-size: 14px; font-weight: 600; }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; gap: 32px; padding: 48px 44px 56px;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div class="eyebrow">Fantastic &middot; Design System &middot; 09</div>
+    <h1 style="margin: 0; font-size: 38px; font-weight: 700; letter-spacing: -0.02em;">Badges &amp; progress</h1>
+    <div style="max-width: 640px; font-size: 16px; line-height: 1.5; color: rgba(235,235,245,0.62);">The verdict badge is the product in one component. It carries an icon as well as a colour, so the judgement survives colour-blindness and a grayscale screenshot.</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Verdict &mdash; full width, results sheet</div><div class="rule"></div></div>
+    <div dir="rtl" class="panel">
+      <div style="display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 16px; background: rgba(48,209,88,0.16); border: 1px solid rgba(48,209,88,0.35);">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.2 10.7 15 16 9.5"></path></svg>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 20px; font-weight: 700; color: #30D158;">קטו נקי</div>
+          <div style="font-size: 14px; color: rgba(235,235,245,0.60);">אין שמני זרעים או ממתיקים מעלי אינסולין</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 16px; background: rgba(255,214,10,0.16); border: 1px solid rgba(255,214,10,0.35);">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFD60A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M12 4.3 21 19.4a1 1 0 0 1-.9 1.5H3.9a1 1 0 0 1-.9-1.5z"></path><path d="M12 10v4.2"></path><path d="M12 17.6h.01"></path></svg>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 20px; font-weight: 700; color: #FFD60A;">זהירות / תלוי כמות</div>
+          <div style="font-size: 14px; color: rgba(235,235,245,0.60);">מכיל מלטיטול — בכמות קטנה בלבד</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 16px; background: rgba(255,69,58,0.16); border: 1px solid rgba(255,69,58,0.35);">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6"></path><path d="M15 9l-6 6"></path></svg>
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 20px; font-weight: 700; color: #FF453A;">לא קטו</div>
+          <div style="font-size: 14px; color: rgba(235,235,245,0.60);">שמן קנולה — שמן זרעים דלקתי</div>
+        </div>
+      </div>
+      <div class="note">80pt tall, icon 30, radius 16, tint 16% on a 35% border. The subtitle always names the reason &mdash; a verdict without a reason is not actionable.</div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Inline badges, pills &amp; chips</div><div class="rule"></div></div>
+    <div dir="rtl" class="panel">
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+        <div style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 8px; background: rgba(48,209,88,0.16); color: #30D158; font-size: 13px; font-weight: 700;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 9.5 17 19 7"></path></svg>קטו נקי</div>
+        <div style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 8px; background: rgba(255,214,10,0.16); color: #FFD60A; font-size: 13px; font-weight: 700;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5 21 20H3z"></path></svg>זהירות</div>
+        <div style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 8px; background: rgba(255,69,58,0.16); color: #FF453A; font-size: 13px; font-weight: 700;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M7 7l10 10"></path><path d="M17 7 7 17"></path></svg>לא קטו</div>
+        <div style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; background: rgba(245,166,35,0.16); color: #F5A623; font-size: 13px; font-weight: 700;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 3c0 2.3-1.1 3.4-2.3 4.7C8.3 9.2 7 10.7 7 13a5 5 0 0 0 10 0c0-3.3-2.5-5.1-3.3-7-.3-.9-.6-2-1.7-3z"></path></svg>
+          <span class="mono">14</span> ימים
+        </div>
+        <div style="display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; background: rgba(235,235,245,0.10); color: rgba(235,235,245,0.72); font-size: 13px; font-weight: 600;">שלב 2</div>
+        <div style="display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: #FF453A; color: #FFFFFF; font-size: 12px; font-weight: 700;" class="mono">3</div>
+      </div>
+      <div style="height: 1px; background: rgba(235,235,245,0.08);"></div>
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+        <div class="chip" style="background: rgba(245,166,35,0.16); color: #F5A623; border: 1px solid #F5A623;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 9.5 17 19 7"></path></svg>קטו ידידותי</div>
+        <div class="chip" style="background: #2C2C2E; color: rgba(235,235,245,0.72); border: 1px solid rgba(235,235,245,0.16);">כשר</div>
+        <div class="chip" style="background: #2C2C2E; color: rgba(235,235,245,0.72); border: 1px solid rgba(235,235,245,0.16);">עם משלוח</div>
+        <div class="chip" style="background: #2C2C2E; color: rgba(235,235,245,0.30); border: 1px solid rgba(235,235,245,0.08);">טבעוני</div>
+        <div class="cap">selected &middot; default &middot; default &middot; unavailable</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Progress &amp; trend</div><div class="rule"></div></div>
+    <div dir="rtl" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px;">
+      <div class="panel">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="height: 8px; border-radius: 999px; background: rgba(235,235,245,0.12); overflow: hidden;"><div style="width: 68%; height: 100%; background: #F5A623; border-radius: 999px;"></div></div>
+          <div class="cap">linear &middot; 8h track, 12% white, fills from the right</div>
+          <div style="display: flex; height: 8px; border-radius: 999px; overflow: hidden;">
+            <div style="width: 62%; background: #F5A623;"></div>
+            <div style="width: 9%; background: #BF5AF2;"></div>
+            <div style="width: 29%; background: #64D2FF;"></div>
+          </div>
+          <div class="cap">segmented &middot; one meal's fat / carbs / protein split</div>
+          <div style="height: 8px; border-radius: 999px; background: rgba(255,69,58,0.18); overflow: hidden;"><div style="width: 100%; height: 100%; background: #FF453A;"></div></div>
+          <div class="cap">over target &mdash; the fill clamps at 100% and the whole bar turns danger</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div style="display: flex; align-items: center; gap: 22px;">
+          <div style="position: relative; width: 92px; height: 92px; flex-shrink: 0;">
+            <svg width="92" height="92" viewBox="0 0 92 92">
+              <circle cx="46" cy="46" r="38" fill="none" stroke="rgba(245,166,35,0.16)" stroke-width="8"></circle>
+              <circle cx="46" cy="46" r="38" fill="none" stroke="#F5A623" stroke-width="8" stroke-linecap="round" stroke-dasharray="179 60" transform="rotate(-90 46 46)"></circle>
+            </svg>
+            <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;" class="mono"><span style="font-size: 22px; font-weight: 700;">75<span style="font-size: 13px;">%</span></span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div class="cap">ring &middot; 8 stroke, round cap, 12&nbsp;o'clock start</div>
+            <div class="cap">clockwise in both directions &mdash; unlike bars, rings do not mirror</div>
+            <div style="display: flex; gap: 14px; padding-top: 4px;">
+              <div style="display: inline-flex; align-items: center; gap: 5px; color: #30D158; font-size: 14px; font-weight: 700;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6"></path><path d="M6.5 11.5 12 6l5.5 5.5"></path></svg><span class="mono">0.4</span></div>
+              <div style="display: inline-flex; align-items: center; gap: 5px; color: #FF453A; font-size: 14px; font-weight: 700;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v13"></path><path d="M6.5 12.5 12 18l5.5-5.5"></path></svg><span class="mono">1.2</span></div>
+              <div style="display: inline-flex; align-items: center; gap: 5px; color: rgba(235,235,245,0.45); font-size: 14px; font-weight: 700;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14"></path></svg><span class="mono">0.0</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="note">Trend arrows read against the user's goal, not against the number &mdash; a falling weight is green, a falling ketone reading is not.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

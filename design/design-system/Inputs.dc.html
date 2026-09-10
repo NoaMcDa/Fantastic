@@ -1,0 +1,208 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Assistant:wght@400;600;700&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0E0E10;
+      color: #FFFFFF;
+      font-family: "Assistant", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #F5A623; text-decoration: none; }
+    a:hover { color: #FFBE55; }
+    .mono { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; }
+    .eyebrow { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #F5A623; }
+    .sec-t { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(235,235,245,0.45); }
+    .rule { flex-grow: 1; height: 1px; background: rgba(235,235,245,0.10); }
+    .cap { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", Arial, sans-serif; font-size: 12.5px; color: rgba(235,235,245,0.45); }
+    .note { font-size: 13px; line-height: 1.55; color: rgba(235,235,245,0.50); }
+    .flabel { font-size: 13px; font-weight: 600; color: rgba(235,235,245,0.72); }
+    .fhelp { font-size: 13px; color: rgba(235,235,245,0.45); }
+    .field { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 16px; border-radius: 12px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.16); font-size: 17px; }
+    .panel { display: flex; flex-direction: column; gap: 18px; padding: 24px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px; }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; gap: 34px; padding: 48px 44px 56px;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div class="eyebrow">Fantastic &middot; Design System &middot; 07</div>
+    <h1 style="margin: 0; font-size: 38px; font-weight: 700; letter-spacing: -0.02em;">Inputs</h1>
+    <div style="max-width: 680px; font-size: 16px; line-height: 1.5; color: rgba(235,235,245,0.62);">Logging a meal has to survive being done one-handed, in a kitchen, in a hurry. Fields are 52pt tall, labelled above rather than inside, and never validate while the user is still typing.</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Text field &mdash; states</div><div class="rule"></div></div>
+    <div dir="rtl" class="panel">
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px;">
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="flabel">שם הארוחה</div>
+          <div class="field"><span style="color: rgba(235,235,245,0.30);">לדוגמה: סלט אבוקדו</span></div>
+          <div class="fhelp">default</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="flabel">שם הארוחה</div>
+          <div class="field" style="border-color: #F5A623; box-shadow: 0 0 0 3px rgba(245,166,35,0.30);">
+            <span>סלט אבוקדו</span><span style="width: 2px; height: 22px; background: #F5A623;"></span>
+          </div>
+          <div class="fhelp">focused</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="flabel">שם הארוחה</div>
+          <div class="field" style="justify-content: space-between;">
+            <span>סלט אבוקדו וביצים</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.40)" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"></circle><path d="M9.5 9.5l5 5"></path><path d="M14.5 9.5l-5 5"></path></svg>
+          </div>
+          <div class="fhelp">filled &middot; clear affordance</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="flabel" style="color: #FF453A;">משקל (גרם)</div>
+          <div class="field" style="border-color: #FF453A;"><span>0</span></div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5v5.5"></path><path d="M12 16.5h.01"></path></svg>
+            <div class="fhelp" style="color: #FF453A;">יש להזין משקל גדול מאפס</div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="flabel" style="color: rgba(235,235,245,0.35);">מקור המתכון</div>
+          <div class="field" style="background: rgba(44,44,46,0.45); border-color: rgba(235,235,245,0.08); color: rgba(235,235,245,0.18);">לא זמין במצב לא מקוון</div>
+          <div class="fhelp" style="color: rgba(235,235,245,0.30);">disabled</div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="flabel">חיפוש מסעדה</div>
+          <div class="field" style="border-radius: 999px; background: #3A3A3C;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.50)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"></circle><path d="M15.8 15.8 20.5 20.5"></path></svg>
+            <span style="color: rgba(235,235,245,0.30);">חפש מסעדה, עיר, קטגוריה…</span>
+          </div>
+          <div class="fhelp">search &middot; pill, magnifier leads</div>
+        </div>
+
+      </div>
+      <div class="note">Errors appear on blur or on submit &mdash; never mid-keystroke. The message replaces the help text in the same slot, so nothing below it moves.</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;">
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Numbers</div><div class="rule"></div></div>
+      <div dir="rtl" class="panel">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="flabel">יעד שומן יומי</div>
+          <div class="field" style="justify-content: space-between; padding-left: 6px;">
+            <span class="mono" style="font-size: 20px; font-weight: 600;">142 <span style="font-size: 15px; color: rgba(235,235,245,0.45);">גרם</span></span>
+            <div style="display: flex; gap: 4px;">
+              <div style="width: 40px; height: 40px; border-radius: 12px; background: #3A3A3C; display: flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"></path></svg></div>
+              <div style="width: 40px; height: 40px; border-radius: 12px; background: #3A3A3C; display: flex; align-items: center; justify-content: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></div>
+            </div>
+          </div>
+          <div class="fhelp">Numeric keypad, tabular figures, unit inside the field</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="flabel">אנרגיה היום</div>
+          <div style="display: flex; gap: 8px;">
+            <div style="flex-grow: 1; height: 52px; border-radius: 12px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.16); display: flex; align-items: center; justify-content: center;" class="mono">1</div>
+            <div style="flex-grow: 1; height: 52px; border-radius: 12px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.16); display: flex; align-items: center; justify-content: center;" class="mono">2</div>
+            <div style="flex-grow: 1; height: 52px; border-radius: 12px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.16); display: flex; align-items: center; justify-content: center;" class="mono">3</div>
+            <div style="flex-grow: 1; height: 52px; border-radius: 12px; background: rgba(245,166,35,0.16); border: 1px solid #F5A623; color: #F5A623; display: flex; align-items: center; justify-content: center; font-weight: 700;" class="mono">4</div>
+            <div style="flex-grow: 1; height: 52px; border-radius: 12px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.16); display: flex; align-items: center; justify-content: center;" class="mono">5</div>
+          </div>
+          <div class="fhelp">1&ndash;5 scale &mdash; five 52pt targets beat a slider on a phone, and record an exact value</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Choice</div><div class="rule"></div></div>
+      <div dir="rtl" class="panel">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <div style="font-size: 16px; font-weight: 600;">תזכורת יומית</div>
+            <div class="fhelp">כל יום ב-20:00</div>
+          </div>
+          <div style="width: 52px; height: 32px; border-radius: 999px; background: #F5A623; padding: 3px; display: flex; justify-content: flex-end;">
+            <div style="width: 26px; height: 26px; border-radius: 999px; background: #FFFFFF;"></div>
+          </div>
+        </div>
+        <div style="height: 1px; background: rgba(235,235,245,0.08);"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+          <div style="font-size: 16px; font-weight: 600;">התראת שבירת רצף</div>
+          <div style="width: 52px; height: 32px; border-radius: 999px; background: #3A3A3C; padding: 3px; display: flex; justify-content: flex-start;">
+            <div style="width: 26px; height: 26px; border-radius: 999px; background: rgba(235,235,245,0.55);"></div>
+          </div>
+        </div>
+        <div style="height: 1px; background: rgba(235,235,245,0.08);"></div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; background: rgba(245,166,35,0.08); border: 1px solid #F5A623;">
+            <div style="width: 22px; height: 22px; border-radius: 999px; border: 2px solid #F5A623; display: flex; align-items: center; justify-content: center;"><div style="width: 10px; height: 10px; border-radius: 999px; background: #F5A623;"></div></div>
+            <div style="font-size: 16px; font-weight: 600;">ירידה במשקל</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.16);">
+            <div style="width: 22px; height: 22px; border-radius: 999px; border: 2px solid rgba(235,235,245,0.35);"></div>
+            <div style="font-size: 16px; color: rgba(235,235,245,0.72);">שיפור אנרגיה ומיקוד</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 22px; height: 22px; border-radius: 8px; background: #F5A623; display: flex; align-items: center; justify-content: center;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 9.5 17 19 7"></path></svg>
+            </div>
+            <div style="font-size: 15px; color: rgba(235,235,245,0.72);">סנכרן עם Apple Health</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Long text &amp; pickers</div><div class="rule"></div></div>
+    <div dir="rtl" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px;">
+      <div class="panel">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="flabel">הדבק מתכון</div>
+          <div style="min-height: 132px; padding: 14px 16px; border-radius: 12px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.16); font-size: 16px; line-height: 1.5; color: rgba(235,235,245,0.30);">הדבק כאן מתכון בעברית או באנגלית, ונציע תחליפים קטוגניים לכל מרכיב…</div>
+          <div class="fhelp">Grows to 6 lines, then scrolls. Never auto-shrinks the font.</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="flabel">פרטים</div>
+          <div style="display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; border: 1px solid rgba(235,235,245,0.16);">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; background: #2C2C2E; font-size: 16px;">
+              <span>מין</span>
+              <span style="display: flex; align-items: center; gap: 8px; color: rgba(235,235,245,0.60);">נקבה
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.40)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>
+              </span>
+            </div>
+            <div style="height: 1px; background: rgba(235,235,245,0.10);"></div>
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; background: #2C2C2E; font-size: 16px;">
+              <span>תאריך תחילת קטו</span>
+              <span style="display: flex; align-items: center; gap: 8px; color: rgba(235,235,245,0.60);" class="mono">14.08.2026
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.40)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>
+              </span>
+            </div>
+          </div>
+          <div class="fhelp">Row height 52. The chevron points left &mdash; forward, in RTL.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

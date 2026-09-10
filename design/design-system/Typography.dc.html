@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Assistant:wght@400;600;700&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0E0E10;
+      color: #FFFFFF;
+      font-family: "Assistant", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #F5A623; text-decoration: none; }
+    a:hover { color: #FFBE55; }
+    .mono {
+      font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
+      font-variant-numeric: tabular-nums;
+    }
+    .eyebrow {
+      font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
+      font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #F5A623;
+    }
+    .sec-t { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(235,235,245,0.45); }
+    .rule { flex-grow: 1; height: 1px; background: rgba(235,235,245,0.10); }
+    .row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid rgba(235,235,245,0.07); }
+    .spec { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; font-size: 12.5px; color: rgba(235,235,245,0.50); text-align: right; line-height: 1.5; }
+    .name { font-size: 13px; font-weight: 700; color: rgba(235,235,245,0.85); }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; gap: 40px; padding: 48px 48px 56px;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div class="eyebrow">Fantastic &middot; Design System &middot; 02</div>
+    <h1 style="margin: 0; font-size: 38px; font-weight: 700; letter-spacing: -0.02em;">Typography</h1>
+    <div style="max-width: 640px; font-size: 16px; line-height: 1.5; color: rgba(235,235,245,0.62);">Two families. Assistant carries Hebrew and Latin UI text with matched x-heights; Archivo&nbsp;Narrow is reserved for numbers &mdash; grams, ratios, streak counts &mdash; where condensed tabular figures keep columns aligned.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;">
+    <div style="display: flex; flex-direction: column; gap: 14px; padding: 22px 24px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+        <div style="font-size: 18px; font-weight: 700;">Assistant</div>
+        <div class="spec">UI &middot; 400 / 600 / 700</div>
+      </div>
+      <div dir="rtl" style="font-size: 34px; font-weight: 600; line-height: 1.25;">אבגדהוזחטיכלמנס</div>
+      <div style="font-size: 30px; font-weight: 400; line-height: 1.2;">Aa Bb Cc &mdash; 0123456789</div>
+      <div style="font-size: 13px; color: rgba(235,235,245,0.45); line-height: 1.5;">Fallback: Segoe&nbsp;UI, system-ui, Arial. Substitutes cleanly for SF&nbsp;Pro on device.</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 14px; padding: 22px 24px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+        <div class="mono" style="font-size: 18px; font-weight: 700;">Archivo Narrow</div>
+        <div class="spec">Metrics &middot; 600 / 700</div>
+      </div>
+      <div class="mono" style="font-size: 44px; font-weight: 700; line-height: 1.1; letter-spacing: -0.01em;">142g &middot; 18g &middot; 2.4</div>
+      <div class="mono" style="font-size: 30px; font-weight: 600; line-height: 1.2; color: rgba(235,235,245,0.60);">0123456789 %</div>
+      <div style="font-size: 13px; color: rgba(235,235,245,0.45); line-height: 1.5;">Always <span class="mono">tabular-nums</span>. Numerals stay LTR inside Hebrew sentences.</div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <div style="display: flex; align-items: center; gap: 14px; padding-bottom: 8px;">
+      <div class="sec-t">Scale</div><div class="rule"></div>
+    </div>
+
+    <div class="row">
+      <div class="mono" style="font-size: 56px; font-weight: 700; line-height: 1.0; letter-spacing: -0.02em;">142<span style="font-size: 28px; color: rgba(235,235,245,0.50);">g</span></div>
+      <div class="spec"><span class="name">metric/xl</span><br>Archivo Narrow 700 &middot; 56 / 56 &middot; -2%<br>Hero macro on the dashboard ring</div>
+    </div>
+
+    <div class="row">
+      <div class="mono" style="font-size: 34px; font-weight: 700; line-height: 1.12;">2.4 : 1</div>
+      <div class="spec"><span class="name">metric/lg</span><br>Archivo Narrow 700 &middot; 34 / 38<br>Keto ratio, streak day count</div>
+    </div>
+
+    <div class="row">
+      <div class="mono" style="font-size: 22px; font-weight: 600; line-height: 1.2;">18g / 25g</div>
+      <div class="spec"><span class="name">metric/md</span><br>Archivo Narrow 600 &middot; 22 / 26<br>Progress bar values, biomarker readings</div>
+    </div>
+
+    <div class="row">
+      <div dir="rtl" style="font-size: 28px; font-weight: 700; line-height: 1.22; letter-spacing: -0.01em;">שלב 2 — מותאם לשומן</div>
+      <div class="spec"><span class="name">title/1</span><br>Assistant 700 &middot; 28 / 34<br>Screen titles, sheet headers</div>
+    </div>
+
+    <div class="row">
+      <div dir="rtl" style="font-size: 22px; font-weight: 700; line-height: 1.27;">הארוחות של היום</div>
+      <div class="spec"><span class="name">title/2</span><br>Assistant 700 &middot; 22 / 28<br>Section headings, card titles</div>
+    </div>
+
+    <div class="row">
+      <div dir="rtl" style="font-size: 17px; font-weight: 600; line-height: 1.29;">סלט אבוקדו וביצים</div>
+      <div class="spec"><span class="name">headline</span><br>Assistant 600 &middot; 17 / 22<br>List row titles, button labels</div>
+    </div>
+
+    <div class="row">
+      <div dir="rtl" style="font-size: 17px; font-weight: 400; line-height: 1.41; color: rgba(235,235,245,0.85);">בשלב הזה הגוף עובר לשרוף שומן. שתו מים והקפידו על נתרן.</div>
+      <div class="spec"><span class="name">body</span><br>Assistant 400 &middot; 17 / 24<br>Running copy, phase guidance</div>
+    </div>
+
+    <div class="row">
+      <div dir="rtl" style="font-size: 15px; font-weight: 400; line-height: 1.33; color: rgba(235,235,245,0.60);">שמן קנולה — שמן זרעים דלקתי</div>
+      <div class="spec"><span class="name">callout</span><br>Assistant 400 &middot; 15 / 20<br>Supporting text, flagged-ingredient reasons</div>
+    </div>
+
+    <div class="row">
+      <div dir="rtl" style="font-size: 13px; font-weight: 400; line-height: 1.38; color: rgba(235,235,245,0.60);">עודכן לפני 4 שעות</div>
+      <div class="spec"><span class="name">footnote</span><br>Assistant 400 &middot; 13 / 18<br>Timestamps, help text</div>
+    </div>
+
+    <div class="row">
+      <div class="mono" style="font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(235,235,245,0.50);">Net carbs</div>
+      <div class="spec"><span class="name">label</span><br>Archivo Narrow 700 &middot; 12 / 16 &middot; +14%<br>Latin-only overlines. Never applied to Hebrew</div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 18px 20px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+      <div class="sec-t" style="color: rgba(235,235,245,0.55);">Hebrew rules</div>
+      <div style="font-size: 13.5px; line-height: 1.6; color: rgba(235,235,245,0.62);">Hebrew has no uppercase &mdash; emphasise with weight and colour, never with caps or tracking. Letter-spacing stays at 0 for all Hebrew; positive tracking breaks the letterforms apart. Line-height runs one step looser than Latin at the same size.</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 18px 20px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+      <div class="sec-t" style="color: rgba(235,235,245,0.55);">Minimums</div>
+      <div style="font-size: 13.5px; line-height: 1.6; color: rgba(235,235,245,0.62);">13px is the floor for any text a user must read; 12px labels are permitted for Latin overlines only. All type scales with Dynamic&nbsp;Type &mdash; layouts must survive a 130% text size without truncating a number.</div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

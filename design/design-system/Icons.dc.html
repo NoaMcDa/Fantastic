@@ -1,0 +1,160 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Assistant:wght@400;600;700&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0E0E10;
+      color: #FFFFFF;
+      font-family: "Assistant", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #F5A623; text-decoration: none; }
+    a:hover { color: #FFBE55; }
+    .mono { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; }
+    .eyebrow { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #F5A623; }
+    .sec-t { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(235,235,245,0.45); }
+    .rule { flex-grow: 1; height: 1px; background: rgba(235,235,245,0.10); }
+    .ico { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 8px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.08); border-radius: 12px; }
+    .ico-n { font-family: "Archivo Narrow", "Assistant", "Roboto Condensed", Arial, sans-serif; font-size: 12.5px; color: rgba(235,235,245,0.50); text-align: center; }
+    .grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 12px; }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; gap: 34px; padding: 48px 48px 56px;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div class="eyebrow">Fantastic &middot; Design System &middot; 05</div>
+    <h1 style="margin: 0; font-size: 38px; font-weight: 700; letter-spacing: -0.02em;">Iconography</h1>
+    <div style="max-width: 760px; font-size: 16px; line-height: 1.5; color: rgba(235,235,245,0.62);">One stroke family, drawn on a 24pt grid. Outlines everywhere; a solid fill is a state, not a style &mdash; it marks the selected tab and an active streak, and nothing else.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;">
+
+    <div style="display: flex; gap: 26px; align-items: center; padding: 24px 26px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+      <svg width="176" height="176" viewBox="0 0 24 24" style="flex-shrink: 0;">
+        <g stroke="rgba(235,235,245,0.10)" stroke-width="0.08">
+          <path d="M2 0v24M4 0v24M6 0v24M8 0v24M10 0v24M12 0v24M14 0v24M16 0v24M18 0v24M20 0v24M22 0v24"></path>
+          <path d="M0 2h24M0 4h24M0 6h24M0 8h24M0 10h24M0 12h24M0 14h24M0 16h24M0 18h24M0 20h24M0 22h24"></path>
+        </g>
+        <rect x="2" y="2" width="20" height="20" fill="none" stroke="rgba(245,166,35,0.45)" stroke-width="0.12" stroke-dasharray="0.9 0.7"></rect>
+        <g fill="none" stroke="#F5A623" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3c0 2.3-1.1 3.4-2.3 4.7C8.3 9.2 7 10.7 7 13a5 5 0 0 0 10 0c0-3.3-2.5-5.1-3.3-7-.3-.9-.6-2-1.7-3z"></path>
+          <path d="M12 19a2.6 2.6 0 0 0 2.6-2.6c0-1.6-1.3-2.4-2.6-4-1.3 1.6-2.6 2.4-2.6 4A2.6 2.6 0 0 0 12 19z"></path>
+        </g>
+      </svg>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="font-size: 15px; font-weight: 700;">Construction</div>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; line-height: 1.5; color: rgba(235,235,245,0.60);">
+          <div><span class="mono" style="color: #F5A623;">24 &times; 24</span> canvas, <span class="mono" style="color: #F5A623;">20 &times; 20</span> live area &mdash; the dashed box. Nothing crosses it.</div>
+          <div>Stroke <span class="mono" style="color: #F5A623;">1.75</span> at 20&ndash;28, round caps, round joins. Glyphs drawn small inside a component step up to <span class="mono" style="color: #F5A623;">2&ndash;2.4</span> so the line still reads.</div>
+          <div>Inner corners never sharper than <span class="mono" style="color: #F5A623;">2</span>. Diagonals at 45&deg; where the subject allows.</div>
+          <div>Every icon ships as <span class="mono" style="color: #F5A623;">currentColor</span> and inherits its colour &mdash; this sheet paints them white to show the shape.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 18px; padding: 24px 26px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+      <div style="font-size: 15px; font-weight: 700;">Sizes &amp; states</div>
+      <div style="display: flex; align-items: flex-end; gap: 28px;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.72)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a2 2 0 0 1-2 2h-3v-6H9v6H6a2 2 0 0 1-2-2z"></path></svg>
+          <div class="ico-n">20 &middot; inline</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.72)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a2 2 0 0 1-2 2h-3v-6H9v6H6a2 2 0 0 1-2-2z"></path></svg>
+          <div class="ico-n">24 &middot; default</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.72)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a2 2 0 0 1-2 2h-3v-6H9v6H6a2 2 0 0 1-2-2z"></path></svg>
+          <div class="ico-n">28 &middot; tab bar</div>
+        </div>
+        <div style="width: 1px; align-self: stretch; background: rgba(235,235,245,0.10);"></div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.60)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a2 2 0 0 1-2 2h-3v-6H9v6H6a2 2 0 0 1-2-2z"></path></svg>
+          <div class="ico-n">inactive</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="#F5A623" stroke="#F5A623" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a2 2 0 0 1-2 2h-3v-6H9v6H6a2 2 0 0 1-2-2z"></path></svg>
+          <div class="ico-n" style="color: #F5A623;">active</div>
+        </div>
+      </div>
+      <div style="font-size: 13.5px; line-height: 1.55; color: rgba(235,235,245,0.55);">Inactive tabs use text/secondary, active tabs fill with accent/500. Every icon-only control carries a VoiceOver label in Hebrew &mdash; an icon is never the only name of an action.</div>
+    </div>
+
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Navigation</div><div class="rule"></div></div>
+    <div class="grid">
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a2 2 0 0 1-2 2h-3v-6H9v6H6a2 2 0 0 1-2-2z"></path></svg><div class="ico-n">home</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V5.5A1.5 1.5 0 0 1 4.5 4H7"></path><path d="M17 4h2.5A1.5 1.5 0 0 1 21 5.5V8"></path><path d="M21 16v2.5a1.5 1.5 0 0 1-1.5 1.5H17"></path><path d="M7 20H4.5A1.5 1.5 0 0 1 3 18.5V16"></path><circle cx="12" cy="12" r="3.4"></circle></svg><div class="ico-n">lens</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2.5"></rect><path d="M8 3v18"></path><path d="M11.5 8.5h5"></path><path d="M11.5 12h5"></path><path d="M11.5 15.5h3"></path></svg><div class="ico-n">diary</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3v6a2.5 2.5 0 0 0 5 0V3"></path><path d="M9.5 11.5V21"></path><path d="M17.5 3c1.2 2.2 1.2 6.3 0 8.5V21"></path></svg><div class="ico-n">restaurants</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20.5a7 7 0 0 1 14 0"></path></svg><div class="ico-n">profile</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg><div class="ico-n">forward &middot; rtl</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15l-6-6"></path><path d="M12 15l6-6"></path></svg><div class="ico-n">expand</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg><div class="ico-n">close</div></div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Actions</div><div class="rule"></div></div>
+    <div class="grid">
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg><div class="ico-n">add</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"></circle><path d="M15.8 15.8 20.5 20.5"></path></svg><div class="ico-n">search</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16l-6.2 7.4v5.6l-3.6 1.9v-7.5z"></path></svg><div class="ico-n">filter</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v11.5"></path><path d="M8.5 7 12 3.5 15.5 7"></path><path d="M7.5 11H6a2 2 0 0 0-2 2v6.5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V13a2 2 0 0 0-2-2h-1.5"></path></svg><div class="ico-n">share</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v2.5L13.5 8v11a1.5 1.5 0 0 1-3 0V8L9 5.5z"></path><path d="M12 11.5v3"></path></svg><div class="ico-n">torch</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2.5"></rect><circle cx="8.5" cy="9.5" r="1.4"></circle><path d="M4 16.5 8.5 12l3.5 3.5 3-3 5 5"></path></svg><div class="ico-n">gallery</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5l-4-4L4 16z"></path><path d="M13.5 6.5 17.5 10.5"></path></svg><div class="ico-n">edit</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16"></path><path d="M9.5 6.5V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v1.5"></path><path d="M6.5 6.5 7.4 19a2 2 0 0 0 2 1.9h5.2a2 2 0 0 0 2-1.9l.9-12.5"></path><path d="M10.5 10.5v6"></path><path d="M13.5 10.5v6"></path></svg><div class="ico-n">delete</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 9.5a6 6 0 1 0-12 0c0 4.5-2 6-2 6h16s-2-1.5-2-6z"></path><path d="M10.3 19.5a2 2 0 0 0 3.4 0"></path></svg><div class="ico-n">notify</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"></rect><path d="M8 3v4"></path><path d="M16 3v4"></path><path d="M3.5 10h17"></path><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path></svg><div class="ico-n">calendar</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11"></path><path d="M18.5 7H21"></path><circle cx="16.2" cy="7" r="2.2"></circle><path d="M3 12h4"></path><path d="M11.5 12H21"></path><circle cx="9.2" cy="12" r="2.2"></circle><path d="M3 17h9"></path><path d="M16.5 17H21"></path><circle cx="14.2" cy="17" r="2.2"></circle></svg><div class="ico-n">settings</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"></path></svg><div class="ico-n">check</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5h16"></path><path d="M4 12h16"></path><path d="M4 16.5h10"></path></svg><div class="ico-n">list</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"></path><path d="M20 4v4.5h-4.5"></path></svg><div class="ico-n">refresh</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.5s-7.5-4.8-7.5-10a4.4 4.4 0 0 1 7.5-3.1 4.4 4.4 0 0 1 7.5 3.1c0 5.2-7.5 10-7.5 10z"></path></svg><div class="ico-n">save</div></div>
+      <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.2-6.5-9.8A6.5 6.5 0 0 1 12 4.7a6.5 6.5 0 0 1 6.5 6.5C18.5 15.8 12 21 12 21z"></path><circle cx="12" cy="11" r="2.4"></circle></svg><div class="ico-n">location</div></div>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;">
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Verdict &amp; status</div><div class="rule"></div></div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;">
+        <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.2 10.7 15 16 9.5"></path></svg><div class="ico-n" style="color: #30D158;">clean keto</div></div>
+        <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFD60A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.3 21 19.4a1 1 0 0 1-.9 1.5H3.9a1 1 0 0 1-.9-1.5z"></path><path d="M12 10v4.2"></path><path d="M12 17.6h.01"></path></svg><div class="ico-n" style="color: #FFD60A;">caution</div></div>
+        <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF453A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6"></path><path d="M15 9l-6 6"></path></svg><div class="ico-n" style="color: #FF453A;">non-keto</div></div>
+        <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.60)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 8h.01"></path><path d="M11 12h1v4h1"></path></svg><div class="ico-n">info</div></div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Keto domain</div><div class="rule"></div></div>
+      <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px;">
+        <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#F5A623" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c0 2.3-1.1 3.4-2.3 4.7C8.3 9.2 7 10.7 7 13a5 5 0 0 0 10 0c0-3.3-2.5-5.1-3.3-7-.3-.9-.6-2-1.7-3z"></path><path d="M12 19a2.6 2.6 0 0 0 2.6-2.6c0-1.6-1.3-2.4-2.6-4-1.3 1.6-2.6 2.4-2.6 4A2.6 2.6 0 0 0 12 19z"></path></svg><div class="ico-n">streak</div></div>
+        <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5c1.6 1.8 6 6.5 6 10a6 6 0 0 1-12 0c0-3.5 4.4-8.2 6-10z"></path></svg><div class="ico-n">electrolytes</div></div>
+        <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17a8 8 0 1 1 16 0"></path><path d="M12 17l4-4.6"></path><circle cx="12" cy="17" r="1.3"></circle></svg><div class="ico-n">ketones</div></div>
+        <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="15" rx="3"></rect><path d="M8.5 11.5a3.5 3.5 0 0 1 7 0"></path><path d="M12 11.5V9.5"></path><path d="M9.5 15.5h5"></path></svg><div class="ico-n">weight</div></div>
+        <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.4-6.2L13.8 18l2.4-6H21"></path></svg><div class="ico-n">symptoms</div></div>
+        <div class="ico"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5.5 13.5H11l-1 7.5 8.5-10.5H13z"></path></svg><div class="ico-n">energy</div></div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
