@@ -15,6 +15,7 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/tasks.md` | **Master task list** — all work broken into atomic subtasks, ordered by priority and dependency |
 | `design/developing_rules.md` | **Mandatory developer workflow SOP** — follow this for every issue without exception |
 | `design/issue_conventions.md` | **Issue authoring standard** — atomicity rules, branch/commit naming, label taxonomy, implementation description guidelines (API contracts, business logic, integration points), issue template, quality gates |
+| `design/pr_conventions.md` | **PR standard** — branch/base rules, title & description templates, validation gate, review & merge rules (squash), stacked/docs-only PR exceptions |
 | `design/milestone_conventions.md` | **Milestone/Epic standard** — scope discipline, MVP boundary, epic template, closure conditions, label taxonomy |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
 | `design/architecture.md` | Layer model, Isar schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
