@@ -54,37 +54,52 @@ lib/
 │   ├── dashboard/
 │   │   ├── presentation/   # DashboardScreen, macro widgets, streak ring
 │   │   ├── application/    # DashboardSummaryService, providers
-│   │   ├── domain/         # DailyLog, StreakState, AdaptationPhase
+│   │   ├── domain/
+│   │   │   ├── models/         # DailyLog, StreakState, AdaptationPhase
+│   │   │   └── repositories/   # DailyLogRepository, StreakRepository (interfaces)
 │   │   └── data/           # IsarDailyLogRepository, IsarStreakRepository
 │   │
 │   ├── keto_lens/
 │   │   ├── presentation/   # CameraScreen, ResultSheet, BadgeWidget
 │   │   ├── application/    # ScanOrchestrator, providers
-│   │   ├── domain/         # ParsedLabel, IngredientVerdict, LabelParser (interface)
+│   │   ├── domain/
+│   │   │   ├── models/         # ParsedLabel, IngredientVerdict, VerdictBadge
+│   │   │   └── services/       # LabelParser, IngredientClassifier (interfaces)
 │   │   └── data/           # MlKitTextRecognizer, HebrewLabelParser, IngredientClassifierImpl
 │   │
 │   ├── diary/
 │   │   ├── presentation/   # DiaryScreen, SymptomRow, BiomarkerCard
 │   │   ├── application/    # DiaryService, providers
-│   │   ├── domain/         # MealEntry, SymptomLog, BiomarkerLog, DiaryRepository (interfaces)
-│   │   └── data/           # IsarMealRepository, IsarSymptomRepository, IsarBiomarkerRepository
+│   │   ├── domain/
+│   │   │   ├── models/         # MealEntry, SymptomLog, BiomarkerLog
+│   │   │   └── repositories/   # MealRepository, SymptomLogRepository (interfaces)
+│   │   └── data/
+│   │       ├── schemas/        # IsarMealEntry, IsarSymptomLog
+│   │       ├── mappers/        # MealEntryMapper, SymptomLogMapper
+│   │       └── repositories/   # IsarMealRepository, IsarSymptomLogRepository
 │   │
 │   ├── adaptation/
 │   │   ├── presentation/   # PhaseDetailScreen, TimelineWidget, StreakCalendar
 │   │   ├── application/    # AdaptationPhaseService, ElectrolyteAdvisor, providers
-│   │   ├── domain/         # StreakState, AdaptationPhase, StreakRepository (interface)
-│   │   └── data/           # IsarStreakRepository
+│   │   ├── domain/
+│   │   │   ├── models/         # StreakState, AdaptationPhase
+│   │   │   └── repositories/   # StreakRepository (interface)
+│   │   └── data/           # IsarStreakState schema, mapper, IsarStreakRepository
 │   │
 │   ├── restaurant/
 │   │   ├── presentation/   # DirectoryScreen, MapView, RestaurantDetailSheet
 │   │   ├── application/    # DirectoryService, MenuAnalyzerService, providers
-│   │   ├── domain/         # DirectoryEntry, DirectoryFilter, DirectoryReader (interface)
+│   │   ├── domain/
+│   │   │   ├── models/         # DirectoryEntry, DirectoryFilter
+│   │   │   └── repositories/   # DirectoryReader (interface)
 │   │   └── data/           # StaticJsonDirectorySource, MlKitMenuAnalyzer
 │   │
 │   ├── recipe/
 │   │   ├── presentation/   # RecipeConverterScreen, SubstitutionList, RecipeLibraryGrid
 │   │   ├── application/    # RecipeConverterService, providers
-│   │   ├── domain/         # Recipe, Ingredient, SubstitutionRule, RecipeRepository (interface)
+│   │   ├── domain/
+│   │   │   ├── models/         # Recipe, Ingredient, SubstitutionRule
+│   │   │   └── repositories/   # RecipeRepository (interface)
 │   │   └── data/           # IsarRecipeRepository, SubstitutionRuleEngine
 │   │
 │   └── directory/          # (alias entry point — delegates to restaurant feature)
@@ -306,7 +321,7 @@ All platform integrations are wrapped behind domain interfaces and injected via 
 | Domain models | Unit | `dart test` — no mocks needed |
 | Application services | Unit | `mocktail` mocks of domain interfaces |
 | Repository contract | Integration | Real Isar instance (in-memory) |
-| Riverpod providers | Unit | `riverpod_test` + `ProviderContainer` |
+| Riverpod providers | Unit | `ProviderContainer.test()` — riverpod 3's built-in replacement for `riverpod_test`, which is not a dependency (see `design/m0_handoff.md` §3) |
 | Widgets | Widget | `flutter_test` + `mocktail` |
 | Full flows | Integration | `integration_test` on simulator |
 

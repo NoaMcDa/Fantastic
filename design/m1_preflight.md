@@ -4,12 +4,36 @@ Read this before picking up any M1 issue (#25–#43).
 
 `design/m0_handoff.md` catalogued seven things the M0 issue text got wrong once
 it met a real build. The M1 issues were written from the same assumptions, at
-the same time, and carry the same class of error — plus a few of their own. The
-issues have **not** been rewritten; this file is the correction layer, the same
-way `m0_handoff.md` is for M0.
+the same time, and carry the same class of error — plus a few of their own.
 
 Every correction below was verified against the issue text and the code on
 `main` on 2026-09-10.
+
+## Status: most of this is now fixed at source
+
+A second, deeper audit found more than the eight items first recorded here —
+including snippets that do not compile and two conflicts with the design docs.
+Those are being fixed where they live rather than only documented:
+
+| Fixed by | What |
+|---|---|
+| #156 | `meta` added to `pubspec.yaml`, so `@immutable` in `domain/` passes analyze |
+| #157 | `base_design.md`, `architecture.md`, `tests.md` reconciled with the decisions below |
+| #158 | All 19 M1 issue bodies (#25–#43) rewritten so every snippet compiles |
+| #159 | `pubspec.lock` tracked, so dependency resolution is reproducible |
+
+Three decisions settle the conflicts, and the docs now say so:
+
+1. **Repositories throw typed domain exceptions; they do not return `Result<T>`.**
+   `base_design.md` previously mandated `Result<T>` — it now records why that
+   was dropped (Riverpod's `AsyncValue` already carries the failure).
+2. **Domain uses subfolders:** `domain/models/`, `domain/repositories/`,
+   `domain/services/`. `architecture.md`'s trees now show this.
+3. **Repository contract tests live in `test/features/<f>/data/`**, beside the
+   implementation they exercise. `tests.md` now says so.
+
+Sections 1–8 below remain the record of what was wrong and why, and are still
+worth reading — they explain the reasoning the corrected issues only assert.
 
 ---
 
@@ -169,12 +193,56 @@ lock before assuming the toolchain is broken.
 
 ---
 
+---
+
+## 9. Further defects found in the second audit
+
+These are beyond the original eight, and are fixed at source by #157–#159.
+
+**#43 contains three compile errors in one code block:**
+- `MealRepositoryRef` / `DailyLogRepositoryRef` / … — riverpod 3 removed the
+  generated `XxxRef` types. Use bare `Ref`, as `lib/core/router/app_router.dart`
+  already does.
+- `ref.watch(isarProvider).requireValue` — `isarProvider` is **synchronous**
+  (`Isar isar(Ref ref)`). There is no `AsyncValue` to unwrap.
+- `lib/core/providers/isar_provider.dart` — the real path is
+  `lib/core/database/isar_provider.dart`.
+
+**#39 calls the test helper wrongly.** `openTestIsar()` takes no arguments in
+the snippet, but the signature is
+`openTestIsar(List<CollectionSchema<dynamic>> schemas)` and Isar rejects an
+empty list. It also calls `MealEntryMapper.dateIndex(date)` publicly, while #35
+declares that method private as `_dateIndex` — the two issues disagree.
+
+**#25–#28 import an undeclared package.** `import 'package:meta/meta.dart'`
+trips `depend_on_referenced_packages`, so the first file of M1 fails
+`flutter analyze`. `package:flutter/foundation.dart` also exports `@immutable`
+but the domain layer may not import Flutter. Fixed by #156.
+
+**Cross-references are wrong, and the offset is not consistent** — #29 is off
+by five, #35–#38 by two. Do not bulk-shift them:
+
+| Issue | Says | Correct |
+|---|---|---|
+| #29 | `IsarMealRepository` (#34), ×3 | **#39** |
+| #35 | `IsarMealRepository` (#37) | **#39** |
+| #36 | `IsarDailyLogRepository` (#38) | **#40** |
+| #37 | `IsarStreakRepository` (#39), ×2 | **#41** |
+| #38 | `IsarSymptomLogRepository` (#41), ×2 | **#42** |
+
+**`pubspec.lock` was never committed** — `.gitignore`'s blanket `*.lock`
+matched it. An application commits its lockfile; only packages omit it. Several
+M0 issues carried a DoD item to stage a file git was ignoring. Fixed by #159.
+
+---
+
 ## Summary — what to fix before starting M1
 
-1. Merge #147, #148 and #154 to `main`; `main` is otherwise red and unlaunchable.
-2. Verify `build_runner` locally (§8).
-3. Read §1–§5 before writing any schema; the issue snippets do not compile as
-   written.
+1. ~~Merge #147, #148 and #154~~ — done, PR #155.
+2. Verify `build_runner` locally (§8) — still outstanding, and #35–#38 and #43
+   depend on it entirely.
+3. Land #156–#159.
 4. Sequence #152 between the domain models and the contract tests (§6).
-5. #35 must also register its schema in `appIsarSchemas` and update the two
-   startup-wiring tests (§3).
+5. #35 must also register its schema in `appIsarSchemas`, update the two
+   startup-wiring tests (§3), and carry the `openTestIsar` lifecycle tests
+   removed in #147 (§7).

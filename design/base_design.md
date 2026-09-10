@@ -279,19 +279,50 @@ enum VerdictBadge { cleanKeto, cautionQuantityDependent, nonKeto }
 
 ## Error Handling Contract
 
-All repository methods return `Result<T>` (using a sealed class) rather than throwing. Services propagate `Result` upward; widgets pattern-match on success/failure.
+Repository methods return a plain `Future<T>` and **throw** a typed domain
+exception on failure. Services let those exceptions propagate — they do not
+catch to convert. Presentation reads them as `AsyncValue.error` from the
+provider that wrapped the call.
 
 ```dart
-sealed class Result<T> {
-  const Result();
+// Domain layer — one exception type per failure mode, no Isar/Flutter imports.
+sealed class RepositoryException implements Exception {
+  const RepositoryException(this.message);
+  final String message;
 }
-final class Success<T> extends Result<T> {
-  final T value;
-  const Success(this.value);
+
+final class EntityNotFoundException extends RepositoryException {
+  const EntityNotFoundException(super.message);
 }
-final class Failure<T> extends Result<T> {
-  final Object error;
-  final StackTrace stackTrace;
-  const Failure(this.error, this.stackTrace);
+
+final class PersistenceException extends RepositoryException {
+  const PersistenceException(super.message, this.cause);
+  final Object cause;
 }
 ```
+
+```dart
+// Presentation — the error surfaces through AsyncValue, not a second channel.
+ref.watch(todaysMealsProvider).when(
+  data: (meals) => MealListSection(meals: meals),
+  loading: () => const MealListSkeleton(),
+  error: (error, _) => ErrorState(message: error.toString()),
+);
+```
+
+### Why not `Result<T>`
+
+An earlier draft of this document specified that every repository method return
+a `sealed class Result<T>` with `Success` / `Failure` variants, and that widgets
+pattern-match on it. That was dropped before M1.
+
+Riverpod already models success, loading and failure as `AsyncValue` at exactly
+the boundary where the UI consumes a repository call. Returning `Result<T>`
+underneath it produces two parallel error channels — an `AsyncValue.data`
+wrapping a `Result.failure` — and every provider has to unwrap one to populate
+the other. Throwing lets a single mechanism carry the failure the whole way.
+
+The decision is recorded rather than deleted so it is not silently
+re-litigated: if a future milestone needs an error channel that survives
+outside a provider, revisit it there rather than reintroducing `Result<T>`
+across all five repository interfaces.
