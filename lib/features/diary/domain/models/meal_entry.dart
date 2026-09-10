@@ -4,8 +4,8 @@ import 'package:meta/meta.dart';
 /// A single logged meal — the macros, timestamp and optional ingredient list
 /// that the diary and the keto ratio calculator both read.
 ///
-/// Pure domain: no Flutter, Isar or Riverpod. The data layer converts to and
-/// from `IsarMealEntry` (#35).
+/// Pure domain: no Flutter, no persistence package, no Riverpod. The data
+/// layer converts to and from a record map via `MealEntryMapper`.
 @immutable
 class MealEntry {
   const MealEntry({
@@ -19,8 +19,9 @@ class MealEntry {
     this.imageRef,
   });
 
-  /// Null until first persisted. `int?`, never Isar's `Id` — that typedef
-  /// lives in `package:isar_community`, which the domain layer never imports.
+  /// Null until first persisted, then the store's record key. `int?` rather
+  /// than any type the persistence package defines — the domain layer never
+  /// imports it.
   final int? id;
 
   final DateTime timestamp;

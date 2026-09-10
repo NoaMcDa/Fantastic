@@ -12,7 +12,7 @@ part of 'providers.dart';
 ///
 /// Returns the domain interface so consumers depend on the abstraction —
 /// `streakStateProvider` (#59) subscribes to `StreakRepository.watch()`
-/// through this, with no knowledge that Isar is underneath.
+/// through this, with no knowledge that sembast is underneath.
 
 @ProviderFor(streakRepository)
 const streakRepositoryProvider = StreakRepositoryProvider._();
@@ -21,7 +21,7 @@ const streakRepositoryProvider = StreakRepositoryProvider._();
 ///
 /// Returns the domain interface so consumers depend on the abstraction —
 /// `streakStateProvider` (#59) subscribes to `StreakRepository.watch()`
-/// through this, with no knowledge that Isar is underneath.
+/// through this, with no knowledge that sembast is underneath.
 
 final class StreakRepositoryProvider
     extends
@@ -35,7 +35,7 @@ final class StreakRepositoryProvider
   ///
   /// Returns the domain interface so consumers depend on the abstraction —
   /// `streakStateProvider` (#59) subscribes to `StreakRepository.watch()`
-  /// through this, with no knowledge that Isar is underneath.
+  /// through this, with no knowledge that sembast is underneath.
   const StreakRepositoryProvider._()
     : super(
         from: null,
@@ -69,4 +69,4 @@ final class StreakRepositoryProvider
   }
 }
 
-String _$streakRepositoryHash() => r'e838d86c600db08a7dc429d0bcaaa1fc0899410b';
+String _$streakRepositoryHash() => r'1d09a21d4afaa7a8b77b18a06a3ed28b84841a90';

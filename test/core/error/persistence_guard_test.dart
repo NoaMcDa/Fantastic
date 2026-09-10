@@ -4,8 +4,10 @@ import 'package:fantastic/core/error/persistence_guard.dart';
 import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Stands in for `IsarError`, which extends [Error] rather than [Exception] —
-/// the property that forces the guard to catch `Object`.
+/// Stands in for the failures the guard must catch that are *not*
+/// [Exception]s — a `TypeError` from a bad cast in a record codec, an
+/// [AssertionError] from a domain constructor rebuilt off stored data. Those
+/// are the reason the guard catches `Object` rather than `Exception`.
 class _FakeStoreError extends Error {
   _FakeStoreError(this.detail);
 
@@ -26,8 +28,9 @@ void main() {
     });
 
     test('wraps a thrown Error as a PersistenceException', () async {
-      // The case that matters: IsarError extends Error, so an `on Exception`
-      // clause would let every real storage failure through unwrapped.
+      // The case that matters: a codec decoding a malformed record throws an
+      // Error, not an Exception, so an `on Exception` clause would let the
+      // failure through unwrapped.
       await expectLater(
         guardPersistence('op', () async => throw _FakeStoreError('closed')),
         throwsA(isA<PersistenceException>()),
@@ -51,14 +54,14 @@ void main() {
     test('names the operation in the message', () async {
       await expectLater(
         guardPersistence(
-          'IsarMealRepository.save',
+          'SembastMealRepository.save',
           () async => throw _FakeStoreError('closed'),
         ),
         throwsA(
           isA<PersistenceException>().having(
             (e) => e.message,
             'message',
-            'IsarMealRepository.save failed',
+            'SembastMealRepository.save failed',
           ),
         ),
       );
@@ -186,14 +189,14 @@ void main() {
     test('names the operation in the message', () async {
       await expectLater(
         guardPersistenceStream(
-          'IsarStreakRepository.watch',
+          'SembastStreakRepository.watch',
           () => Stream<int>.error(_FakeStoreError('closed')),
         ),
         emitsError(
           isA<PersistenceException>().having(
             (e) => e.message,
             'message',
-            'IsarStreakRepository.watch failed',
+            'SembastStreakRepository.watch failed',
           ),
         ),
       );

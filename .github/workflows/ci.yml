@@ -15,9 +15,10 @@ concurrency:
 
 jobs:
   verify:
-    name: analyze · format · test
+    name: analyze · format · test · build web
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # A cold release web build adds a few minutes on top of the gates above.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -56,3 +57,15 @@ jobs:
         # Unit + widget tests only. integration_test/ does not exist yet and is
         # scoped to run nightly on a macOS simulator, not per-PR (design/tests.md).
         run: flutter test --no-pub
+
+      - name: Build web
+        # Web is a shipping target and has no simulator gate, so a compile is
+        # the only thing standing between a merge and a browser-broken main.
+        # It also catches what `flutter analyze` structurally cannot: a stray
+        # `dart:io` or `path_provider` import leaking past the conditional
+        # export in lib/core/database/database_factory.dart. Last, because it
+        # is by far the slowest step and this list is ordered cheapest-first.
+        #
+        # --no-web-resources-cdn bundles CanvasKit into the build instead of
+        # fetching it from gstatic.com at run time, so the app boots offline.
+        run: flutter build web --release --no-pub --no-web-resources-cdn

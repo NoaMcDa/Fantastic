@@ -1,5 +1,14 @@
 # M1 Handoff — the layer is complete, M2 is unblocked
 
+> **Superseded in part:** Isar was replaced by **sembast + sembast_web** when web
+> support landed — see `design/web_support.md` and `CLAUDE.md` §Local Persistence.
+> Everything below is kept as a record of what was true at the time and is not a
+> description of the current data layer.
+
+> Two of the three data-layer decisions this document hands to M2 are no longer
+> true: unique-index writes became date-keyed records, and enum ordinal storage
+> became storage by `.name`. The singleton streak row survives unchanged.
+
 State of M1 as of 2026-09-10, after the data layer landed. Read
 `design/m1_preflight.md` first if you are picking up any M1 issue — it explains
 the corrections the issue text needed and why the design docs now read as they

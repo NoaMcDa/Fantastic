@@ -1,33 +1,45 @@
 import 'package:fantastic/features/adaptation/data/mappers/streak_state_mapper.dart';
-import 'package:fantastic/features/adaptation/data/schemas/isar_streak_state.dart';
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
+import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../../fixtures/fixtures.dart';
 
+/// The singleton takes no key, so a round-trip is just the two codec halves.
+StreakState _roundTrip(StreakState original) =>
+    StreakStateMapper.fromRecord(StreakStateMapper.toRecord(original));
+
 void main() {
-  // The phase is stored as an ordinal, so the two enums' declaration order is
-  // load-bearing: reordering or inserting a value in either one silently
-  // reinterprets every stored record. These two tests are the only thing
-  // standing between that and a corrupted database.
-  group('AdaptationPhase ordinal parity', () {
-    test('the two enums have the same number of values', () {
-      expect(
-        AdaptationPhaseIsar.values,
-        hasLength(AdaptationPhase.values.length),
+  // The phase is stored by `name`, not by ordinal — the mirror enum the Isar
+  // schema needed is gone, and with it the ordinal-parity tests that guarded
+  // it. What matters now is that every value survives the name round-trip and
+  // that an unknown name fails loudly rather than defaulting to phase one.
+  group('AdaptationPhase encoding', () {
+    test('is stored as the value name, not its ordinal', () {
+      final record = StreakStateMapper.toRecord(
+        StreakStateFixture.withStreak(10, phase: AdaptationPhase.values.last),
       );
+
+      expect(record['phase'], AdaptationPhase.values.last.name);
+      expect(record['phase'], isA<String>());
     });
 
-    test('every ordinal maps to the same-named value in the mirror enum', () {
+    test('every value round-trips', () {
       for (final phase in AdaptationPhase.values) {
         expect(
-          AdaptationPhaseIsar.values[phase.index].name,
-          phase.name,
-          reason:
-              'AdaptationPhaseIsar drifted from AdaptationPhase at ordinal '
-              '${phase.index}. Both are append-only.',
+          _roundTrip(StreakStateFixture.withStreak(10, phase: phase)).phase,
+          phase,
+          reason: 'AdaptationPhase.${phase.name} did not survive the codec',
         );
       }
+    });
+
+    test('an unknown stored name throws rather than silently defaulting', () {
+      final record = Map<String, Object?>.from(
+        StreakStateMapper.toRecord(StreakStateFixture.initial()),
+      )..['phase'] = 'notAPhase';
+
+      expect(() => StreakStateMapper.fromRecord(record), throwsArgumentError);
     });
   });
 
@@ -35,64 +47,82 @@ void main() {
     test('preserves every field', () {
       final original = StreakStateFixture.inGracePeriod();
 
-      final restored = StreakStateMapper.toDomain(
-        StreakStateMapper.toIsar(original),
-      );
-
-      expect(restored, original);
-    });
-
-    test('every AdaptationPhase value survives', () {
-      for (final phase in AdaptationPhase.values) {
-        final original = StreakStateFixture.withStreak(10, phase: phase);
-
-        final restored = StreakStateMapper.toDomain(
-          StreakStateMapper.toIsar(original),
-        );
-
-        expect(restored.phase, phase);
-      }
+      expect(_roundTrip(original), original);
     });
 
     test('a null gracePeriodEnd round-trips as null', () {
-      final restored = StreakStateMapper.toDomain(
-        StreakStateMapper.toIsar(StreakStateFixture.withStreak(3)),
-      );
+      final restored = _roundTrip(StreakStateFixture.withStreak(3));
 
       expect(restored.gracePeriodEnd, isNull);
       expect(restored.inGracePeriod, isFalse);
     });
 
     test('a null lastCompliantDate round-trips as null', () {
-      final restored = StreakStateMapper.toDomain(
-        StreakStateMapper.toIsar(StreakStateFixture.initial()),
+      expect(
+        _roundTrip(StreakStateFixture.initial()).lastCompliantDate,
+        isNull,
       );
-
-      expect(restored.lastCompliantDate, isNull);
     });
 
     test('the first-launch state round-trips unchanged', () {
-      final restored = StreakStateMapper.toDomain(
-        StreakStateMapper.toIsar(StreakStateFixture.initial()),
-      );
+      expect(_roundTrip(StreakStateFixture.initial()), StreakState.initial());
+    });
 
-      expect(restored, StreakStateFixture.initial());
+    test('both dates round-trip exactly, time of day included', () {
+      final original = StreakStateFixture.inGracePeriod();
+
+      final restored = _roundTrip(original);
+
+      expect(
+        restored.lastCompliantDate,
+        StreakStateFixture.defaultCompliantDate,
+      );
+      expect(restored.gracePeriodEnd, StreakStateFixture.defaultGracePeriodEnd);
     });
   });
 
-  group('StreakStateMapper.toIsar', () {
-    test('always pins id to the singleton row, even for an unsaved state', () {
+  group('StreakStateMapper.toRecord', () {
+    // sembast only validates value types at write time, so a codec that emits
+    // a DateTime fails at runtime inside the repository rather than here.
+    test('emits only sembast-legal values — no DateTime anywhere', () {
+      final record = StreakStateMapper.toRecord(
+        StreakStateFixture.inGracePeriod(),
+      );
+
+      for (final value in record.values) {
+        expect(
+          value,
+          anyOf(isNull, isA<num>(), isA<String>(), isA<bool>(), isA<List>()),
+          reason: 'sembast stores JSON-compatible values only',
+        );
+      }
+    });
+
+    test('writes both dates as epoch milliseconds', () {
+      final record = StreakStateMapper.toRecord(
+        StreakStateFixture.inGracePeriod(),
+      );
+
       expect(
-        StreakStateMapper.toIsar(StreakStateFixture.initial()).id,
-        StreakStateMapper.singletonId,
+        record['lastCompliantDate'],
+        StreakStateFixture.defaultCompliantDate.millisecondsSinceEpoch,
       );
       expect(
-        StreakStateMapper.toIsar(StreakStateFixture.withStreak(30)).id,
-        StreakStateMapper.singletonId,
+        record['gracePeriodEnd'],
+        StreakStateFixture.defaultGracePeriodEnd.millisecondsSinceEpoch,
       );
     });
 
-    test('the singleton row is 0', () {
+    test('carries no id — every write is pinned to the singleton key', () {
+      expect(
+        StreakStateMapper.toRecord(StreakStateFixture.initial()),
+        isNot(contains('id')),
+      );
+    });
+  });
+
+  group('StreakStateMapper.singletonId', () {
+    test('is 0', () {
       expect(StreakStateMapper.singletonId, 0);
     });
   });

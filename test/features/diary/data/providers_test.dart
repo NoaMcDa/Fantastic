@@ -1,30 +1,30 @@
-import 'package:fantastic/core/database/isar_provider.dart';
+import 'package:fantastic/core/database/database_provider.dart';
 import 'package:fantastic/features/diary/data/providers.dart';
-import 'package:fantastic/features/diary/data/schemas/isar_meal_entry.dart';
-import 'package:fantastic/features/diary/data/schemas/isar_symptom_log.dart';
+import 'package:fantastic/features/diary/data/repositories/sembast_meal_repository.dart';
+import 'package:fantastic/features/diary/data/repositories/sembast_symptom_log_repository.dart';
 import 'package:fantastic/features/diary/domain/repositories/meal_repository.dart';
 import 'package:fantastic/features/diary/domain/repositories/symptom_log_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:isar_community/isar.dart';
+import 'package:sembast/sembast.dart';
 
 import '../../../fixtures/fixtures.dart';
-import '../../../helpers/test_isar.dart';
+import '../../../helpers/test_database.dart';
 
 void main() {
   group('diary repository providers', () {
-    late Isar isar;
+    late Database db;
     late ProviderContainer container;
 
     setUp(() async {
-      isar = await openTestIsar([IsarMealEntrySchema, IsarSymptomLogSchema]);
+      db = await openTestDatabase();
       container = ProviderContainer(
-        overrides: [isarProvider.overrideWithValue(isar)],
+        overrides: [databaseProvider.overrideWithValue(db)],
       );
       addTearDown(container.dispose);
     });
 
-    tearDown(() async => closeTestIsar(isar));
+    tearDown(() async => closeTestDatabase(db));
 
     test('mealRepositoryProvider resolves to a MealRepository', () {
       expect(container.read(mealRepositoryProvider), isA<MealRepository>());
@@ -38,17 +38,17 @@ void main() {
     });
 
     // Not a redundant type check: this proves the provider handed the
-    // repository the *overridden* instance rather than opening one of its own,
+    // repository the *overridden* database rather than opening one of its own,
     // which an isA<> assertion alone cannot distinguish.
-    test('the resolved repository writes to the overridden instance', () async {
+    test('the resolved repository writes to the overridden database', () async {
       await container
           .read(mealRepositoryProvider)
           .save(MealEntryFixture.fixture());
 
-      expect(await isar.isarMealEntrys.count(), 1);
+      expect(await mealsStore.count(db), 1);
     });
 
-    test('both providers share the one overridden instance', () async {
+    test('both providers share the one overridden database', () async {
       await container
           .read(mealRepositoryProvider)
           .save(MealEntryFixture.fixture());
@@ -56,13 +56,13 @@ void main() {
           .read(symptomLogRepositoryProvider)
           .save(SymptomLogFixture.fixture());
 
-      expect(await isar.isarMealEntrys.count(), 1);
-      expect(await isar.isarSymptomLogs.count(), 1);
+      expect(await mealsStore.count(db), 1);
+      expect(await symptomLogsStore.count(db), 1);
     });
   });
 
-  test('reading a repository provider without overriding isarProvider throws '
-      'the descriptive UnimplementedError', () {
+  test('reading a repository provider without overriding databaseProvider '
+      'throws the descriptive UnimplementedError', () {
     final container = ProviderContainer();
     addTearDown(container.dispose);
 
@@ -75,7 +75,7 @@ void main() {
         isA<Exception>().having(
           (e) => e.toString(),
           'toString()',
-          contains('isarProvider must be overridden at app root'),
+          contains('databaseProvider must be overridden at app root'),
         ),
       ),
     );

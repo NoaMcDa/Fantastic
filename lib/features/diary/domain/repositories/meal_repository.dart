@@ -3,7 +3,7 @@ import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
 /// Persistence contract for [MealEntry].
 ///
 /// The application layer and its tests depend on this abstraction, never on
-/// Isar. Methods return plain futures and **throw** typed domain exceptions on
+/// the store. Methods return plain futures and **throw** typed exceptions on
 /// failure — see `design/base_design.md` §Error Handling Contract for why
 /// `Result<T>` was dropped. A null or empty result means "absent", never
 /// "failed".

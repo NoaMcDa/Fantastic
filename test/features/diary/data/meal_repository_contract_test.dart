@@ -1,12 +1,11 @@
 import 'package:fantastic/core/error/repository_exception.dart';
-import 'package:fantastic/features/diary/data/repositories/isar_meal_repository.dart';
-import 'package:fantastic/features/diary/data/schemas/isar_meal_entry.dart';
+import 'package:fantastic/features/diary/data/repositories/sembast_meal_repository.dart';
 import 'package:fantastic/features/diary/domain/repositories/meal_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:isar_community/isar.dart';
+import 'package:sembast/sembast.dart';
 
 import '../../../fixtures/fixtures.dart';
-import '../../../helpers/test_isar.dart';
+import '../../../helpers/test_database.dart';
 
 /// The contract every [MealRepository] implementation must satisfy.
 ///
@@ -208,7 +207,7 @@ void runMealRepositoryContractTests(
   // Every method must surface a storage failure as a typed
   // PersistenceException rather than letting the backing store's own error
   // escape — otherwise `application/` and `presentation/` can only handle a
-  // failed write by catching an Isar type, which is the leak the repository
+  // failed write by catching a sembast type, which is the leak the repository
   // abstraction exists to prevent.
   group('failure', () {
     setUp(() async => breakStore());
@@ -257,15 +256,18 @@ void runMealRepositoryContractTests(
 }
 
 void main() {
-  group('IsarMealRepository', () {
-    late Isar isar;
+  group('SembastMealRepository', () {
+    late Database db;
 
-    setUp(() async => isar = await openTestIsar([IsarMealEntrySchema]));
-    tearDown(() async => closeTestIsar(isar));
+    setUp(() async => db = await openTestDatabase());
+    tearDown(() async => closeTestDatabase(db));
 
     runMealRepositoryContractTests(
-      () => IsarMealRepository(isar),
-      breakStore: () => isar.close(),
+      () => SembastMealRepository(db),
+      // Closing the database makes every store access throw
+      // `DatabaseException.closed()`, which is a real storage failure from
+      // inside the repository rather than a stubbed one.
+      breakStore: () => db.close(),
     );
   });
 }

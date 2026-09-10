@@ -5,7 +5,7 @@ part 'keto_ratio_calculator.g.dart';
 /// The app's core metric: `Fat(g) / (NetCarbs(g) + Protein(g))`.
 ///
 /// Stateless and injectable as a `const` singleton. Pure Dart — no Flutter,
-/// no Isar, no I/O.
+/// no storage, no I/O.
 ///
 /// The thresholds that give the number meaning (`KetoConstants.targetKetoRatioMin`
 /// and `targetKetoRatioIdeal`) belong to the UI that renders it, not here: this

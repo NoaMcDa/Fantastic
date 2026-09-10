@@ -175,7 +175,7 @@ Each repository interface has a shared contract test suite that every concrete i
 ```dart
 // test/features/diary/data/meal_repository_contract_test.dart
 // Contract tests live beside the implementation they exercise, in data/ —
-// they open a real Isar instance, which the domain layer never touches.
+// they open a real in-memory database, which the domain layer never touches.
 
 void runMealRepositoryContractTests(MealRepository Function() factory) {
   late MealRepository repo;
@@ -213,8 +213,11 @@ void runMealRepositoryContractTests(MealRepository Function() factory) {
 
 // Run against every implementation:
 void main() {
-  group('IsarMealRepository', () {
-    runMealRepositoryContractTests(() => IsarMealRepository(openTestIsar()));
+  group('SembastMealRepository', () {
+    runMealRepositoryContractTests(
+      () => SembastMealRepository(db),
+      breakStore: () => db.close(),
+    );
   });
 }
 ```
@@ -225,7 +228,7 @@ Apply the same pattern to: `DailyLogRepository`, `StreakRepository`, `SymptomLog
 
 ### Application Service Tests — With Mocks
 
-Services in the application layer are tested with `mocktail` mocks of the domain interfaces. The real Isar never runs in unit tests.
+Services in the application layer are tested with `mocktail` mocks of the domain interfaces. The real database never runs in unit tests.
 
 ```dart
 // test/features/adaptation/application/adaptation_phase_service_test.dart
@@ -334,7 +337,7 @@ void main() {
 
 ## Integration Tests
 
-Integration tests run on an iOS simulator against a real (but ephemeral) Isar instance. Each test starts with a clean database.
+Integration tests run on an iOS simulator against a real (but ephemeral) database. Each test starts with a clean database.
 
 ```dart
 // integration_test/flows/meal_logging_flow_test.dart
@@ -417,21 +420,23 @@ extension StreakStateFixture on StreakState {
 }
 ```
 
-### In-Memory Isar for Contract Tests
+### In-Memory sembast for Contract Tests
 
 ```dart
-// test/helpers/test_isar.dart
-Future<Isar> openTestIsar() async {
-  await Isar.initializeIsarCore(download: true);
-  return Isar.open(
-    [MealEntrySchema, DailyLogSchema, StreakStateSchema, ...],
-    directory: Directory.systemTemp.path,
-    name: 'test_${DateTime.now().microsecondsSinceEpoch}',
-  );
+// test/helpers/test_database.dart
+Future<Database> openTestDatabase() =>
+    newDatabaseFactoryMemory().openDatabase('test.db');
+
+Future<void> closeTestDatabase(Database db) async {
+  try {
+    await db.close();
+  } on DatabaseException {
+    // Already closed by breakStore.
+  }
 }
 ```
 
-Each contract test gets its own named Isar instance — tests never share database state.
+`newDatabaseFactoryMemory()` returns a fresh factory each call, so every contract test gets its own store — tests never share database state. It is pure Dart: no `dart:io`, no `dart:ffi`, no native binary to resolve, which is what makes the data-layer suite runnable under `flutter test --platform chrome`.
 
 ---
 
@@ -439,7 +444,7 @@ Each contract test gets its own named Isar instance — tests never share databa
 
 | Skip | Reason |
 |---|---|
-| Isar query builder internals | Isar is a dependency, not our code |
+| sembast query internals | sembast is a dependency, not our code |
 | Flutter framework widgets (Text, Column) | Framework is tested by the Flutter team |
 | Generated `.g.dart` files | Generated code, not authored |
 | Constants and enums with no logic | No behaviour to assert on |

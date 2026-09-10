@@ -1,5 +1,12 @@
 # CI/CD Plan
 
+> **Updated for web support:** the pipeline now has a sixth step,
+> `flutter build web --release --no-pub --no-web-resources-cdn`, and the job
+> timeout rose to 30 minutes. The Isar-native-binary corrections recorded
+> below ([r2] and the note in §Corrections) are now moot — Isar is gone and
+> sembast needs no binary, so the test suite makes no network call at all.
+> See `design/web_support.md`.
+
 Status: **Phase 0 implemented** (`.github/workflows/ci.yml`). Phases 1–2 are the
 active scope. **Phases 3–5 are parked by decision — see §7.1.**
 

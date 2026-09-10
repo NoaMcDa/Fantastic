@@ -1,5 +1,5 @@
-import 'package:fantastic/core/database/isar_provider.dart';
-import 'package:fantastic/features/dashboard/data/repositories/isar_daily_log_repository.dart';
+import 'package:fantastic/core/database/database_provider.dart';
+import 'package:fantastic/features/dashboard/data/repositories/sembast_daily_log_repository.dart';
 import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -13,4 +13,4 @@ part 'providers.g.dart';
 /// Returns the domain interface so consumers depend on the abstraction.
 @riverpod
 DailyLogRepository dailyLogRepository(Ref ref) =>
-    IsarDailyLogRepository(ref.watch(isarProvider));
+    SembastDailyLogRepository(ref.watch(databaseProvider));

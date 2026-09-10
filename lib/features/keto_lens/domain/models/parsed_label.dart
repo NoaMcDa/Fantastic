@@ -6,7 +6,7 @@ import 'package:meta/meta.dart';
 /// Every macro is nullable because OCR routinely extracts some values and not
 /// others — a null means "not found", never zero.
 ///
-/// Pure domain: no Flutter, Isar or Riverpod.
+/// Pure domain: no Flutter, no persistence package, no Riverpod.
 @immutable
 class ParsedLabel {
   const ParsedLabel({

@@ -42,7 +42,7 @@ Calculate and track fat/carb/protein ratios and electrolyte intake across meals 
 | `nutritionix_api` | Large food database | Network required, not Israeli-specific, API cost |
 | `openfoodfacts` package | Open food database, barcode lookup | Israeli products sparse, requires network |
 
-**Recommended:** Pure Dart `KetoRatioCalculator` service + local Isar `DailyLog` aggregation
+**Recommended:** Pure Dart `KetoRatioCalculator` service + local `DailyLog` aggregation
 
 **Rationale:** Keto ratio is a simple formula (`fat / (net_carbs + protein)`). No external package is needed. Barcode lookup can be added as a future enhancement via Open Food Facts, but the core tracking is always offline.
 
@@ -68,11 +68,11 @@ Maintain a persistent streak counter, detect compliant vs. non-compliant days, d
 
 | Option | Pros | Cons |
 |---|---|---|
-| Pure Dart state machine + Isar persistence | Full control, testable, offline | Must implement all logic |
+| Pure Dart state machine + local persistence | Full control, testable, offline | Must implement all logic |
 | Firebase Firestore | Cloud backup, multi-device | Network dependency, overkill for local streak |
-| `hive` for state | Simple API | Isar already chosen for other schemas — redundant |
+| `hive` for state | Simple API | sembast already chosen for the other stores — redundant |
 
-**Recommended:** Pure Dart `AdaptationPhaseService` state machine persisted in Isar `StreakState` schema
+**Recommended:** Pure Dart `AdaptationPhaseService` state machine persisted as the singleton `StreakState` record
 
 **State Machine:**
 ```
@@ -126,7 +126,7 @@ Curate and serve a directory of keto-friendly Israeli restaurants with map integ
 | Supabase (PostgreSQL) | SQL queries, open-source backend | Server infra to maintain |
 | Google Places API | Rich data | Not keto-curated; API cost per call |
 
-**Recommended (v1):** Bundled static JSON, served from `assets/data/directory.json`, cached in Isar `DirectoryEntry` table on first load. Future: Firestore for real-time community updates.
+**Recommended (v1):** Bundled static JSON, served from `assets/data/directory.json`, cached in a `DirectoryEntry` store on first load. Future: Firestore for real-time community updates.
 
 ### Map Integration
 
@@ -205,11 +205,11 @@ Log blood/breath ketones, glucose, body weight, and subjective symptoms over tim
 
 | Option | Pros | Cons |
 |---|---|---|
-| Pure Isar local storage | Offline, fast, private | Manual entry only |
+| Pure local storage | Offline, fast, private | Manual entry only |
 | HealthKit integration | Auto-imports weight, glucose (if CGM paired) | iOS-only (fits scope), requires HealthKit entitlement |
 | Dexcom / Abbott API | Real-time CGM data | Very few Israeli users have CGM; complex OAuth |
 
-**Recommended:** Isar local storage as primary + HealthKit read for body weight and write for active energy.
+**Recommended:** local storage as primary + HealthKit read for body weight and write for active energy.
 
 **HealthKit quantities to integrate:**
 - Read: `HKQuantityTypeIdentifierBodyMass` (body weight)
@@ -235,7 +235,7 @@ Log blood/breath ketones, glucose, body weight, and subjective symptoms over tim
 
 **Recommended:** `flutter_riverpod` + `riverpod_annotation` + `riverpod_generator`
 
-**Rationale:** Compile-time safety, no `BuildContext` in services, first-class async support, and the code-generation workflow matches the Isar and JSON serialisation generators already in the project.
+**Rationale:** Compile-time safety, no `BuildContext` in services, first-class async support, and the code-generation workflow is the only one left in the project (sembast needs no generator).
 
 ---
 
@@ -291,7 +291,7 @@ Remind users to log meals, warn about streak risk, and prompt daily symptom chec
 ## 13. Dependency Injection & App Initialisation
 
 All dependencies are wired via Riverpod providers. `main.dart` is responsible only for:
-1. Opening Isar
+1. Opening the database
 2. Requesting HealthKit authorisation (if granted in settings)
 3. Registering notification handlers
 4. Wrapping the app in `ProviderScope`
@@ -309,6 +309,12 @@ No service locator (`get_it`) is used — Riverpod handles all injection.
 # pubspec.yaml itself, which is now committed alongside pubspec.lock.
 #
 #   isar / isar_flutter_libs / isar_generator  ->  isar_community*  ^3.3.2
+#                                              ->  then sembast ^3.8.10 +
+#                                                  sembast_web ^2.4.6 when web
+#                                                  support landed; Isar 3 cannot
+#                                                  open a database in a browser
+#                                                  at all. See
+#                                                  design/web_support.md.
 #   flutter_riverpod / riverpod_* ^2.x         ->  ^3.0.2
 #   riverpod_test                              ->  dropped; use
 #                                                  ProviderContainer.test()
@@ -320,8 +326,8 @@ No service locator (`get_it`) is used — Riverpod handles all injection.
 dependencies:
   flutter_riverpod: ^2.x
   riverpod_annotation: ^2.x
-  isar: ^3.x
-  isar_flutter_libs: ^3.x
+  sembast: ^3.8.10
+  sembast_web: ^2.4.6
   go_router: ^14.x
   google_mlkit_text_recognition: ^0.x
   camera: ^0.x
@@ -338,7 +344,6 @@ dependencies:
 
 dev_dependencies:
   riverpod_generator: ^2.x
-  isar_generator: ^3.x
   build_runner: ^2.x
   json_serializable: ^6.x
   mocktail: ^1.x

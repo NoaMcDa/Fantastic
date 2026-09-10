@@ -1,5 +1,10 @@
 # M2 Handoff — the app became usable
 
+> **Superseded in part:** Isar was replaced by **sembast + sembast_web** when web
+> support landed — see `design/web_support.md` and `CLAUDE.md` §Local Persistence.
+> Everything below is kept as a record of what was true at the time and is not a
+> description of the current data layer.
+
 State of M2 as of 2026-09-10, after every issue shipped. Read
 `design/m2_preflight.md` for the corrections its issue text needed; this file
 records what building it actually taught, and what M3 inherits.

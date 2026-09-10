@@ -6,7 +6,7 @@
 2. **Unidirectional data flow** — UI observes state; state changes only via explicit actions through the application layer.
 3. **Feature isolation** — features share domain models and `core/` utilities, never each other's internal layers.
 4. **Testability at every layer** — domain and application layers have zero Flutter dependencies.
-5. **Code generation, not boilerplate** — Isar schemas, Riverpod providers, and JSON serialisation are all generated.
+5. **Code generation, not boilerplate** — Riverpod providers are generated. (Persistence is not: sembast records are plain maps, hand-written in each feature's `data/mappers/`.)
 
 ---
 
@@ -32,12 +32,12 @@
                              │ implemented by
 ┌────────────────────────────▼─────────────────────────────┐
 │                       Data Layer                          │
-│  Isar Schema Classes  ·  Repository Implementations      │
-│  ML Kit Adapters  ·  Mappers (Isar ↔ Domain)             │
+│  sembast Stores  ·  Repository Implementations           │
+│  ML Kit Adapters  ·  Mappers (Record ↔ Domain)           │
 └──────────────────────────────────────────────────────────┘
 ```
 
-Arrows only point downward. The data layer depends on the domain layer (implements its interfaces), but the domain layer knows nothing about Isar.
+Arrows only point downward. The data layer depends on the domain layer (implements its interfaces), but the domain layer knows nothing about sembast.
 
 ---
 
@@ -57,7 +57,7 @@ lib/
 │   │   ├── domain/
 │   │   │   ├── models/         # DailyLog, StreakState, AdaptationPhase
 │   │   │   └── repositories/   # DailyLogRepository, StreakRepository (interfaces)
-│   │   └── data/           # IsarDailyLogRepository, IsarStreakRepository
+│   │   └── data/           # SembastDailyLogRepository, SembastStreakRepository
 │   │
 │   ├── keto_lens/
 │   │   ├── presentation/   # CameraScreen, ResultSheet, BadgeWidget
@@ -74,9 +74,8 @@ lib/
 │   │   │   ├── models/         # MealEntry, SymptomLog, BiomarkerLog
 │   │   │   └── repositories/   # MealRepository, SymptomLogRepository (interfaces)
 │   │   └── data/
-│   │       ├── schemas/        # IsarMealEntry, IsarSymptomLog
 │   │       ├── mappers/        # MealEntryMapper, SymptomLogMapper
-│   │       └── repositories/   # IsarMealRepository, IsarSymptomLogRepository
+│   │       └── repositories/   # SembastMealRepository, SembastSymptomLogRepository
 │   │
 │   ├── adaptation/
 │   │   ├── presentation/   # PhaseDetailScreen, TimelineWidget, StreakCalendar
@@ -84,7 +83,7 @@ lib/
 │   │   ├── domain/
 │   │   │   ├── models/         # StreakState, AdaptationPhase
 │   │   │   └── repositories/   # StreakRepository (interface)
-│   │   └── data/           # IsarStreakState schema, mapper, IsarStreakRepository
+│   │   └── data/           # StreakStateMapper, SembastStreakRepository
 │   │
 │   ├── restaurant/
 │   │   ├── presentation/   # DirectoryScreen, MapView, RestaurantDetailSheet
@@ -100,11 +99,11 @@ lib/
 │   │   ├── domain/
 │   │   │   ├── models/         # Recipe, Ingredient, SubstitutionRule
 │   │   │   └── repositories/   # RecipeRepository (interface)
-│   │   └── data/           # IsarRecipeRepository, SubstitutionRuleEngine
+│   │   └── data/           # SembastRecipeRepository, SubstitutionRuleEngine
 │   │
 │   └── directory/          # (alias entry point — delegates to restaurant feature)
 │
-└── main.dart               # ProviderScope root, app initialisation, Isar open
+└── main.dart               # ProviderScope root, app initialisation, database open
 ```
 
 ---
@@ -114,7 +113,7 @@ lib/
 ### Provider Hierarchy
 
 ```
-IsarProvider (singleton)
+DatabaseProvider (singleton)
     └── Repository Providers  (one per schema)
             └── Service Providers  (one per use-case group)
                     └── UI Providers  (AsyncNotifier / StreamNotifier per screen)
@@ -135,14 +134,18 @@ All providers use `@riverpod` (code-generated). No manual `Provider(...)` calls.
 ### Invalidation Strategy
 
 - `dailyLogProvider(date)` is a family provider keyed by `DateTime`. Invalidated on every meal save.
-- `streakProvider` is a stream provider watching the Isar collection. Automatically emits on any write.
-- Presentation providers `ref.watch()` service providers — never call Isar directly.
+- `streakProvider` is a stream provider watching the singleton streak record via `onSnapshot`. Automatically emits on subscription and on any write.
+- Presentation providers `ref.watch()` service providers — never call the database directly.
 
 ---
 
-## Local Persistence — Isar
+## Local Persistence — sembast
 
-### Schema Overview
+### Record Overview
+
+Stores of `Map<String, Object?>` records, not typed schemas — see
+`CLAUDE.md` §Local Persistence for the store/key table and the value-encoding
+rules, and `design/web_support.md` for why sembast replaced Isar.
 
 ```
 MealEntry         DailyLog          SymptomLog         BiomarkerLog
@@ -182,12 +185,14 @@ gracePeriodEnd    savedAt           ketoTips[]
                                     lastUpdated
 ```
 
-### Isar Patterns
+### sembast Patterns
 
-- All schemas live in `data/` — never imported from `domain/` or `presentation/`.
-- Mappers (`IsarMealEntry.toDomain()` / `MealEntry.toIsar()`) live alongside schemas.
-- Collections are registered in `appIsarSchemas` (`lib/core/database/isar_provider.dart`), opened once in `main.dart`, and injected via `isarProvider`. `main.dart` skips `Isar.open` entirely while that list is empty — Isar rejects an empty schema list, which crashed the app at launch before #154.
-- Queries always use Isar's type-safe query builder, never raw strings.
+- All `StoreRef`s live in `data/` — never imported from `domain/` or `presentation/`.
+- Codecs (`XxxMapper.toRecord` / `fromRecord`) live in `data/mappers/`, beside the repository that uses them.
+- Each store is declared next to the repository that owns it and enumerated in `test/core/database/store_names_test.dart`. sembast creates a store on first write, so a name collision merges two collections silently — that test is the only thing that catches it.
+- The database is opened once in `main.dart` through the conditional export in `lib/core/database/database_factory.dart` (io on the VM, IndexedDB in a browser) and injected via `databaseProvider`.
+- A one-record-per-day collection is keyed on its own `dateIndex`, which makes `save` an upsert with no unique index and no read-modify-write.
+- Record values are JSON-compatible only: `DateTime` as epoch millis, enums by `.name`, every number decoded through `num`.
 
 ---
 
@@ -235,16 +240,16 @@ MealFormNotifier.submit(MealEntry draft)
 MealLoggingService.logMeal(draft)
        │  validates: timestamp, non-negative macros
        ▼
-MealRepository.save(entry)              → Isar write
+MealRepository.save(entry)              → sembast write
        │
        ▼
-DailyLogRepository.upsert(updatedLog)   → Isar write (aggregate totals)
+DailyLogRepository.upsert(updatedLog)   → sembast write (aggregate totals)
        │
        ▼
 AdaptationPhaseService.recordCompliantDay(today)
        │  checks if net carbs ≤ target
        ▼
-StreakRepository.save(newStreakState)    → Isar write
+StreakRepository.save(newStreakState)    → sembast write
        │
        ▼
 Riverpod invalidates: dailyLogProvider, streakProvider
@@ -286,12 +291,11 @@ Two generators run via `build_runner`:
 
 | Generator | Input annotation | Output |
 |---|---|---|
-| `isar_community_generator` | `@collection` on Isar schema classes | `.g.dart` schema descriptor, typed query builder, binary serialisation |
 | `riverpod_generator` | `@riverpod` on provider functions/classes | `.g.dart` provider definitions |
 
 `json_serializable` is **not** a dependency — earlier drafts listed it as a
 third generator, but nothing uses `@JsonSerializable` and the MVP has no remote
-DTOs. The Isar packages are the community fork, not the originals; see
+DTOs. Persistence needs no generator at all; see
 `design/m0_handoff.md` §1 for why.
 
 Always run:
@@ -319,7 +323,7 @@ Loading states:
 
 Error states:
 - Toast-style bottom snackbar for transient errors (network, save failure)
-- Full-screen error card with retry button for critical failures (Isar open failure)
+- Full-screen error card with retry button for critical failures (database open failure — `StartupFailureApp` in `main.dart`)
 
 ---
 
@@ -343,7 +347,7 @@ All platform integrations are wrapped behind domain interfaces and injected via 
 |---|---|---|
 | Domain models | Unit | `dart test` — no mocks needed |
 | Application services | Unit | `mocktail` mocks of domain interfaces |
-| Repository contract | Integration | Real Isar instance (in-memory) |
+| Repository contract | Integration | In-memory sembast (`newDatabaseFactoryMemory`) |
 | Riverpod providers | Unit | `ProviderContainer.test()` — riverpod 3's built-in replacement for `riverpod_test`, which is not a dependency (see `design/m0_handoff.md` §3) |
 | Widgets | Widget | `flutter_test` + `mocktail` |
 | Full flows | Integration | `integration_test` on simulator |

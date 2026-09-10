@@ -1,12 +1,11 @@
 import 'package:fantastic/core/error/repository_exception.dart';
-import 'package:fantastic/features/dashboard/data/repositories/isar_daily_log_repository.dart';
-import 'package:fantastic/features/dashboard/data/schemas/isar_daily_log.dart';
+import 'package:fantastic/features/dashboard/data/repositories/sembast_daily_log_repository.dart';
 import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:isar_community/isar.dart';
+import 'package:sembast/sembast.dart';
 
 import '../../../fixtures/fixtures.dart';
-import '../../../helpers/test_isar.dart';
+import '../../../helpers/test_database.dart';
 
 /// The contract every [DailyLogRepository] implementation must satisfy.
 ///
@@ -212,7 +211,7 @@ void runDailyLogRepositoryContractTests(
   // Every method must surface a storage failure as a typed
   // PersistenceException rather than letting the backing store's own error
   // escape — otherwise `application/` and `presentation/` can only handle a
-  // failed write by catching an Isar type, which is the leak the repository
+  // failed write by catching a sembast type, which is the leak the repository
   // abstraction exists to prevent.
   group('failure', () {
     setUp(() async => breakStore());
@@ -260,15 +259,18 @@ void runDailyLogRepositoryContractTests(
 }
 
 void main() {
-  group('IsarDailyLogRepository', () {
-    late Isar isar;
+  group('SembastDailyLogRepository', () {
+    late Database db;
 
-    setUp(() async => isar = await openTestIsar([IsarDailyLogSchema]));
-    tearDown(() async => closeTestIsar(isar));
+    setUp(() async => db = await openTestDatabase());
+    tearDown(() async => closeTestDatabase(db));
 
     runDailyLogRepositoryContractTests(
-      () => IsarDailyLogRepository(isar),
-      breakStore: () => isar.close(),
+      () => SembastDailyLogRepository(db),
+      // Closing the database makes every store access throw
+      // `DatabaseException.closed()`, which is a real storage failure from
+      // inside the repository rather than a stubbed one.
+      breakStore: () => db.close(),
     );
   });
 }

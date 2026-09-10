@@ -2,9 +2,9 @@ import 'package:fantastic/core/error/repository_exception.dart';
 
 /// Runs [body], converting any storage failure into a [PersistenceException].
 ///
-/// [operation] names the call site — `'IsarMealRepository.findByDate'` — so an
-/// exception that reaches a log or an error screen identifies where it came
-/// from without needing a stack trace.
+/// [operation] names the call site — `'SembastMealRepository.findByDate'` —
+/// so an exception that reaches a log or an error screen identifies where it
+/// came from without needing a stack trace.
 ///
 /// The success path is untouched: this only intercepts a throw.
 Future<T> guardPersistence<T>(
@@ -14,12 +14,12 @@ Future<T> guardPersistence<T>(
   try {
     return await body();
   } on Object catch (error, stackTrace) {
-    // `Object`, not `Exception`, is deliberate: `IsarError extends Error`, so
-    // an `on Exception` clause would miss every failure this guard exists to
-    // catch. The tradeoff is that a genuine bug thrown from inside `body` is
-    // also wrapped — acceptable because the guarded body holds only the
-    // storage call and its mapping, and a mapper that throws on stored data is
-    // itself a persistence-integrity failure worth reporting as one.
+    // `Object`, not `Exception`, is deliberate. sembast's own
+    // `DatabaseException` does implement `Exception`, but the guarded body also
+    // holds the codec that decodes the stored record, and a bad cast or a
+    // missing key there throws an `Error` — which an `on Exception` clause
+    // would miss. Wrapping those too is the right call: a codec that throws on
+    // stored data is itself a persistence-integrity failure.
     Error.throwWithStackTrace(
       _asRepositoryException(operation, error),
       stackTrace,

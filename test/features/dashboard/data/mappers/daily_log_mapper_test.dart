@@ -1,8 +1,16 @@
+import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
 import 'package:fantastic/features/dashboard/data/mappers/daily_log_mapper.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:isar_community/isar.dart';
 
 import '../../../../fixtures/fixtures.dart';
+
+/// Round-trips go through the record key, because the key *is* the date:
+/// `fromRecord` takes it as an argument, so a round-trip that invented its own
+/// key would not be testing what the repository does.
+DailyLog _roundTrip(DailyLog original) => DailyLogMapper.fromRecord(
+  DailyLogMapper.dateIndex(original.date),
+  DailyLogMapper.toRecord(original),
+);
 
 void main() {
   group('DailyLogMapper.dateIndex', () {
@@ -15,7 +23,7 @@ void main() {
     });
 
     test('ignores the time component, so any moment in a day maps to one '
-        'row', () {
+        'record', () {
       expect(
         DailyLogMapper.dateIndex(DateTime(2026, 9, 10, 23, 59)),
         DailyLogMapper.dateIndex(DateTime(2026, 9, 10)),
@@ -24,35 +32,37 @@ void main() {
   });
 
   group('DailyLogMapper round-trip', () {
-    test('preserves all ten fields', () {
-      final original = DailyLogFixture.fixture(id: 7);
+    test('preserves all nine value fields', () {
+      final original = DailyLogFixture.fixture(date: DateTime(2026, 9, 10));
 
-      final restored = DailyLogMapper.toDomain(DailyLogMapper.toIsar(original));
+      // The id is the date key, so it is asserted separately below rather
+      // than carried through the fixture.
+      expect(_roundTrip(original), original.copyWith(id: 20260910));
+    });
 
-      expect(restored, original);
+    test('the restored id is the yyyyMMdd key, whatever id went in', () {
+      final original = DailyLogFixture.fixture(
+        id: 7,
+        date: DateTime(2026, 9, 10),
+      );
+
+      expect(_roundTrip(original).id, 20260910);
     });
 
     test('ketoRatioAvg survives — the field the original schema draft '
         'dropped', () {
-      final original = DailyLogFixture.fixture(id: 3, ketoRatioAvg: 2.4);
-
-      final restored = DailyLogMapper.toDomain(DailyLogMapper.toIsar(original));
-
-      expect(restored.ketoRatioAvg, 2.4);
+      expect(
+        _roundTrip(DailyLogFixture.fixture(ketoRatioAvg: 2.4)).ketoRatioAvg,
+        2.4,
+      );
     });
 
     test('waterMl survives — the schema draft called it `totalWaterMl`', () {
-      final original = DailyLogFixture.fixture(id: 4, waterMl: 2750);
-
-      final restored = DailyLogMapper.toDomain(DailyLogMapper.toIsar(original));
-
-      expect(restored.waterMl, 2750);
+      expect(_roundTrip(DailyLogFixture.fixture(waterMl: 2750)).waterMl, 2750);
     });
 
     test('a day with nothing logged round-trips as zeros, not nulls', () {
-      final restored = DailyLogMapper.toDomain(
-        DailyLogMapper.toIsar(DailyLogFixture.empty(id: 1)),
-      );
+      final restored = _roundTrip(DailyLogFixture.empty());
 
       expect(restored.totalFatG, 0);
       expect(restored.totalNetCarbsG, 0);
@@ -66,32 +76,53 @@ void main() {
 
     test('the date round-trips exactly, not just its yyyyMMdd key', () {
       final original = DailyLogFixture.fixture(
-        id: 1,
         date: DateTime(2026, 3, 1, 14, 30),
       );
 
-      final restored = DailyLogMapper.toDomain(DailyLogMapper.toIsar(original));
+      expect(_roundTrip(original).date, DateTime(2026, 3, 1, 14, 30));
+    });
 
-      expect(restored.date, DateTime(2026, 3, 1, 14, 30));
+    // The store round-trips through JSON, which does not keep Dart's
+    // int/double distinction: a whole 40.0 comes back as an int. The codec
+    // reads every number through `num`, so this must not throw.
+    test('a whole double stored as an int still restores as a double', () {
+      final record = Map<String, Object?>.from(
+        DailyLogMapper.toRecord(DailyLogFixture.fixture(waterMl: 2000)),
+      )..['waterMl'] = 2000;
+
+      expect(DailyLogMapper.fromRecord(20260910, record).waterMl, 2000.0);
     });
   });
 
-  group('DailyLogMapper.toIsar', () {
-    test('preserves a non-null id so an update overwrites', () {
-      expect(DailyLogMapper.toIsar(DailyLogFixture.fixture(id: 42)).id, 42);
+  group('DailyLogMapper.toRecord', () {
+    // sembast only validates value types at write time, so a codec that emits
+    // a DateTime fails at runtime inside the repository rather than here.
+    test('emits only sembast-legal values — no DateTime anywhere', () {
+      final record = DailyLogMapper.toRecord(DailyLogFixture.fixture());
+
+      for (final value in record.values) {
+        expect(
+          value,
+          anyOf(isNull, isA<num>(), isA<String>(), isA<bool>(), isA<List>()),
+          reason: 'sembast stores JSON-compatible values only',
+        );
+      }
     });
 
-    test('assigns autoIncrement when the domain id is null', () {
+    test('writes the date as epoch milliseconds', () {
+      final date = DateTime(2026, 12, 25, 18, 30);
+
       expect(
-        DailyLogMapper.toIsar(DailyLogFixture.fixture()).id,
-        Isar.autoIncrement,
+        DailyLogMapper.toRecord(DailyLogFixture.fixture(date: date))['date'],
+        date.millisecondsSinceEpoch,
       );
     });
 
-    test('derives dateIndex from the date', () {
-      final log = DailyLogFixture.fixture(date: DateTime(2026, 12, 25, 18, 30));
-
-      expect(DailyLogMapper.toIsar(log).dateIndex, 20261225);
+    test('carries no id — sembast holds the key outside the value', () {
+      expect(
+        DailyLogMapper.toRecord(DailyLogFixture.fixture(id: 42)),
+        isNot(contains('id')),
+      );
     });
   });
 }

@@ -1,5 +1,10 @@
 # M0 Foundation — Handoff
 
+> **Superseded in part:** Isar was replaced by **sembast + sembast_web** when web
+> support landed — see `design/web_support.md` and `CLAUDE.md` §Local Persistence.
+> Everything below is kept as a record of what was true at the time and is not a
+> description of the current data layer.
+
 State of the project as M0 closed, and what M1 needs to know before starting.
 Written at the end of the session that implemented M0 (issues #14–#24).
 
