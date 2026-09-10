@@ -1,3 +1,4 @@
+import 'package:fantastic/features/adaptation/presentation/widgets/streak_ring_widget.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/electrolytes_card.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card.dart';
 import 'package:fantastic/features/diary/presentation/widgets/add_meal_bottom_sheet.dart';
@@ -47,7 +48,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               delegate: SliverChildListDelegate([
                 MacroSummaryCard(date: _date),
                 const SizedBox(height: 16),
-                // StreakRingWidget lands here in M3 (#64).
+                Center(child: StreakRingWidget(date: _date)),
+                const SizedBox(height: 16),
                 MealListSection(date: _date),
                 const SizedBox(height: 16),
                 ElectrolytesCard(date: _date),

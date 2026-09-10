@@ -1,3 +1,5 @@
+import 'package:fantastic/features/adaptation/data/providers.dart';
+import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
 import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
 import 'package:fantastic/features/dashboard/presentation/screens/dashboard_screen.dart';
@@ -18,6 +20,8 @@ import '../../../../fixtures/fixtures.dart';
 
 class _MockMealLoggingService extends Mock implements MealLoggingService {}
 
+class _MockStreakRepository extends Mock implements StreakRepository {}
+
 void main() {
   /// Today at midnight — the same value the screen derives internally.
   DateTime today() {
@@ -26,8 +30,16 @@ void main() {
   }
 
   late _MockMealLoggingService loggingService;
+  late _MockStreakRepository streakRepository;
 
-  setUp(() => loggingService = _MockMealLoggingService());
+  setUp(() {
+    loggingService = _MockMealLoggingService();
+    // #63 put StreakRingWidget on the dashboard, so the screen now reaches
+    // StreakRepository. Without the override it resolves databaseProvider and
+    // tries to open a real store.
+    streakRepository = _MockStreakRepository();
+    when(streakRepository.watch).thenAnswer((_) => Stream.value(null));
+  });
 
   /// The screen is a `Scaffold` in its own right, so it is pumped directly
   /// rather than through `pumpApp`'s wrapper, which would nest two.
@@ -41,6 +53,7 @@ void main() {
       todaysDailyLogProvider(date).overrideWith((ref) async => log),
       todaysMealsProvider(date).overrideWith((ref) async => meals),
       mealLoggingServiceProvider.overrideWithValue(loggingService),
+      streakRepositoryProvider.overrideWithValue(streakRepository),
     ];
 
     await tester.pumpWidget(
@@ -171,6 +184,13 @@ void main() {
 
   testWidgets('leaves room below the last section for the FAB', (tester) async {
     await pumpDashboard(tester, log: DailyLogFixture.fixture(date: today()));
+
+    // Scrolled to the end first: since #63 added the streak ring the page is
+    // taller than the test viewport, and a sliver does not build children it
+    // has not laid out. Asserting without scrolling would fail because the
+    // spacer is off-screen, not because it is missing.
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+    await tester.pumpAndSettle();
 
     // Without the spacer the FAB sits over the electrolytes card.
     final spacers = tester.widgetList<SizedBox>(find.byType(SizedBox));
