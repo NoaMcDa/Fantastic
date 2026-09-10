@@ -1,0 +1,176 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Assistant:wght@400;600;700&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0E0E10;
+      color: #FFFFFF;
+      font-family: "Assistant", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #F5A623; text-decoration: none; }
+    a:hover { color: #FFBE55; }
+    .mono { font-family: "Archivo Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; }
+    .eyebrow { font-family: "Archivo Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #F5A623; }
+    .sec-t { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(235,235,245,0.45); }
+    .rule { flex-grow: 1; height: 1px; background: rgba(235,235,245,0.10); }
+    .cap { font-family: "Archivo Narrow", "Roboto Condensed", Arial, sans-serif; font-size: 12.5px; color: rgba(235,235,245,0.45); }
+    .note { font-size: 13px; line-height: 1.55; color: rgba(235,235,245,0.50); }
+
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 52px; padding: 0 24px; border: 1px solid transparent; border-radius: 12px; font-family: inherit; font-size: 17px; font-weight: 600; cursor: pointer; transition: background-color 120ms ease-out, transform 80ms ease-out; }
+    .btn-primary { background: #F5A623; color: #1C1C1E; }
+    .btn-primary:hover { background: #FFBE55; }
+    .btn-primary:active { background: #D98E17; transform: scale(0.98); }
+    .btn-secondary { background: #2C2C2E; color: #FFFFFF; border-color: rgba(235,235,245,0.16); }
+    .btn-secondary:hover { background: #3A3A3C; }
+    .btn-secondary:active { background: #2C2C2E; transform: scale(0.98); }
+    .btn-tertiary { background: transparent; color: #F5A623; padding: 0 12px; }
+    .btn-tertiary:hover { background: rgba(245,166,35,0.12); }
+    .btn-tertiary:active { color: #D98E17; }
+    .btn-danger { background: rgba(255,69,58,0.14); color: #FF453A; border-color: rgba(255,69,58,0.30); }
+    .btn-danger:hover { background: rgba(255,69,58,0.22); }
+    .btn-danger:active { background: #FF453A; color: #FFFFFF; transform: scale(0.98); }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; gap: 34px; padding: 48px 44px 56px;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div class="eyebrow">Fantastic &middot; Design System &middot; 06</div>
+    <h1 style="margin: 0; font-size: 38px; font-weight: 700; letter-spacing: -0.02em;">Buttons</h1>
+    <div style="max-width: 720px; font-size: 16px; line-height: 1.5; color: rgba(235,235,245,0.62);">One gold button per screen &mdash; the thing we want the user to do next. Everything else steps down to a grey surface or plain text. Labels are verbs in Hebrew, never nouns.</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Hierarchy</div><div class="rule"></div><div class="cap">hover and press are live</div></div>
+    <div dir="rtl" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 26px 24px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+      <button class="btn btn-primary">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+        הוסף ליומן
+      </button>
+      <button class="btn btn-secondary">סרוק תווית</button>
+      <button class="btn btn-tertiary">דלג</button>
+      <button class="btn btn-danger">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5h16"></path><path d="M6.5 6.5 7.4 19a2 2 0 0 0 2 1.9h5.2a2 2 0 0 0 2-1.9l.9-12.5"></path><path d="M9.5 6.5V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v1.5"></path></svg>
+        מחק ארוחה
+      </button>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;">
+      <div class="note"><span style="color: #FFFFFF; font-weight: 600;">Primary</span> &mdash; accent/500 on dark label. One per screen.</div>
+      <div class="note"><span style="color: #FFFFFF; font-weight: 600;">Secondary</span> &mdash; surface/raised + hairline. Parallel choices.</div>
+      <div class="note"><span style="color: #FFFFFF; font-weight: 600;">Tertiary</span> &mdash; text only. Dismissals, &ldquo;skip&rdquo;, inline links.</div>
+      <div class="note"><span style="color: #FFFFFF; font-weight: 600;">Destructive</span> &mdash; danger tint; fills solid red only while pressed.</div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">States</div><div class="rule"></div></div>
+    <div dir="rtl" style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; padding: 24px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+
+      <div style="display: flex; flex-direction: column; gap: 10px; align-items: stretch;">
+        <div style="display: flex; align-items: center; justify-content: center; height: 52px; border-radius: 12px; background: #F5A623; color: #1C1C1E; font-size: 17px; font-weight: 600;">שמור</div>
+        <div class="cap" style="text-align: center;">default</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; align-items: stretch;">
+        <div style="display: flex; align-items: center; justify-content: center; height: 52px; border-radius: 12px; background: #FFBE55; color: #1C1C1E; font-size: 17px; font-weight: 600;">שמור</div>
+        <div class="cap" style="text-align: center;">hover</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; align-items: stretch;">
+        <div style="display: flex; align-items: center; justify-content: center; height: 52px; border-radius: 12px; background: #D98E17; color: #1C1C1E; font-size: 17px; font-weight: 600; transform: scale(0.98);">שמור</div>
+        <div class="cap" style="text-align: center;">pressed &middot; 0.98</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; align-items: stretch;">
+        <div style="display: flex; align-items: center; justify-content: center; height: 52px; border-radius: 12px; background: #F5A623; color: #1C1C1E; font-size: 17px; font-weight: 600; box-shadow: 0 0 0 3px rgba(245,166,35,0.30);">שמור</div>
+        <div class="cap" style="text-align: center;">focused</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; align-items: stretch;">
+        <div style="display: flex; align-items: center; justify-content: center; height: 52px; border-radius: 12px; background: rgba(245,166,35,0.22); color: rgba(28,28,30,0.55); font-size: 17px; font-weight: 600;">שמור</div>
+        <div class="cap" style="text-align: center;">disabled</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; align-items: stretch;">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; height: 52px; border-radius: 12px; background: #F5A623; color: rgba(28,28,30,0.75); font-size: 17px; font-weight: 600;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="2.2" stroke-linecap="round"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5" opacity="0.9"></path></svg>
+          שומר…
+        </div>
+        <div class="cap" style="text-align: center;">loading</div>
+      </div>
+    </div>
+    <div class="note">Disabled buttons stay visible and stay in the layout &mdash; they never disappear. Where a button is disabled, the reason is shown next to it in footnote text.</div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;">
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Sizes</div><div class="rule"></div></div>
+      <div dir="rtl" style="display: flex; flex-direction: column; gap: 14px; padding: 22px 24px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="display: flex; align-items: center; justify-content: center; height: 52px; padding: 0 24px; border-radius: 12px; background: #F5A623; color: #1C1C1E; font-size: 17px; font-weight: 600;">התחל את המסע</div>
+          <div class="cap">lg &middot; 52h &middot; 17/600 &middot; full width on CTAs</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="display: flex; align-items: center; justify-content: center; height: 44px; padding: 0 20px; border-radius: 12px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.16); color: #FFFFFF; font-size: 16px; font-weight: 600;">ערוך יעדים</div>
+          <div class="cap">md &middot; 44h &middot; 16/600 &middot; in cards and sheets</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="display: flex; align-items: center; justify-content: center; height: 36px; padding: 0 14px; border-radius: 10px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.16); color: #FFFFFF; font-size: 14px; font-weight: 600;">הצג הכל</div>
+          <div class="cap">sm &middot; 36h &middot; 14/600 &middot; 44pt hit box preserved</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Icon, floating &amp; segmented</div><div class="rule"></div></div>
+      <div dir="rtl" style="display: flex; flex-direction: column; gap: 18px; padding: 22px 24px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+        <div style="display: flex; align-items: center; gap: 14px;">
+          <div style="width: 44px; height: 44px; border-radius: 12px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.16); display: flex; align-items: center; justify-content: center;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"></circle><path d="M15.8 15.8 20.5 20.5"></path></svg>
+          </div>
+          <div style="width: 44px; height: 44px; border-radius: 999px; background: #2C2C2E; border: 1px solid rgba(235,235,245,0.16); display: flex; align-items: center; justify-content: center;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"></path><path d="M18 6L6 18"></path></svg>
+          </div>
+          <div style="width: 60px; height: 60px; border-radius: 999px; background: #F5A623; box-shadow: 0 8px 24px rgba(245,166,35,0.28); display: flex; align-items: center; justify-content: center;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="2.25" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+          </div>
+          <div class="cap" style="flex-grow: 1;">44 square &middot; 44 round &middot; FAB 60, bottom-left in RTL</div>
+        </div>
+        <div style="display: flex; padding: 3px; gap: 3px; background: #2C2C2E; border-radius: 10px;">
+          <div style="flex-grow: 1; text-align: center; padding: 8px 0; border-radius: 8px; background: rgba(245,166,35,0.16); color: #F5A623; font-size: 14px; font-weight: 700;">היום</div>
+          <div style="flex-grow: 1; text-align: center; padding: 8px 0; border-radius: 8px; color: rgba(235,235,245,0.60); font-size: 14px; font-weight: 600;">שבוע</div>
+          <div style="flex-grow: 1; text-align: center; padding: 8px 0; border-radius: 8px; color: rgba(235,235,245,0.60); font-size: 14px; font-weight: 600;">חודש</div>
+        </div>
+        <div class="note">Segmented control: 40h, 3px inset, selected segment carries accent/tint and gold label &mdash; not a solid gold fill, which would compete with the primary button.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Anatomy</div><div class="rule"></div></div>
+    <div dir="rtl" style="display: flex; align-items: center; gap: 28px; padding: 26px 24px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+      <div style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 52px; padding: 0 24px; border-radius: 12px; background: #F5A623; color: #1C1C1E; font-size: 17px; font-weight: 600; outline: 1px dashed rgba(255,255,255,0.35); outline-offset: 6px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+        הוסף ליומן
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 7px;">
+        <div style="display: flex; gap: 10px;"><div class="mono" style="width: 64px; color: #F5A623; font-size: 13px; font-weight: 700;">24</div><div class="note">Horizontal padding &mdash; 20 on md, 14 on sm</div></div>
+        <div style="display: flex; gap: 10px;"><div class="mono" style="width: 64px; color: #F5A623; font-size: 13px; font-weight: 700;">8</div><div class="note">Icon to label. The icon sits on the leading (right) side in RTL</div></div>
+        <div style="display: flex; gap: 10px;"><div class="mono" style="width: 64px; color: #F5A623; font-size: 13px; font-weight: 700;">20</div><div class="note">Icon size at every button size</div></div>
+        <div style="display: flex; gap: 10px;"><div class="mono" style="width: 64px; color: #F5A623; font-size: 13px; font-weight: 700;">120</div><div class="note">Minimum width, so short Hebrew verbs still read as buttons</div></div>
+        <div style="display: flex; gap: 10px;"><div class="mono" style="width: 64px; color: #F5A623; font-size: 13px; font-weight: 700;">1&nbsp;line</div><div class="note">Labels never wrap &mdash; if it does not fit, the label is too long</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

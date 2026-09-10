@@ -1,0 +1,226 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Assistant:wght@400;600;700&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0E0E10;
+      color: #FFFFFF;
+      font-family: "Assistant", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #F5A623; text-decoration: none; }
+    a:hover { color: #FFBE55; }
+    .mono { font-family: "Archivo Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; }
+    .eyebrow { font-family: "Archivo Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #F5A623; }
+    .sec-t { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(235,235,245,0.45); }
+    .rule { flex-grow: 1; height: 1px; background: rgba(235,235,245,0.10); }
+    .cap { font-family: "Archivo Narrow", "Roboto Condensed", Arial, sans-serif; font-size: 12.5px; color: rgba(235,235,245,0.45); }
+    .note { font-size: 13px; line-height: 1.55; color: rgba(235,235,245,0.50); }
+    .card { background: #2C2C2E; border-radius: 16px; padding: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.32); display: flex; flex-direction: column; gap: 16px; }
+    .card-t { font-size: 17px; font-weight: 600; }
+    .stage { display: flex; flex-direction: column; gap: 12px; }
+    .track { height: 8px; border-radius: 999px; background: rgba(235,235,245,0.12); overflow: hidden; display: flex; }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; gap: 34px; padding: 48px 44px 56px;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div class="eyebrow">Fantastic &middot; Design System &middot; 08</div>
+    <h1 style="margin: 0; font-size: 38px; font-weight: 700; letter-spacing: -0.02em;">Cards</h1>
+    <div style="max-width: 700px; font-size: 16px; line-height: 1.5; color: rgba(235,235,245,0.62);">Every card answers one question the user came to ask. One card, one subject, one tap target &mdash; if a card needs two actions, it is two cards.</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Anatomy</div><div class="rule"></div></div>
+    <div dir="rtl" style="display: flex; gap: 26px; align-items: center; padding: 24px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+      <div class="card" style="width: 300px; outline: 1px dashed rgba(245,166,35,0.45); outline-offset: 5px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div class="card-t">כותרת הכרטיס</div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.35)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>
+        </div>
+        <div style="font-size: 15px; line-height: 1.45; color: rgba(235,235,245,0.60);">תוכן הכרטיס — שורה או שתיים לכל היותר.</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 7px;">
+        <div style="display: flex; gap: 10px;"><div class="mono" style="width: 108px; color: #F5A623; font-size: 13px; font-weight: 700;">#2C2C2E</div><div class="note">surface/raised &mdash; one step above the screen</div></div>
+        <div style="display: flex; gap: 10px;"><div class="mono" style="width: 108px; color: #F5A623; font-size: 13px; font-weight: 700;">16</div><div class="note">Corner radius on all four corners</div></div>
+        <div style="display: flex; gap: 10px;"><div class="mono" style="width: 108px; color: #F5A623; font-size: 13px; font-weight: 700;">20</div><div class="note">Inner padding &mdash; 16 for dense list rows</div></div>
+        <div style="display: flex; gap: 10px;"><div class="mono" style="width: 108px; color: #F5A623; font-size: 13px; font-weight: 700;">12</div><div class="note">Gap to the next card in the same section</div></div>
+        <div style="display: flex; gap: 10px;"><div class="mono" style="width: 108px; color: #F5A623; font-size: 13px; font-weight: 700;">elevation/1</div><div class="note">0 1px 2px rgba(0,0,0,0.32). No hairline &mdash; the lighter surface is the edge</div></div>
+        <div style="display: flex; gap: 10px;"><div class="mono" style="width: 108px; color: #F5A623; font-size: 13px; font-weight: 700;">0.98</div><div class="note">Whole-card press scale where the card is tappable</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div dir="rtl" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px;">
+
+    <div class="stage">
+      <div class="cap">Streak &amp; phase &mdash; dashboard hero</div>
+      <div class="card" style="gap: 18px;">
+        <div style="display: flex; align-items: center; gap: 20px;">
+          <div style="position: relative; width: 124px; height: 124px; flex-shrink: 0;">
+            <svg width="124" height="124" viewBox="0 0 124 124">
+              <circle cx="62" cy="62" r="52" fill="none" stroke="rgba(245,166,35,0.14)" stroke-width="10"></circle>
+              <circle cx="62" cy="62" r="52" fill="none" stroke="#F5A623" stroke-width="10" stroke-linecap="round" stroke-dasharray="235 92" transform="rotate(-90 62 62)"></circle>
+            </svg>
+            <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;">
+              <div class="mono" style="font-size: 38px; font-weight: 700; line-height: 1;">14</div>
+              <div style="font-size: 13px; color: rgba(235,235,245,0.60);">ימים ברצף</div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: inline-flex; align-self: flex-start; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: rgba(245,166,35,0.16); color: #F5A623; font-size: 13px; font-weight: 700;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c0 2.3-1.1 3.4-2.3 4.7C8.3 9.2 7 10.7 7 13a5 5 0 0 0 10 0c0-3.3-2.5-5.1-3.3-7-.3-.9-.6-2-1.7-3z"></path></svg>
+              שלב 2 — מותאם לשומן
+            </div>
+            <div style="font-size: 15px; line-height: 1.45; color: rgba(235,235,245,0.60);">הגוף כבר שורף שומן ביעילות. שמרו על נתרן ומים — האנרגיה מתייצבת השבוע.</div>
+          </div>
+        </div>
+        <div style="height: 1px; background: rgba(235,235,245,0.08);"></div>
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div class="cap">יחס קטו היום</div>
+          <div class="mono" style="font-size: 18px; font-weight: 700; color: #30D158;">2.4 : 1</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="cap">Macro summary</div>
+      <div class="card">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div class="card-t">מאקרו היום</div>
+          <div class="cap">יעד 1,860 קק״ל</div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; flex-direction: column; gap: 7px;">
+            <div style="display: flex; align-items: baseline; justify-content: space-between;">
+              <div style="font-size: 15px;">שומן</div>
+              <div class="mono" style="font-size: 15px; color: rgba(235,235,245,0.60);"><span style="color: #FFFFFF; font-weight: 700;">118</span> / 142 ג׳</div>
+            </div>
+            <div class="track"><div style="width: 83%; background: #F5A623;"></div></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 7px;">
+            <div style="display: flex; align-items: baseline; justify-content: space-between;">
+              <div style="font-size: 15px;">פחמימות נטו</div>
+              <div class="mono" style="font-size: 15px; color: rgba(235,235,245,0.60);"><span style="color: #FFFFFF; font-weight: 700;">18</span> / 25 ג׳</div>
+            </div>
+            <div class="track"><div style="width: 72%; background: #BF5AF2;"></div></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 7px;">
+            <div style="display: flex; align-items: baseline; justify-content: space-between;">
+              <div style="font-size: 15px;">חלבון</div>
+              <div class="mono" style="font-size: 15px; color: rgba(235,235,245,0.60);"><span style="color: #FFFFFF; font-weight: 700;">96</span> / 110 ג׳</div>
+            </div>
+            <div class="track"><div style="width: 87%; background: #64D2FF;"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="cap">Meal row &mdash; with verdict</div>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="card" style="padding: 16px; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(48,209,88,0.16); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#30D158" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.2 10.7 15 16 9.5"></path></svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1;">
+              <div style="font-size: 16px; font-weight: 600;">סלט אבוקדו וביצים</div>
+              <div class="cap">13:20 &middot; 420 קק״ל</div>
+            </div>
+            <div style="display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 8px; background: rgba(48,209,88,0.16); color: #30D158; font-size: 12.5px; font-weight: 700;">קטו נקי</div>
+          </div>
+          <div class="track" style="height: 6px;">
+            <div style="width: 62%; background: #F5A623;"></div>
+            <div style="width: 9%; background: #BF5AF2;"></div>
+            <div style="width: 29%; background: #64D2FF;"></div>
+          </div>
+        </div>
+        <div class="card" style="padding: 16px; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(255,214,10,0.16); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FFD60A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.3 21 19.4a1 1 0 0 1-.9 1.5H3.9a1 1 0 0 1-.9-1.5z"></path><path d="M12 10v4.2"></path><path d="M12 17.6h.01"></path></svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1;">
+              <div style="font-size: 16px; font-weight: 600;">חטיף חלבון</div>
+              <div class="cap">16:05 &middot; 190 קק״ל</div>
+            </div>
+            <div style="display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 8px; background: rgba(255,214,10,0.16); color: #FFD60A; font-size: 12.5px; font-weight: 700;">זהירות</div>
+          </div>
+          <div class="track" style="height: 6px;">
+            <div style="width: 34%; background: #F5A623;"></div>
+            <div style="width: 26%; background: #BF5AF2;"></div>
+            <div style="width: 40%; background: #64D2FF;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="cap">Electrolytes &middot; empty state</div>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="card">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div class="card-t">אלקטרוליטים</div>
+            <div class="cap">מתוך היעד היומי</div>
+          </div>
+          <div style="display: flex; justify-content: space-around; gap: 12px;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+              <div style="position: relative; width: 72px; height: 72px;">
+                <svg width="72" height="72" viewBox="0 0 72 72">
+                  <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(235,235,245,0.10)" stroke-width="7"></circle>
+                  <circle cx="36" cy="36" r="30" fill="none" stroke="#5E5CE6" stroke-width="7" stroke-linecap="round" stroke-dasharray="150 39" transform="rotate(-90 36 36)"></circle>
+                </svg>
+                <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;" class="mono"><span style="font-size: 17px; font-weight: 700;">79<span style="font-size: 11px;">%</span></span></div>
+              </div>
+              <div style="font-size: 13px; color: rgba(235,235,245,0.60);">נתרן</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+              <div style="position: relative; width: 72px; height: 72px;">
+                <svg width="72" height="72" viewBox="0 0 72 72">
+                  <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(235,235,245,0.10)" stroke-width="7"></circle>
+                  <circle cx="36" cy="36" r="30" fill="none" stroke="#66D4CF" stroke-width="7" stroke-linecap="round" stroke-dasharray="97 92" transform="rotate(-90 36 36)"></circle>
+                </svg>
+                <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;" class="mono"><span style="font-size: 17px; font-weight: 700;">51<span style="font-size: 11px;">%</span></span></div>
+              </div>
+              <div style="font-size: 13px; color: rgba(235,235,245,0.60);">אשלגן</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+              <div style="position: relative; width: 72px; height: 72px;">
+                <svg width="72" height="72" viewBox="0 0 72 72">
+                  <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(235,235,245,0.10)" stroke-width="7"></circle>
+                  <circle cx="36" cy="36" r="30" fill="none" stroke="#FF6482" stroke-width="7" stroke-linecap="round" stroke-dasharray="60 129" transform="rotate(-90 36 36)"></circle>
+                </svg>
+                <div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;" class="mono"><span style="font-size: 17px; font-weight: 700;">32<span style="font-size: 11px;">%</span></span></div>
+              </div>
+              <div style="font-size: 13px; color: rgba(235,235,245,0.60);">מגנזיום</div>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 28px 20px; border-radius: 16px; border: 1px dashed rgba(235,235,245,0.16);">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="rgba(235,235,245,0.30)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.4-6.2L13.8 18l2.4-6H21"></path></svg>
+          <div style="font-size: 15px; color: rgba(235,235,245,0.60); text-align: center;">לא הוקלטו תסמינים להיום</div>
+          <div style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 10px; background: #3A3A3C; font-size: 14px; font-weight: 600;">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+            הוסף תסמין
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

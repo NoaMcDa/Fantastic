@@ -1,0 +1,144 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Assistant:wght@400;600;700&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0E0E10;
+      color: #FFFFFF;
+      font-family: "Assistant", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: #F5A623; text-decoration: none; }
+    a:hover { color: #FFBE55; }
+    .mono { font-family: "Archivo Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-variant-numeric: tabular-nums; }
+    .eyebrow { font-family: "Archivo Narrow", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: #F5A623; }
+    .sec-t { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(235,235,245,0.45); }
+    .rule { flex-grow: 1; height: 1px; background: rgba(235,235,245,0.10); }
+    .elev-row { display: flex; align-items: center; gap: 22px; }
+    .elev-meta { display: flex; flex-direction: column; gap: 4px; }
+    .elev-name { font-size: 14px; font-weight: 700; }
+    .elev-spec { font-family: "Archivo Narrow", "Roboto Condensed", Arial, sans-serif; font-variant-numeric: tabular-nums; font-size: 12.5px; color: rgba(235,235,245,0.55); }
+    .elev-use { font-size: 12.5px; color: rgba(235,235,245,0.42); line-height: 1.4; }
+  </style>
+</helmet>
+
+<div style="display: flex; flex-direction: column; gap: 36px; padding: 48px 44px 56px;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <div class="eyebrow">Fantastic &middot; Design System &middot; 04</div>
+    <h1 style="margin: 0; font-size: 38px; font-weight: 700; letter-spacing: -0.02em;">Elevation</h1>
+    <div style="font-size: 16px; line-height: 1.5; color: rgba(235,235,245,0.62);">On a dark interface a shadow alone is nearly invisible. Height is read first from the surface getting lighter, second from a hairline, and only then from the shadow underneath.</div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 20px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Levels</div><div class="rule"></div></div>
+
+    <div style="display: flex; flex-direction: column; gap: 22px; padding: 28px 26px; background: #1C1C1E; border-radius: 18px;">
+      <div class="elev-row">
+        <div style="width: 150px; height: 78px; flex-shrink: 0; border-radius: 16px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10);"></div>
+        <div class="elev-meta">
+          <div class="elev-name">elevation/0 &mdash; flush</div>
+          <div class="elev-spec">no shadow &middot; 1px hairline rgba(235,235,245,0.10)</div>
+          <div class="elev-use">Sections that sit on the background: grouped settings, empty states</div>
+        </div>
+      </div>
+
+      <div class="elev-row">
+        <div style="width: 150px; height: 78px; flex-shrink: 0; border-radius: 16px; background: #2C2C2E; box-shadow: 0 1px 2px rgba(0,0,0,0.32);"></div>
+        <div class="elev-meta">
+          <div class="elev-name">elevation/1 &mdash; card</div>
+          <div class="elev-spec">0 1px 2px rgba(0,0,0,0.32) &middot; surface/raised</div>
+          <div class="elev-use">Every card and list row on the dashboard and diary</div>
+        </div>
+      </div>
+
+      <div class="elev-row">
+        <div style="width: 150px; height: 78px; flex-shrink: 0; border-radius: 16px; background: #3A3A3C; box-shadow: 0 8px 24px rgba(0,0,0,0.44);"></div>
+        <div class="elev-meta">
+          <div class="elev-name">elevation/2 &mdash; sheet</div>
+          <div class="elev-spec">0 8px 24px rgba(0,0,0,0.44) &middot; surface/overlay</div>
+          <div class="elev-use">Bottom sheets, the Keto Lens results panel, pickers</div>
+        </div>
+      </div>
+
+      <div class="elev-row">
+        <div style="width: 150px; height: 78px; flex-shrink: 0; border-radius: 16px; background: #3A3A3C; box-shadow: 0 16px 40px rgba(0,0,0,0.56);"></div>
+        <div class="elev-meta">
+          <div class="elev-name">elevation/3 &mdash; dialog</div>
+          <div class="elev-spec">0 16px 40px rgba(0,0,0,0.56) &middot; surface/overlay</div>
+          <div class="elev-use">Alerts and confirmations, always over a scrim</div>
+        </div>
+      </div>
+
+      <div class="elev-row">
+        <div style="width: 150px; height: 78px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 60px; height: 60px; border-radius: 999px; background: #F5A623; box-shadow: 0 8px 24px rgba(245,166,35,0.28); display: flex; align-items: center; justify-content: center;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="2.25" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+          </div>
+        </div>
+        <div class="elev-meta">
+          <div class="elev-name">elevation/glow &mdash; accent</div>
+          <div class="elev-spec">0 8px 24px rgba(245,166,35,0.28)</div>
+          <div class="elev-use">The FAB and the streak ring only &mdash; the two things that should feel lit from inside</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 20px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Focus &amp; hairlines</div><div class="rule"></div></div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 14px; padding: 22px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+        <div style="height: 44px; border-radius: 12px; background: #2C2C2E; border: 1px solid #F5A623; box-shadow: 0 0 0 3px rgba(245,166,35,0.30);"></div>
+        <div class="elev-meta">
+          <div class="elev-name">focus/ring</div>
+          <div class="elev-spec">1px #F5A623 + 0 0 0 3px rgba(245,166,35,0.30)</div>
+          <div class="elev-use">Keyboard and VoiceOver focus, and the active text field. Never removed &mdash; only restyled.</div>
+        </div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 22px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="height: 1px; background: rgba(235,235,245,0.10);"></div>
+          <div class="elev-spec">hairline/soft &middot; 10% &mdash; inside a card</div>
+          <div style="height: 1px; background: rgba(235,235,245,0.16);"></div>
+          <div class="elev-spec">hairline/base &middot; 16% &mdash; card and input outline</div>
+          <div style="height: 1px; background: rgba(235,235,245,0.24);"></div>
+          <div class="elev-spec">hairline/strong &middot; 24% &mdash; selected outline</div>
+        </div>
+        <div class="elev-use">Hairlines render at 1 physical pixel. On a dark surface they read as light, not as a border colour &mdash; hence the alpha, never a flat hex.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 20px;">
+    <div style="display: flex; align-items: center; gap: 14px;"><div class="sec-t">Scrim</div><div class="rule"></div></div>
+    <div style="display: flex; gap: 22px; align-items: center; padding: 22px; background: #1C1C1E; border: 1px solid rgba(235,235,245,0.10); border-radius: 16px;">
+      <div style="width: 190px; height: 128px; flex-shrink: 0; border-radius: 14px; overflow: hidden; position: relative; background: #2C2C2E;">
+        <div style="position: absolute; top: 14px; right: 14px; left: 14px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="height: 10px; width: 70%; border-radius: 3px; background: rgba(235,235,245,0.20);"></div>
+          <div style="height: 10px; width: 45%; border-radius: 3px; background: rgba(235,235,245,0.14);"></div>
+        </div>
+        <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.60);"></div>
+        <div style="position: absolute; left: 16px; right: 16px; bottom: 16px; height: 56px; border-radius: 12px; background: #3A3A3C; box-shadow: 0 16px 40px rgba(0,0,0,0.56);"></div>
+      </div>
+      <div class="elev-meta">
+        <div class="elev-name">scrim/modal</div>
+        <div class="elev-spec">rgba(0,0,0,0.60) &middot; fade 200ms ease-out</div>
+        <div class="elev-use">Behind every sheet and dialog. Tapping it dismisses anything non-destructive; a confirmation that would lose data ignores it.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
