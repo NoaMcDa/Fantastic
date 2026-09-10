@@ -12,7 +12,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      Directionality.of(tester.element(find.text('בית'))),
+      Directionality.of(tester.element(find.text('בית').first)),
       TextDirection.rtl,
     );
   });
@@ -34,7 +34,11 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
     await tester.pumpAndSettle();
 
-    expect(find.text('בית'), findsOneWidget);
+    // 2 matches for the active tab: the NavigationBar's label plus the
+    // (interim) screen body. Every other tab's label still shows in the
+    // bar even when inactive, so this is what distinguishes "active" from
+    // "just listed in the tab bar".
+    expect(find.text('בית'), findsNWidgets(2));
   });
 
   testWidgets('every one of the 5 tab routes navigates without error', (
@@ -43,7 +47,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
     await tester.pumpAndSettle();
 
-    final router = GoRouter.of(tester.element(find.text('בית')));
+    final router = GoRouter.of(tester.element(find.text('בית').first));
 
     const routesAndLabels = {
       '/': 'בית',
@@ -56,7 +60,7 @@ void main() {
     for (final entry in routesAndLabels.entries) {
       router.go(entry.key);
       await tester.pumpAndSettle();
-      expect(find.text(entry.value), findsOneWidget);
+      expect(find.text(entry.value), findsNWidgets(2));
     }
   });
 
@@ -65,7 +69,7 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
     await tester.pumpAndSettle();
 
-    final router = GoRouter.of(tester.element(find.text('בית')));
+    final router = GoRouter.of(tester.element(find.text('בית').first));
     router.go('/does-not-exist');
     await tester.pumpAndSettle();
 
