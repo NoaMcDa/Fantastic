@@ -146,6 +146,29 @@ flutter analyze && flutter test
 `--verbose` is not optional here: without it the progress output is buffered
 and a redirected run produces an empty log.
 
+### A newly added builder will not run until you clear the cache
+
+Separate from the non-exit above, and it cost real time on #35. Generation for
+the first `@collection` produced **nothing** — only `riverpod_generator` ran,
+no `.g.dart` appeared, and no error was printed.
+
+`build_runner` compiles an entrypoint containing the set of builders it knows
+about, and caches it under `.dart_tool/build/`. `isar_community_generator` was
+added to `dev_dependencies` during M0, by which point that entrypoint had
+already been cached without it — and build_runner never rebuilt it. Because no
+`@collection` existed until #35, the missing builder was invisible for the
+whole of M0 and M1.
+
+**If a generator silently does nothing, clear the cache before anything else:**
+
+```bash
+rm -rf .dart_tool/build
+timeout 280 dart run build_runner build --verbose
+```
+
+Expect the first run afterwards to take a few minutes — it recompiles the
+entrypoint and re-analyses every input. Subsequent runs are back to ~1 second.
+
 Two related notes:
 
 - **`--delete-conflicting-outputs` no longer exists.** build_runner 2.15.1

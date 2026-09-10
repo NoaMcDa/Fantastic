@@ -1,3 +1,4 @@
+import 'package:fantastic/features/diary/data/schemas/isar_meal_entry.dart';
 import 'package:isar_community/isar.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -10,7 +11,7 @@ part 'isar_provider.g.dart';
 /// domain models by design, and `main.dart` skips opening Isar entirely while
 /// it is: `Isar.open` throws `IsarError: At least one collection needs to be
 /// opened` on an empty list, which crashed the app before `runApp` (#154).
-const List<CollectionSchema<dynamic>> appIsarSchemas = [];
+const List<CollectionSchema<dynamic>> appIsarSchemas = [IsarMealEntrySchema];
 
 @Riverpod(keepAlive: true)
 Isar isar(Ref ref) => throw UnimplementedError(
