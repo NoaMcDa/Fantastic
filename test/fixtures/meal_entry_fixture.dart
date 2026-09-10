@@ -1,34 +1,40 @@
-/// Stub for the M1 `MealEntry` fixture.
+import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
+
+/// Test data for [MealEntry].
 ///
-/// `MealEntry` is domain-layer scope (M1 — see `design/architecture.md`),
-/// out of bounds for the M0 Foundation epic (#4), which explicitly excludes
-/// "any domain models or business logic." This file holds the intended
-/// future API contract as documentation only, so it compiles cleanly now
-/// and the M1 issue that introduces `MealEntry` can fill in the real body
-/// without anyone needing to rediscover the shape from scratch.
-///
-/// TODO(M1): once `MealEntry` lands, replace this file with:
-/// ```dart
-/// extension MealEntryFixture on MealEntry {
-///   static MealEntry fixture({
-///     Id? id,
-///     DateTime? timestamp,
-///     double fatG = 20,
-///     double netCarbsG = 5,
-///     double proteinG = 15,
-///     String mealName = 'Test Meal',
-///     List<String> ingredients = const [],
-///   }) => MealEntry(
-///     id: id,
-///     timestamp: timestamp ?? DateTime(2026, 9, 9, 12, 0),
-///     fatG: fatG,
-///     netCarbsG: netCarbsG,
-///     proteinG: proteinG,
-///     mealName: mealName,
-///     ingredients: ingredients,
-///   );
-/// }
-/// ```
-/// Default timestamp is fixed (not `DateTime.now()`) so tests stay
-/// deterministic — keep that when filling this in.
-library;
+/// Every default is keto-valid and deterministic — the timestamp is fixed, not
+/// `DateTime.now()`, so a fixture-backed assertion can never flake.
+abstract final class MealEntryFixture {
+  /// The fixed timestamp every fixture uses unless overridden.
+  static final DateTime defaultTimestamp = DateTime(2026, 9, 9, 12);
+
+  /// A keto-valid meal: 20g fat / 5g net carbs / 15g protein gives a ratio of
+  /// 1.0 against `CLAUDE.md`'s formula.
+  static MealEntry fixture({
+    int? id,
+    DateTime? timestamp,
+    double fatG = 20,
+    double netCarbsG = 5,
+    double proteinG = 15,
+    String mealName = 'Test Meal',
+    List<String> ingredients = const [],
+    String? imageRef,
+  }) => MealEntry(
+    id: id,
+    timestamp: timestamp ?? defaultTimestamp,
+    fatG: fatG,
+    netCarbsG: netCarbsG,
+    proteinG: proteinG,
+    mealName: mealName,
+    ingredients: ingredients,
+    imageRef: imageRef,
+  );
+
+  /// A meal carrying every optional field, for round-trip tests that need to
+  /// prove nothing is silently dropped.
+  static MealEntry complete({int? id}) => fixture(
+    id: id,
+    ingredients: const ['olive oil', 'butter'],
+    imageRef: 'labels/test.png',
+  );
+}

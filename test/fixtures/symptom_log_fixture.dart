@@ -1,38 +1,56 @@
-/// Stub for the M1 `SymptomLog` fixture.
+import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
+
+/// Test data for [SymptomLog].
 ///
-/// `SymptomLog` is domain-layer scope (M1 — see `design/architecture.md`),
-/// out of bounds for the M0 Foundation epic (#4), which explicitly excludes
-/// "any domain models or business logic." This file holds the intended
-/// future API contract as documentation only, so it compiles cleanly now
-/// and the M1 issue that introduces `SymptomLog` can fill in the real body
-/// without anyone needing to rediscover the shape from scratch.
-///
-/// TODO(M1): once `SymptomLog` lands, replace this file with something
-/// like:
-/// ```dart
-/// extension SymptomLogFixture on SymptomLog {
-///   static SymptomLog fixture({
-///     Id? id,
-///     DateTime? date,
-///     int energyScore = 3,
-///     int clarityScore = 3,
-///     int hungerScore = 3,
-///     int physicalScore = 3,
-///     int moodScore = 3,
-///     String? notes,
-///   }) => SymptomLog(
-///     id: id,
-///     date: date ?? DateTime(2026, 9, 9),
-///     energyScore: energyScore,
-///     clarityScore: clarityScore,
-///     hungerScore: hungerScore,
-///     physicalScore: physicalScore,
-///     moodScore: moodScore,
-///     notes: notes,
-///   );
-/// }
-/// ```
-/// All five scores are 1–5 scales per `design/ui_ux_design.md`. Default
-/// date is fixed (not `DateTime.now()`) so tests stay deterministic —
-/// keep that when filling this in.
-library;
+/// Defaults sit mid-scale so a test can move any score in either direction
+/// without leaving the valid 1–5 range. The date is fixed, not
+/// `DateTime.now()`.
+abstract final class SymptomLogFixture {
+  /// The fixed date every fixture uses unless overridden.
+  static final DateTime defaultDate = DateTime(2026, 9, 9);
+
+  /// A neutral day — every scale at 3.
+  static SymptomLog fixture({
+    int? id,
+    DateTime? date,
+    int energyScore = 3,
+    int clarityScore = 3,
+    int hungerScore = 3,
+    int physicalScore = 3,
+    int moodScore = 3,
+    String? notes,
+  }) => SymptomLog(
+    id: id,
+    date: date ?? defaultDate,
+    energyScore: energyScore,
+    clarityScore: clarityScore,
+    hungerScore: hungerScore,
+    physicalScore: physicalScore,
+    moodScore: moodScore,
+    notes: notes,
+  );
+
+  /// Every scale at its lower bound, with a note — the keto-flu shape, and a
+  /// boundary case for anything that persists these values.
+  static SymptomLog worstDay({int? id, DateTime? date}) => fixture(
+    id: id,
+    date: date,
+    energyScore: 1,
+    clarityScore: 1,
+    hungerScore: 1,
+    physicalScore: 1,
+    moodScore: 1,
+    notes: 'keto flu',
+  );
+
+  /// Every scale at its upper bound — the other boundary.
+  static SymptomLog bestDay({int? id, DateTime? date}) => fixture(
+    id: id,
+    date: date,
+    energyScore: 5,
+    clarityScore: 5,
+    hungerScore: 5,
+    physicalScore: 5,
+    moodScore: 5,
+  );
+}
