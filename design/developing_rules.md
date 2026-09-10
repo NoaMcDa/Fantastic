@@ -154,11 +154,20 @@ flutter test --coverage
 genhtml coverage/lcov.info -o coverage/html
 # Open coverage/html/index.html and verify
 
-# 5. Code generation — if any @collection, @riverpod, or @JsonSerializable was changed
-dart run build_runner build --delete-conflicting-outputs
+# 5. Code generation — if any @collection or @riverpod annotation was changed
+timeout 120 dart run build_runner build --verbose
+git status --short   # this is the check, NOT the exit code — see below
 flutter analyze  # re-run after generation
 flutter test     # re-run after generation
 ```
+
+> **`build_runner` finishes in about a second but never exits.** Exit code 124
+> from `timeout` is the expected outcome, not a failure — judge the run by
+> whether the `.g.dart` files are correct, not by its exit status. `--verbose`
+> is required: without it a redirected run produces an empty log. Never pipe it
+> into `tail` or `head`, which cannot print until a pipe closes that never
+> does. If it produces nothing at all, check for an orphaned run holding the
+> build lock: `ps -eo pid,etime,cmd | grep build_runner`.
 
 **All five must pass before proceeding. If any fails, fix it — do not skip.**
 
@@ -307,7 +316,7 @@ dart format --output=none --set-exit-if-changed lib/ test/
 flutter test
 flutter test --coverage
 # if generated files changed:
-dart run build_runner build --delete-conflicting-outputs && flutter test
+timeout 120 dart run build_runner build --verbose && flutter test
 
 # 6. Commit
 git add <specific files>

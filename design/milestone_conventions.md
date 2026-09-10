@@ -157,7 +157,7 @@ This milestone is complete when all of the following pass on `main`:
 - [ ] `dart format --output=none --set-exit-if-changed lib/ test/` — zero diffs
 - [ ] `flutter test` — zero failures
 - [ ] `flutter test --coverage` — domain + application layers ≥ 80% line coverage
-- [ ] `dart run build_runner build --delete-conflicting-outputs` — no conflicts, no errors
+- [ ] `timeout 120 dart run build_runner build --verbose` — no conflicts, no errors
 - [ ] No TODO comments introduced in this milestone's PRs
 - [ ] No magic numbers — all constants in `lib/core/constants/`
 - [ ] No cross-layer violations introduced (verified by `flutter analyze` + manual PR review)
