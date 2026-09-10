@@ -1,4 +1,5 @@
 import 'package:fantastic/core/database/isar_provider.dart';
+import 'package:fantastic/features/dashboard/data/schemas/isar_daily_log.dart';
 import 'package:fantastic/features/diary/data/schemas/isar_meal_entry.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +22,13 @@ void main() {
       expect(
         appIsarSchemas.map((schema) => schema.name),
         contains(IsarMealEntrySchema.name),
+      );
+    });
+
+    test('IsarDailyLog is registered', () {
+      expect(
+        appIsarSchemas.map((schema) => schema.name),
+        contains(IsarDailyLogSchema.name),
       );
     });
 
