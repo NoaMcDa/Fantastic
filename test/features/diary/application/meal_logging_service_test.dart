@@ -1,9 +1,12 @@
 import 'package:fantastic/features/dashboard/application/keto_ratio_calculator.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
+import 'package:fantastic/features/dashboard/data/providers.dart';
 import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:fantastic/features/diary/application/meal_logging_service.dart';
 import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
+import 'package:fantastic/features/diary/data/providers.dart';
 import 'package:fantastic/features/diary/domain/repositories/meal_repository.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -282,6 +285,49 @@ void main() {
 
       await expectLater(service.deleteMeal(7, date), throwsException);
       verifyNever(() => dailyLogRepository.save(any()));
+    });
+  });
+
+  // The provider declaration is public API of this file and part of Epic #6's
+  // "100% public method coverage" line, but nothing exercised it: every test
+  // above constructs the service directly. Its two sibling services
+  // (KetoRatioCalculator, ElectrolyteAdvisor) each have this test; this one
+  // was the odd one out.
+  group('mealLoggingServiceProvider', () {
+    ProviderContainer containerWithMocks() {
+      final container = ProviderContainer(
+        overrides: [
+          mealRepositoryProvider.overrideWithValue(mealRepository),
+          dailyLogRepositoryProvider.overrideWithValue(dailyLogRepository),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test('resolves to a MealLoggingService', () {
+      expect(
+        containerWithMocks().read(mealLoggingServiceProvider),
+        isA<MealLoggingService>(),
+      );
+    });
+
+    test('injects the repositories the container provides', () {
+      final resolved = containerWithMocks().read(mealLoggingServiceProvider);
+
+      expect(resolved.mealRepository, same(mealRepository));
+      expect(resolved.dailyLogRepository, same(dailyLogRepository));
+    });
+
+    // Proves the wiring end to end: a call through the resolved service reaches
+    // the overridden repositories, not some instance of its own.
+    test('the resolved service writes through those repositories', () async {
+      await containerWithMocks()
+          .read(mealLoggingServiceProvider)
+          .logMeal(MealEntryFixture.fixture());
+
+      verify(() => mealRepository.save(any())).called(1);
+      verify(() => dailyLogRepository.save(any())).called(1);
     });
   });
 }
