@@ -1,3 +1,4 @@
+import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/main.dart';
 import 'package:flutter/material.dart';
@@ -100,4 +101,48 @@ void main() {
       }
     },
   );
+
+  testWidgets('each of the 4 onboarding routes renders its placeholder', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(tester.element(find.text('בית').first));
+
+    for (var step = 1; step <= kOnboardingStepCount; step++) {
+      router.go('/onboarding/$step');
+      await tester.pumpAndSettle();
+      expect(find.text('אונבורדינג — שלב $step'), findsOneWidget);
+    }
+  });
+
+  testWidgets('onboarding renders outside the tab shell, with no '
+      'NavigationBar', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(tester.element(find.text('בית').first));
+    router.go('/onboarding/1');
+    await tester.pumpAndSettle();
+
+    expect(find.byType(NavigationBar), findsNothing);
+  });
+
+  testWidgets('/dashboard redirects to the dashboard tab at /', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(tester.element(find.text('בית').first));
+    router.go('/lens');
+    await tester.pumpAndSettle();
+
+    router.go('/dashboard');
+    await tester.pumpAndSettle();
+
+    // 2 matches means the dashboard tab is active inside the shell — the
+    // redirect landed on '/', not on a second, parallel dashboard route.
+    expect(find.text('בית'), findsNWidgets(2));
+    expect(find.byType(NavigationBar), findsOneWidget);
+  });
 }

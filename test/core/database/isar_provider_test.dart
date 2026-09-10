@@ -1,8 +1,41 @@
 import 'package:fantastic/core/database/isar_provider.dart';
+import 'package:fantastic/main.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  // Regression guard for #154: main.dart called `Isar.open([])`, which throws
+  // `IsarError: At least one collection needs to be opened` before `runApp`,
+  // so the app could not launch at all. No test caught it because none of them
+  // call main() — widget_test.dart pumps FantasticApp directly.
+  group('startup Isar wiring', () {
+    test('Isar is not opened while no collection is registered', () async {
+      expect(
+        appIsarSchemas,
+        isEmpty,
+        reason:
+            'M0 registers no collections by design. When #35 adds the first '
+            'schema, this test moves to asserting a database is returned.',
+      );
+
+      // Returning at all is the assertion: on the empty path openAppIsar
+      // touches no platform channel, where the old code hit path_provider and
+      // then threw inside Isar.open before runApp was ever reached.
+      expect(await openAppIsar(), isNull);
+    });
+
+    test('the app starts with no Isar override, leaving isarProvider '
+        'un-overridden', () async {
+      final db = await openAppIsar();
+      final container = ProviderContainer(
+        overrides: [if (db != null) isarProvider.overrideWithValue(db)],
+      );
+      addTearDown(container.dispose);
+
+      expect(container, isNotNull);
+    });
+  });
+
   test('isarProvider throws a descriptive UnimplementedError when not '
       'overridden', () {
     final container = ProviderContainer();

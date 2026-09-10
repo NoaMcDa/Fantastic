@@ -67,4 +67,26 @@ void main() {
       expect(locationAfter, locationBefore);
     });
   });
+
+  group('onboardingStep', () {
+    test('returns the step for each of the 4 real screens', () {
+      for (var step = 1; step <= kOnboardingStepCount; step++) {
+        expect(onboardingStep({'step': '$step'}), step);
+      }
+    });
+
+    test('falls back to step 1 for a step above the flow length', () {
+      expect(onboardingStep({'step': '9'}), 1);
+    });
+
+    test('falls back to step 1 for a zero or negative step', () {
+      expect(onboardingStep({'step': '0'}), 1);
+      expect(onboardingStep({'step': '-2'}), 1);
+    });
+
+    test('falls back to step 1 for a non-numeric or missing step', () {
+      expect(onboardingStep({'step': 'abc'}), 1);
+      expect(onboardingStep(const {}), 1);
+    });
+  });
 }
