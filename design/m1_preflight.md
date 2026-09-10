@@ -174,22 +174,24 @@ use-after-close** needs a real collection, so it lands with the first schema
 (#35). What remains in `test_isar_test.dart` is a regression guard on the
 network fix itself.
 
-## 8. `build_runner` is unverified in a Linux container
+## 8. `build_runner` works — it just never exits
 
-Every schema issue's Definition of Done requires a committed `.g.dart`. Code
-generation could not be verified during the M0 audit — `dart run build_runner
-build` ran over 20 minutes at ~0.1% CPU, blocked rather than computing, and was
-abandoned. Nothing merged so far depends on it.
+An earlier version of this section said code generation "ran over 20 minutes at
+~0.1% CPU, blocked rather than computing" and had to be confirmed working before
+#35 could start. **That was wrong.** Generation is fine and takes about a
+second; see `design/m1_handoff.md` for the full diagnosis.
 
-Confirm it works locally **before** starting #35, since #35–#38 and #43 are
-entirely code generation:
+What it does not do is terminate. Run it with a timeout and check the output
+separately:
 
 ```bash
-dart run build_runner build --delete-conflicting-outputs
+timeout 120 dart run build_runner build --verbose   # exit 124 is expected
+git status --short                                   # verify the .g.dart files
 ```
 
-If it stalls, check for an orphaned `build_runner` process holding the build
-lock before assuming the toolchain is broken.
+`--verbose` matters — without it, a redirected run produces an empty log.
+
+**Nothing in M1 is blocked on this.** #35–#38 and #43 can proceed.
 
 ---
 

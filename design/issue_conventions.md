@@ -301,17 +301,28 @@ abstract interface class MealRepository {
 
 ### Code Generation Guidelines
 
-Three generators are in use. Run all three in order after any annotated file changes:
+Two generators are in use. `build_runner` runs both after any annotated file
+changes:
 
 ```bash
-dart run build_runner build --delete-conflicting-outputs
+timeout 120 dart run build_runner build --verbose
+git status --short   # the real check — build_runner never exits, so exit 124
+                     # from timeout is expected, not a failure
 ```
 
 | Annotation | Generator | Output |
 |---|---|---|
-| `@collection` (Isar schema) | `isar_generator` | `*.g.dart` schema + query extensions |
+| `@collection` (Isar schema) | `isar_community_generator` | `*.g.dart` schema descriptor, typed query builder, binary serialisation |
 | `@riverpod` (provider) | `riverpod_generator` | `*.g.dart` provider definitions |
-| `@JsonSerializable` (remote DTO) | `json_serializable` | `*.g.dart` fromJson/toJson |
+
+`json_serializable` is **not** a dependency. Earlier drafts of this document
+and of `CLAUDE.md` listed `@JsonSerializable` as a third generator; nothing in
+the project uses it, and the MVP has no remote DTOs to deserialise. Add it only
+alongside a feature that actually needs it.
+
+Note the package names: the original `isar` / `isar_generator` were replaced in
+M0 by the community fork, because they pin `analyzer <6.0.0` and cannot
+co-resolve with `riverpod_generator` (see `design/m0_handoff.md` §1).
 
 - Never manually edit `.g.dart` files
 - Always commit `.g.dart` files alongside the annotated source file in the same PR
@@ -355,7 +366,7 @@ Use this template verbatim when opening any implementation issue. Copy the raw M
 |---|---|---|---|
 | <e.g., OCR recognition> | <e.g., `google_mlkit_text_recognition`> | <e.g., ^0.13.0> | <e.g., on-device, no network call, Hebrew script supported> |
 | <e.g., State management> | <e.g., `flutter_riverpod` + `@riverpod`> | <e.g., ^2.5.0> | <e.g., code-generated provider, AsyncNotifier pattern> |
-| <e.g., Local persistence> | <e.g., `isar` + `isar_generator`> | <e.g., ^3.1.0> | <e.g., @collection schema, type-safe query builder> |
+| <e.g., Local persistence> | <e.g., `isar_community` + `isar_community_generator`> | <e.g., ^3.1.0> | <e.g., @collection schema, type-safe query builder> |
 
 **Approach summary:**
 <1–3 sentences describing the chosen implementation strategy and why alternatives were not selected. E.g. "Using rule-based ingredient matching rather than ML classification because the rule set is deterministic, auditable, and works fully offline. A future issue will add Claude API as an optional fallback for ambiguous ingredients.">
@@ -445,7 +456,7 @@ Select exactly one:
 
 **Step 4.** _(if applicable)_ Run code generation and re-validate
    ```bash
-   dart run build_runner build --delete-conflicting-outputs
+   timeout 120 dart run build_runner build --verbose
    flutter analyze
    flutter test
    ```
@@ -506,7 +517,7 @@ Every item below must be checked before requesting review:
 - [ ] `dart format --output=none --set-exit-if-changed lib/ test/` — zero diffs
 - [ ] `flutter test` — zero failures
 - [ ] `flutter test --coverage` — coverage target met for this layer
-- [ ] `dart run build_runner build --delete-conflicting-outputs` — no conflicts (if generated files touched)
+- [ ] `timeout 120 dart run build_runner build --verbose` — no conflicts (if generated files touched)
 - [ ] Re-ran `flutter analyze` and `flutter test` after `build_runner`
 
 **Git & PR**
@@ -550,8 +561,8 @@ genhtml coverage/lcov.info -o coverage/html
 # - domain/ + application/ layers ≥ 80% line coverage
 # On failure: add missing tests
 
-# Step 5 — Code generation sync (only if @riverpod, @collection, or @JsonSerializable was added/changed)
-dart run build_runner build --delete-conflicting-outputs
+# Step 5 — Code generation sync (only if @riverpod or @collection was added/changed)
+timeout 120 dart run build_runner build --verbose
 # Then re-run steps 1 and 3:
 flutter analyze
 flutter test

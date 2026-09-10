@@ -17,7 +17,7 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
   - Acceptance: `flutter pub get` succeeds, `flutter analyze` returns zero issues
 
 - [ ] **Configure `build_runner` and verify code generation works end-to-end**
-  - Run `dart run build_runner build --delete-conflicting-outputs` with a dummy `@riverpod` annotation
+  - Run `timeout 120 dart run build_runner build --verbose` with a dummy `@riverpod` annotation
   - Acceptance: `.g.dart` files generated without errors
 
 - [ ] **Set up `analysis_options.yaml` with strict linting rules**

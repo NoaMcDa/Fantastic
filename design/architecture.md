@@ -282,18 +282,29 @@ Deep links are supported for `/restaurants/:id` to allow sharing restaurant card
 
 ## Code Generation
 
-Three generators run via `build_runner`:
+Two generators run via `build_runner`:
 
 | Generator | Input annotation | Output |
 |---|---|---|
-| `isar_generator` | `@Collection` on Isar schema classes | `.g.dart` schema files + query extensions |
+| `isar_community_generator` | `@collection` on Isar schema classes | `.g.dart` schema descriptor, typed query builder, binary serialisation |
 | `riverpod_generator` | `@riverpod` on provider functions/classes | `.g.dart` provider definitions |
-| `json_serializable` | `@JsonSerializable` on remote DTOs | `.g.dart` `fromJson`/`toJson` |
+
+`json_serializable` is **not** a dependency — earlier drafts listed it as a
+third generator, but nothing uses `@JsonSerializable` and the MVP has no remote
+DTOs. The Isar packages are the community fork, not the originals; see
+`design/m0_handoff.md` §1 for why.
 
 Always run:
 ```bash
-dart run build_runner build --delete-conflicting-outputs
+timeout 120 dart run build_runner build --verbose
+git status --short
 ```
+
+**`build_runner` never exits.** It finishes in about a second, then idles
+indefinitely, so `timeout`'s exit code 124 is the expected outcome — judge the
+run by whether the `.g.dart` files are right, not by its exit status.
+`--verbose` is required, and never pipe it into `tail` or `head`: those cannot
+print until a pipe closes that never does, so you see nothing at all.
 after modifying any annotated file.
 
 ---

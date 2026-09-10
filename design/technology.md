@@ -303,6 +303,20 @@ No service locator (`get_it`) is used — Riverpod handles all injection.
 ## Full Dependency List (pubspec.yaml candidates)
 
 ```yaml
+# NOTE: this block is the original pre-M0 evaluation, not the shipped
+# pubspec.yaml. Five entries below did not survive contact with a real
+# resolve — see design/m0_handoff.md §1-§3. The authoritative list is
+# pubspec.yaml itself, which is now committed alongside pubspec.lock.
+#
+#   isar / isar_flutter_libs / isar_generator  ->  isar_community*  ^3.3.2
+#   flutter_riverpod / riverpod_* ^2.x         ->  ^3.0.2
+#   riverpod_test                              ->  dropped; use
+#                                                  ProviderContainer.test()
+#   json_serializable                          ->  never added; nothing uses
+#                                                  @JsonSerializable
+#   meta                                       ->  added (#156), needed for
+#                                                  @immutable in domain/
+
 dependencies:
   flutter_riverpod: ^2.x
   riverpod_annotation: ^2.x

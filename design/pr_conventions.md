@@ -84,7 +84,7 @@ must pass locally before a PR is opened or marked ready for review:
 | `dart format --output=none --set-exit-if-changed lib/ test/` | Zero diffs |
 | `flutter test` | Zero failures |
 | `flutter test --coverage` | ≥ 80% line coverage on touched `domain/` and `application/` files |
-| `dart run build_runner build --delete-conflicting-outputs` (if `@collection`, `@riverpod`, or `@JsonSerializable` changed) | No conflicts, regenerated `.g.dart` committed |
+| `timeout 120 dart run build_runner build --verbose` (if `@collection` or `@riverpod` changed) | Regenerated `.g.dart` committed. **Judge by `git status`, not the exit code** — build_runner never exits, so `timeout`'s 124 is expected |
 
 A PR opened before this gate passes will be closed. This is restated here,
 not just in `developing_rules.md`, because it is a PR-eligibility rule, not
