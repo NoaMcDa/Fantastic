@@ -1,3 +1,4 @@
+import 'package:fantastic/core/router/app_shell.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -21,7 +22,7 @@ GoRouter appRouter(Ref ref) => GoRouter(
   initialLocation: '/',
   routes: [
     ShellRoute(
-      builder: (context, state, child) => _InterimShell(child: child),
+      builder: (context, state, child) => AppShell(child: child),
       routes: [
         GoRoute(path: '/', builder: (_, _) => const _InterimTab('בית')),
         GoRoute(path: '/lens', builder: (_, _) => const _InterimTab('מצלמה')),
@@ -39,32 +40,6 @@ GoRouter appRouter(Ref ref) => GoRouter(
   ],
   errorBuilder: (_, _) => const _InterimTab('עמוד לא נמצא'),
 );
-
-/// Temporary shell for issue #17, standing in for the real `AppShell`
-/// (issue #19) until it lands. Deliberately minimal — no nav-bar chrome,
-/// just enough of a tab switcher to prove all 5 routes are reachable.
-/// Private to this file; #19 replaces this `builder:` with `AppShell`.
-class _InterimShell extends StatelessWidget {
-  const _InterimShell({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: child,
-      bottomNavigationBar: SafeArea(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            for (final path in kTabPaths)
-              TextButton(onPressed: () => context.go(path), child: Text(path)),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// Temporary per-tab screen for issue #17, standing in for the real
 /// per-feature placeholder screens (issue #22) until they land. Private
