@@ -8,6 +8,11 @@ the Isar network dependency, the stale M0 "failing tests" claim, the current
 coverage number, and a companion check that would have failed CI on seven
 declaration-only files. Each is marked **[r2]** where it appears.
 
+Revision 3 corrects one thing r2 got wrong: **`application/` is no longer
+empty.** M2 landed #44–#48 and #54 while this document was being written, so
+the "vacuous gate" argument no longer holds and the coverage number has moved.
+Marked **[r3]**.
+
 ---
 
 ## 1. What exists today
@@ -66,10 +71,13 @@ three concrete facts make it worse than a general principle:
    ever mechanically verified it.
 2. **The coverage gate had never been measured** — asserted in two documents,
    enforced by nothing. §5.3 measures it for the first time. **[r2]**
-3. **The gate is currently vacuous on half its scope.** `lib/` contains
-   **zero** files under any `application/` directory (14 under `domain/`). A
-   gate written naively against "domain + application" passes today by having
-   nothing to measure — see §5.3.
+3. ~~**The gate is currently vacuous on half its scope.**~~ **[r3] No longer
+   true.** This said `lib/` contained zero files under any `application/`
+   directory. That held at this branch's merge-base and stopped holding hours
+   later: M2 merged #44 (`KetoRatioCalculator`), #45 (`MealLoggingService`),
+   #46 (`ElectrolyteAdvisor`), #47, #48 and #54. `application/` now carries
+   **49 executable lines across 6 files**, and the gate measures real
+   behaviour — see §5.3.
 
 > **[r2] Correction to revision 1.** This section previously argued that three
 > tests in `test/helpers/test_isar_test.dart` had never been observed passing,
@@ -316,19 +324,40 @@ awk -v min="$MIN" '
 directory yet; without the guard, a future refactor that renames a layer would
 turn the gate into a no-op and nobody would notice.
 
-**The number today, measured. [r2]** Running the script above against a real
-`flutter test --coverage` run on this repo:
+**The number today, measured. [r3]** Running the script above against a real
+`flutter test --coverage` run, with M2's services merged in:
 
 ```
-Gated coverage (domain + application): 155/155 = 100.00%
+  lib/features/dashboard/domain/models/daily_log.dart              37/ 37
+  lib/features/diary/domain/models/meal_entry.dart                 33/ 33
+  lib/features/adaptation/domain/models/streak_state.dart          26/ 26
+  lib/features/diary/domain/models/symptom_log.dart                36/ 36
+  lib/features/keto_lens/domain/models/parsed_label.dart           11/ 11
+  lib/features/keto_lens/domain/models/verdict_badge.dart           3/  3
+  lib/features/keto_lens/domain/models/ingredient_verdict.dart      9/  9
+  lib/features/dashboard/application/keto_ratio_calculator.dart     8/  8
+  lib/features/dashboard/application/electrolyte_advisor.dart      16/ 16
+  lib/features/dashboard/application/electrolyte_advice.dart        3/  3
+  lib/features/dashboard/application/providers/daily_log_providers.dart   3/  3
+  lib/features/diary/application/providers/meal_providers.dart      3/  3
+  lib/features/diary/application/meal_logging_service.dart         16/ 21   ← first real gap
+
+Gated coverage (domain + application): 204/209 = 97.61%
 ```
 
-155 executable lines, all covered. Two things follow. First, an 80% gate would
-pass today with 20 points of headroom — it costs nothing to turn on, but it also
-proves nothing yet, because `application/` is empty and 155 lines of pure domain
-models are the easiest code in the project to cover. Second, **the number will
-fall** the moment M2 lands real services. That is the point at which the gate
-starts doing work, which is why Phase 2 is scheduled there and not now.
+**[r3] Revision 2 measured 155/155 = 100% and argued the gate was worth
+deferring because `application/` was empty and 155 lines of domain models are
+the easiest code in the project to cover. The first half of that is now
+obsolete.** `application/` holds 49 of the 209 gated lines, and
+`MealLoggingService` is the first file in the project with genuinely uncovered
+lines — 5 of them.
+
+The prediction that "the number will fall the moment M2 lands real services"
+held: 100% → 97.61%. What follows is that **Phase 2's stated precondition —
+"once `application/` has real services" — is already met, at M2 rather than
+M4–M5.** The gate would now measure real behaviour at 17.6 points of headroom
+over the 80% threshold. Turning it on is a live option rather than a
+placeholder; see §7.
 
 **Known gap — untested files are invisible.** `flutter test --coverage` emits an
 `SF:` record only for files some test imports. A file with no test at all does
@@ -620,10 +649,15 @@ per `design/issue_conventions.md` §atomicity.
 |---|---|---|---|
 | **0** | ✅ **done** | `ci.yml` `verify` job: lockfile check, format, analyze, **unit + widget tests**. Branch protection still to enable. | Re-scope **#102** |
 | **1** | next | `codegen` drift job; `dependabot.yml` for `pub` + `github-actions` | new |
-| **2** | M4–M5, once `application/` has real services | `tool/check_coverage.sh`, gate at 80%, ignore-list check; ratchet up as the number rises | new |
+| **2** | **precondition met — ready now [r3]** (was "M4–M5, once `application/` has real services"; M2 delivered them early) | `tool/check_coverage.sh`, gate at 80%, ignore-list check; ratchet up as the number rises. Measured 97.61% — 17.6 points of headroom | new |
 
 Phases 1–2 are both small, both `ubuntu-latest`, both free. Neither needs a
 secret, an Apple account, or a Mac.
+
+**[r3]** Phase 2 was scheduled for M4–M5 on the assumption that `application/`
+would stay empty until then. It did not — M2 landed three services in a day.
+The phase is unblocked now; the only reason it is not in the Phase 0 PR is that
+it was not asked for. Doing it next is the recommendation.
 
 ### 7.1 Parked — and what unparks each
 
