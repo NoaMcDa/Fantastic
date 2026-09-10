@@ -4,20 +4,33 @@ State of M1 as of 2026-09-10. Read `design/m1_preflight.md` first if you are
 picking up any M1 issue — it explains the corrections the issue text needed and
 why the design docs now read as they do.
 
-## Status
+## Status — M1 is half done
 
-**The five domain-model issues are merged to `main`** (#25, #26, #27, #28, #30
-via PR #161). `main` passes `flutter analyze` (zero issues), `dart format
---check` (zero diffs), and **120 tests**, up from 30 at the end of M0.
-
-M1's remaining 14 issues are **all unblocked**. An earlier draft of this file
-said #35–#43 were gated on `build_runner`; that was wrong, and the correction is
-under "The `build_runner` hang" below — it works, it just never exits.
+**The entire domain layer is merged to `main`.** `main` passes `flutter analyze`
+(zero issues), `dart format --check` (zero diffs), and **133 tests**, up from 30
+at the end of M0.
 
 | Group | Issues | State |
 |---|---|---|
-| Repository & service interfaces, fixtures | #29, #31, #32, #33, #34, #152 | Pure Dart, no code generation |
-| Isar schemas, repositories, providers | #35–#43 | Code generation required — run it per the recipe below |
+| Domain models | #25, #26, #27, #28, #30 | ✅ merged (PR #161) |
+| Repository & service interfaces, fixtures | #29, #31, #32, #33, #34, #152 | ✅ merged (PR #163) |
+| **Isar schemas, repositories, providers** | **#35–#43** | ❌ **open — nine issues, no code written** |
+
+There is **no `data/` directory under any feature yet**. The nine open issues
+are the whole persistence layer: four schemas with mappers, four repository
+implementations with contract suites, and the provider wiring.
+
+They are **not blocked**. An earlier draft of this file said they were gated on
+`build_runner`; that was wrong, and the correction is under "The `build_runner`
+hang" below — it works, it just never exits.
+
+**M2 cannot start before they land.** M2's services (#45 `MealLoggingService`,
+#47/#48 the providers) depend on the repository *implementations* and on #43's
+provider wiring, not merely on the interfaces. The one exception is #44
+(`KetoRatioCalculator`), which is pure arithmetic and depends on nothing.
+
+Epic **#5** (M1) and Epic **#4** (M0) both remain open. #4's only outstanding
+item is the `flutter run` simulator check.
 
 What shipped, and where it lives:
 
@@ -28,8 +41,17 @@ What shipped, and where it lives:
 | Streak | `lib/features/adaptation/domain/models/{streak_state,adaptation_phase}.dart` |
 | Symptoms | `lib/features/diary/domain/models/symptom_log.dart` |
 | Keto Lens | `lib/features/keto_lens/domain/models/{verdict_badge,parsed_label,ingredient_verdict}.dart` |
+| Repository interfaces | `lib/features/{diary,dashboard,adaptation}/domain/repositories/` |
+| Service interfaces | `lib/features/keto_lens/domain/services/{label_parser,ingredient_classifier}.dart` |
 | Shared | `lib/core/utils/list_equality.dart` |
-| Tests | seven files under `test/features/*/domain/models/`, 100% line coverage on all eight source files |
+| Fixtures | `test/fixtures/` — all four filled, barrel exporting, 13 tests |
+| Tests | eight files under `test/features/*/domain/models/`, 100% line coverage on the model sources |
+
+The interfaces carry no executable code, so they have no tests of their own —
+coverage lands with their implementations in #39–#42.
+
+The methods each interface actually declares are listed in
+`design/m2_preflight.md` §8. M2's issues assume some that do not exist.
 
 ---
 
@@ -187,25 +209,33 @@ container.
 
 ---
 
-## Next: finish the M1 domain layer (#29, #31–#34, #152)
+## Next: the M1 data layer (#35–#43)
 
-All six are pure Dart and unblocked. Suggested order:
+Nine issues, in dependency order. Their rewritten bodies (#158) are accurate —
+implement from them directly.
 
-1. **#29** `MealRepository` — first interface; sets the shape.
-2. **#31** `DailyLogRepository` — note it lives under `dashboard/`, not diary.
-3. **#32** `StreakRepository` — **three methods, not two.** `watch()` was added
-   in PR #160 because `streakStateProvider` (#59) is specified as a stream
-   watching it, and #32's own text already claimed the provider streams from it.
-4. **#33** `SymptomLogRepository` — under `diary/`; there is no `symptom_diary`
-   feature directory.
-5. **#34** `LabelParser` / `IngredientClassifier` — both methods synchronous,
-   both total (never throw).
-6. **#152** fill `test/fixtures/`. The stubs' documented shape types `id` as
-   `Id?` — that is the same Isar-typedef bug corrected everywhere else;
-   fixtures take `int?`. Sequence this **before** #39–#42, whose contract suites
-   consume the fixtures.
+1. **#35** `IsarMealEntry` schema + mapper. **This is the change that turns
+   persistence on**: it appends the first schema to `appIsarSchemas`, and it
+   must also flip the two `startup Isar wiring` tests in
+   `test/core/database/isar_provider_test.dart`, which currently assert that
+   list is empty. It also carries the `openTestIsar` lifecycle tests that #147
+   had to drop for want of a real collection.
+2. **#36, #37, #38** — the other three schemas. #36 lives under `dashboard/`.
+3. **#39–#42** — repository implementations with contract suites. Each opens a
+   real in-memory Isar via `openTestIsar([IsarXxxSchema])` and builds its
+   objects from the fixtures, never inline.
+4. **#43** — provider wiring. Three `providers.dart` files: diary (meal +
+   symptom), dashboard (daily log), adaptation (streak).
 
-Then #35–#43: the Isar schemas, repositories and providers. Nothing gates them
-beyond the ordering their own bodies describe — run code generation per the
-recipe above, and remember that **#35 is the change that turns persistence on**
-by appending the first schema to `appIsarSchemas`.
+Every one of #35–#38 and #43 runs code generation. Use the recipe above, and
+remember `git status` is the check, not the exit code.
+
+## Then: M2 (#44–#56)
+
+**Read `design/m2_preflight.md` first.** A spot audit of M2's application layer
+found the same class of defects M1 had — riverpod-2 `Ref` types, relative
+imports — plus one specific to M2: the `DailyLog` move to the dashboard feature
+(#157) was never propagated, so #45 and #47 still import it from `diary/`. #45
+also calls a `DailyLog.empty(date)` factory that does not exist.
+
+Tracked by **#165**. #44 is clean and is the right place to start.
