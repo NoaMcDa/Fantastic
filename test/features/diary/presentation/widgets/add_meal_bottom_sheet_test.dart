@@ -73,14 +73,51 @@ void main() {
       expect(entry.proteinG, 13);
     });
 
-    testWidgets('logs against the date the sheet was opened for', (
+    // Regression for #201: `timestamp: widget.date` stored the midnight-
+    // normalised date verbatim, so every meal ever logged rendered as 00:00.
+    testWidgets('carries the current time of day, not midnight', (
       tester,
     ) async {
       await pumpSheet(tester);
       await fillForm(tester);
+
+      // Bracket the submit so the assertion is a range. Asserting "not
+      // midnight" would fail for real once a year, at midnight.
+      final before = DateTime.now();
+      await submit(tester);
+      final after = DateTime.now();
+
+      DateTime onDate(DateTime clock) => DateTime(
+        date.year,
+        date.month,
+        date.day,
+        clock.hour,
+        clock.minute,
+        clock.second,
+      );
+
+      final stamped = loggedEntry().timestamp;
+      expect(
+        stamped.isBefore(onDate(before)),
+        isFalse,
+        reason: '$stamped precedes the clock reading taken before the save',
+      );
+      expect(
+        stamped.isAfter(onDate(after)),
+        isFalse,
+        reason: '$stamped follows the clock reading taken after the save',
+      );
+    });
+
+    testWidgets('keeps the calendar day it was opened for', (tester) async {
+      await pumpSheet(tester);
+      await fillForm(tester);
       await submit(tester);
 
-      expect(loggedEntry().timestamp, date);
+      final stamped = loggedEntry().timestamp;
+      expect(stamped.year, date.year);
+      expect(stamped.month, date.month);
+      expect(stamped.day, date.day);
     });
 
     testWidgets('trims surrounding whitespace from the name', (tester) async {
