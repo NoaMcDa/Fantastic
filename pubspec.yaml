@@ -35,6 +35,28 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  # State management — code-generated Riverpod providers. Using ^3.0.2
+  # rather than the ^2.6.1 named in issue #14: 2.6.x's riverpod_generator
+  # cannot resolve alongside isar_community_generator (see below) on any
+  # released version — their `analyzer`/`source_gen`/`build` ranges never
+  # overlap. `@riverpod`/`Ref`/`ConsumerWidget`/`ProviderScope`, the only
+  # riverpod APIs any M0 issue uses, are unchanged between 2.6.1 and 3.0.2.
+  flutter_riverpod: ^3.0.2
+  riverpod_annotation: ^3.0.2
+
+  # Local persistence. Using the community-maintained fork (same API as the
+  # original isar/isar_flutter_libs/isar_generator ^3.1.0 named in issue #14):
+  # the original packages pin `analyzer <6.0.0`, which cannot resolve
+  # alongside riverpod_generator on this Dart SDK at all.
+  isar_community: ^3.3.2
+  isar_community_flutter_libs: ^3.3.2
+
+  # Declarative routing with ShellRoute tab-bar support.
+  go_router: ^14.6.0
+
+  # App-documents directory lookup, used to open Isar's on-disk store.
+  path_provider: ^2.1.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -45,6 +67,18 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+
+  # Code generation.
+  riverpod_generator: ^3.0.2
+  isar_community_generator: ^3.3.2
+  build_runner: ^2.4.13
+
+  # Testing. `riverpod_test` (named in issue #14 as `^2.4.0`, which doesn't
+  # exist — the real package tops out at 0.1.9 and pins `riverpod: ^2.6.1`,
+  # incompatible with riverpod 3.0.2 above) is dropped in favour of
+  # `ProviderContainer.test()`, riverpod 3.0's own built-in replacement for
+  # it (see the riverpod 3.0.0 changelog).
+  mocktail: ^1.0.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
