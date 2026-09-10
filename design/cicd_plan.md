@@ -1,6 +1,7 @@
 # CI/CD Plan
 
-Status: **Phase 0 implemented** (`.github/workflows/ci.yml`); Phases 1–5 proposed.
+Status: **Phase 0 implemented** (`.github/workflows/ci.yml`). Phases 1–2 are the
+active scope. **Phases 3–5 are parked by decision — see §7.1.**
 
 Revision 2 corrects five things revision 1 got wrong — the Flutter version pin,
 the Isar network dependency, the stale M0 "failing tests" claim, the current
@@ -117,50 +118,42 @@ discovered at 2am.
 
 ## 4. Target pipeline
 
+### Active scope — one workflow, one runner OS
+
 ```
                         ┌───────────────────────────────────────┐
   PR → main             │ ci.yml           (ubuntu, ~4 min)     │
-  push → main           │  • analyze                            │
-                        │  • format --set-exit-if-changed       │
-                        │  • test --coverage                    │
-                        │  • coverage gate (domain+application) │
-                        │  • codegen drift check                │
+  push → main           │  • pub get + lockfile unchanged       │
+  workflow_dispatch     │  • format --set-exit-if-changed       │
+                        │  • analyze                            │
+                        │  • test                    ← Phase 0 ✅│
+                        │  • codegen drift check     ← Phase 1  │
+                        │  • coverage gate           ← Phase 2  │
                         └───────────────────────────────────────┘
                                           │ required check
                                           ▼
-                        ┌───────────────────────────────────────┐
-  push → main           │ testflight.yml   (macOS, ~15 min)     │
-                        │  • build ipa, signed                  │
-                        │  • upload → TestFlight internal       │
-                        └───────────────────────────────────────┘
-                                          │
-                                          ▼
-                        ┌───────────────────────────────────────┐
-  tag v*.*.*            │ release.yml      (macOS + approval)   │
-                        │  • promote build → App Store review   │
-                        └───────────────────────────────────────┘
-
-  nightly 02:00 UTC     ┌───────────────────────────────────────┐
-                        │ integration.yml  (macOS, simulator)   │
-                        │  • integration_test/ on iPhone sim    │
-                        └───────────────────────────────────────┘
+                                       merge
 ```
 
-Four workflow files, plus `dependabot.yml`. Trigger rules:
+That is the whole pipeline for now. One file, `ubuntu-latest`, no secrets, no
+macOS, no external service.
 
 | Workflow | Trigger | Runner | Blocking? |
 |---|---|---|---|
-| `ci.yml` | `pull_request` → `main`, `push` → `main` | `ubuntu-latest` | **Yes** — required check |
-| `integration.yml` | `schedule` nightly, `workflow_dispatch` | `macos-latest` | No — reported, not blocking |
-| `testflight.yml` | `push` → `main`, `workflow_dispatch` | `macos-latest` | n/a |
-| `release.yml` | `push` tag `v*.*.*` | `macos-latest` + environment approval | n/a |
+| `ci.yml` | `pull_request` → `main`, `push` → `main`, `workflow_dispatch` | `ubuntu-latest` | **Yes** — required check |
 
-Why iOS builds are absent from `ci.yml`: `flutter build ios` requires a macOS
-runner, billed at **10× the minute rate** of Linux. Running it per-PR on a
-private repo burns the whole free allowance in a week (§8). A compile break that
+### Parked scope
+
+`integration.yml` (nightly simulator), `testflight.yml` and `release.yml` are
+designed in §6 but **not being built** — see §7.1 for the decision and the
+conditions that unpark them. Everything they need (macOS runners, an Apple
+Developer account, signing secrets) is exactly what the active scope avoids.
+
+Why iOS builds are absent from `ci.yml` even later: `flutter build ios` requires
+a macOS runner, billed at **10× the minute rate** of Linux. A compile break that
 is iOS-specific — and not caught by `flutter analyze`, which is
 platform-independent — is rare enough to catch on merge rather than on every
-push. Revisit if it ever bites.
+push.
 
 ---
 
@@ -396,7 +389,15 @@ Once `ci.yml` has one green run on `main`, configure on `main`:
 
 ---
 
-## 6. CD design
+## 6. CD design — **parked, retained as design**
+
+> **Decision: none of §6 is being built now**, together with `integration.yml`
+> in §6.5. Nothing below is scheduled; it is kept because the research holds and
+> re-deriving it later is waste. See §7.1 for the entry conditions.
+>
+> Read this section when those conditions are met — not before. In particular
+> do not create Apple Developer accounts, App Store Connect records, or signing
+> certificates on its account today.
 
 Nothing here exists yet in any form; all of it is new.
 
@@ -613,18 +614,39 @@ run on untrusted contributor code.
 Each phase is independently shippable and leaves the repo in a valid state,
 per `design/issue_conventions.md` §atomicity.
 
-| Phase | When | Contents | Proposed issues |
-|---|---|---|---|
-| **0** | ✅ **done** | `ci.yml` `verify` job: lockfile check, format, analyze, test. No coverage gate yet. Branch protection still to enable. | Re-scope **#102**, pull out of M8 |
-| **1** | Now + 1 | `codegen` drift job; Isar binary cache; `dependabot.yml` for `pub` + `github-actions` | new |
-| **2** | M4–M5, once `application/` has real services | `tool/check_coverage.sh`, gate at 80%, missing-file check; ratchet the number up as it rises | new |
-| **3** | M8, after #95–#101 land | `integration.yml` nightly on simulator | new, alongside **#150** |
-| **4** | M8 / post-M8 | fastlane, match, `ExportOptions.plist`, `testflight.yml` — **the first iOS build** | new |
-| **5** | Pre-submission | `release.yml`, tag flow, environment approval, Hebrew metadata via `deliver` | new; folds in `tasks.md` App Store items |
+### Active
 
-Phase 0 is the one that matters. Phases 4–5 need an Apple Developer account, a
-bundle identifier, and at least one person with a Mac — obtain those before the
-phase, not during it.
+| Phase | When | Contents | Issues |
+|---|---|---|---|
+| **0** | ✅ **done** | `ci.yml` `verify` job: lockfile check, format, analyze, **unit + widget tests**. Branch protection still to enable. | Re-scope **#102** |
+| **1** | next | `codegen` drift job; `dependabot.yml` for `pub` + `github-actions` | new |
+| **2** | M4–M5, once `application/` has real services | `tool/check_coverage.sh`, gate at 80%, ignore-list check; ratchet up as the number rises | new |
+
+Phases 1–2 are both small, both `ubuntu-latest`, both free. Neither needs a
+secret, an Apple account, or a Mac.
+
+### 7.1 Parked — and what unparks each
+
+| Phase | Contents | Parked until |
+|---|---|---|
+| **3** | `integration.yml`, nightly on a macOS simulator | **There are complete user flows to click through.** Today `integration_test/` does not exist and neither do the flows — onboarding, meal logging and the streak machine are M2–M4 work. A nightly suite over an app with five placeholder screens tests nothing. Revisit when #95–#101 have real screens to drive, i.e. M8 as originally scoped |
+| **4** | fastlane, match, `ExportOptions.plist`, `testflight.yml` | **There is a stable feature set worth handing to human beta testers.** Shipping placeholder screens to TestFlight spends reviewer goodwill and a week of setup for no feedback. Revisit when the 5 MVP features are behaviourally complete |
+| **5** | `release.yml`, tag flow, environment approval, Hebrew metadata | Phase 4 is running and a submission date is real |
+
+**This is the right call, and it is not merely a deferral — it removes the
+plan's only forcing problem.** Revision 1's §8 showed the nightly macOS run
+alone exceeding the free Actions tier by 3×, which would have forced a choice
+between going public, dropping to weekly, or adding Codemagic as a second CI
+system. Parking Phases 3–5 makes that decision moot until there is something
+worth spending the minutes on. §8 is rewritten accordingly.
+
+What is deliberately **not** deferred: the design in §6 stays in this document.
+The cost of re-researching signing, `match`, build-number monotonicity and
+App Store Connect keys later is higher than the cost of the words sitting here.
+
+**Do not** pre-buy the prerequisites. An Apple Developer membership renews
+annually from purchase; buying it now to "be ready" burns months of it while
+Phases 3–5 are parked.
 
 ### Effect on existing issues
 
@@ -632,10 +654,13 @@ phase, not during it.
   infrastructure milestone that can run now, and correct its Implementation
   Plan per §3. Its current Upstream Dependencies ("blocked by #95–#101") should
   be deleted: analyze/format/test depend on none of them.
-- **#150** (`integration_test` scaffold) — unchanged; it gates Phase 3.
-- **Epic #12** — gains Phases 3–5; Phase 0–2 move to the new infra milestone.
-- `design/pr_conventions.md:171-172` — update once Phase 0 is green, since the
-  "until then" clause it describes will no longer apply.
+- **#150** (`integration_test` scaffold) — unchanged; it gates Phase 3, which
+  stays in M8. Parking Phase 3 changes nothing about it.
+- **Epic #12** — keeps Phase 3 (M8, as scoped). Phases 0–2 move to the new
+  infra milestone; Phases 4–5 leave M8 for a post-MVP release epic, since
+  "stable feature set" is by definition after the MVP features land.
+- `design/pr_conventions.md` §6 — ✅ updated; the "until the CI workflow exists"
+  clause is resolved.
 
 ---
 
@@ -643,36 +668,51 @@ phase, not during it.
 
 GitHub Actions, private repo, free tier: 2,000 min/mo, macOS billed **10×**.
 
+**Active scope:**
+
 | Workflow | Runner | Est. duration | Frequency | Effective min/mo |
 |---|---|---|---|---|
-| `ci.yml` | ubuntu | ~4 min × 2 jobs | ~60 runs | ~480 |
-| `integration.yml` | macOS | ~20 min | 30 nightly | ~6,000 ⚠️ |
-| `testflight.yml` | macOS | ~15 min | ~8 merges | ~1,200 ⚠️ |
-| `release.yml` | macOS | ~15 min | ~1 | ~150 |
+| `ci.yml` (Phase 0) | ubuntu | ~4 min | ~60 runs | ~240 |
+| `ci.yml` + codegen job (Phase 1) | ubuntu | ~4 min | ~60 runs | ~240 |
+| **Total** | | | | **~480 of 2,000 — 24%** |
 
-**The nightly integration run alone exceeds the free tier by 3×.** Mitigations,
-in order of preference: run it weekly rather than nightly until the suite earns
-its keep; make the repository public (unlimited Actions minutes); or move macOS
-work to Codemagic's free tier and keep Linux CI on GitHub. Decide before Phase 3
-— this is the one line item that forces a real choice.
+**Comfortably inside the free tier, with room for CI to roughly quadruple in
+frequency before it matters.** No macOS minutes, no paid add-on, no decision to
+make. The workflow's `concurrency` block (§5.1) cancels superseded PR runs, so
+a branch pushed ten times costs one run, not ten.
+
+Parked scope, for when it is unparked: `integration.yml` at ~20 min nightly on
+macOS is **~6,000 effective min/mo — 3× the entire free tier on its own**;
+`testflight.yml` adds ~1,200. Phase 3 therefore cannot simply be switched on.
+When it comes back, choose first between a weekly rather than nightly cadence,
+a public repository (unlimited minutes), or moving macOS work to Codemagic's
+free tier while Linux CI stays here. **Recommendation: weekly to start** — a
+nightly suite nobody reads is worse than a weekly one somebody does.
 
 ---
 
 ## 9. Open questions
 
-1. **Apple Developer account** — does one exist? Individual or Organization?
-   Everything from Phase 4 on is blocked on it, and enrolment can take days.
-2. **Bundle identifier** — not yet set to anything real; needs deciding before
-   the first App Store Connect app record.
-3. **macOS access** — who runs the one-time `fastlane match init`? It cannot be
-   done from a Linux container.
-4. **Nightly budget** — public repo, weekly cadence, or Codemagic? (§8)
-5. **Codecov** — `design/tests.md` says coverage is "uploaded to Codecov". Worth
+**Live — these need answering to finish Phases 0–2:**
+
+1. **Branch protection.** Requires repo admin; I cannot set it. Until the
+   `analyze · format · test` check is *required* on `main`, CI reports but does
+   not block, and a red PR stays mergeable.
+2. **Coverage threshold at Phase 2.** The gate is 80% per `design/tests.md`;
+   today's measured number is 100% on 155 lines (§5.3). Start at 80 and ratchet,
+   or start at the real number and never regress? Recommendation: 80, ratcheted
+   — a gate that fails on the first honest service is a gate people delete.
+3. **Codecov.** `design/tests.md` says coverage is "uploaded to Codecov". Worth
    the third-party integration, or is the artifact + gate enough? Recommendation:
-   artifact + gate for now; add Codecov if PR-level coverage diffs are wanted.
-6. **Flutter version pinning** — resolve `.metadata`'s revision to an exact
-   version and record it in one place. An `.fvmrc` would make the workflow, the
-   docs, and every developer's machine agree.
+   artifact + gate; add Codecov only if PR-level coverage diffs are wanted.
+4. **Flutter version, single source of truth.** The pin `3.47.3` now lives only
+   in `ci.yml`. An `.fvmrc` would make the workflow, the docs and every
+   developer's machine agree instead of drifting.
+
+**Parked with Phases 3–5 — do not answer these yet (§7.1):** whether an Apple
+Developer account exists and in what form; the real bundle identifier; who runs
+the one-time `fastlane match init` on a Mac; and the nightly macOS budget, which
+§8 shows is only a question once Phase 3 is unparked.
 
 ---
 
