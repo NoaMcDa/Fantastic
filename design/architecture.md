@@ -54,37 +54,52 @@ lib/
 │   ├── dashboard/
 │   │   ├── presentation/   # DashboardScreen, macro widgets, streak ring
 │   │   ├── application/    # DashboardSummaryService, providers
-│   │   ├── domain/         # DailyLog, StreakState, AdaptationPhase
+│   │   ├── domain/
+│   │   │   ├── models/         # DailyLog, StreakState, AdaptationPhase
+│   │   │   └── repositories/   # DailyLogRepository, StreakRepository (interfaces)
 │   │   └── data/           # IsarDailyLogRepository, IsarStreakRepository
 │   │
 │   ├── keto_lens/
 │   │   ├── presentation/   # CameraScreen, ResultSheet, BadgeWidget
 │   │   ├── application/    # ScanOrchestrator, providers
-│   │   ├── domain/         # ParsedLabel, IngredientVerdict, LabelParser (interface)
+│   │   ├── domain/
+│   │   │   ├── models/         # ParsedLabel, IngredientVerdict, VerdictBadge
+│   │   │   └── services/       # LabelParser, IngredientClassifier (interfaces)
 │   │   └── data/           # MlKitTextRecognizer, HebrewLabelParser, IngredientClassifierImpl
 │   │
 │   ├── diary/
 │   │   ├── presentation/   # DiaryScreen, SymptomRow, BiomarkerCard
 │   │   ├── application/    # DiaryService, providers
-│   │   ├── domain/         # MealEntry, SymptomLog, BiomarkerLog, DiaryRepository (interfaces)
-│   │   └── data/           # IsarMealRepository, IsarSymptomRepository, IsarBiomarkerRepository
+│   │   ├── domain/
+│   │   │   ├── models/         # MealEntry, SymptomLog, BiomarkerLog
+│   │   │   └── repositories/   # MealRepository, SymptomLogRepository (interfaces)
+│   │   └── data/
+│   │       ├── schemas/        # IsarMealEntry, IsarSymptomLog
+│   │       ├── mappers/        # MealEntryMapper, SymptomLogMapper
+│   │       └── repositories/   # IsarMealRepository, IsarSymptomLogRepository
 │   │
 │   ├── adaptation/
 │   │   ├── presentation/   # PhaseDetailScreen, TimelineWidget, StreakCalendar
 │   │   ├── application/    # AdaptationPhaseService, ElectrolyteAdvisor, providers
-│   │   ├── domain/         # StreakState, AdaptationPhase, StreakRepository (interface)
-│   │   └── data/           # IsarStreakRepository
+│   │   ├── domain/
+│   │   │   ├── models/         # StreakState, AdaptationPhase
+│   │   │   └── repositories/   # StreakRepository (interface)
+│   │   └── data/           # IsarStreakState schema, mapper, IsarStreakRepository
 │   │
 │   ├── restaurant/
 │   │   ├── presentation/   # DirectoryScreen, MapView, RestaurantDetailSheet
 │   │   ├── application/    # DirectoryService, MenuAnalyzerService, providers
-│   │   ├── domain/         # DirectoryEntry, DirectoryFilter, DirectoryReader (interface)
+│   │   ├── domain/
+│   │   │   ├── models/         # DirectoryEntry, DirectoryFilter
+│   │   │   └── repositories/   # DirectoryReader (interface)
 │   │   └── data/           # StaticJsonDirectorySource, MlKitMenuAnalyzer
 │   │
 │   ├── recipe/
 │   │   ├── presentation/   # RecipeConverterScreen, SubstitutionList, RecipeLibraryGrid
 │   │   ├── application/    # RecipeConverterService, providers
-│   │   ├── domain/         # Recipe, Ingredient, SubstitutionRule, RecipeRepository (interface)
+│   │   ├── domain/
+│   │   │   ├── models/         # Recipe, Ingredient, SubstitutionRule
+│   │   │   └── repositories/   # RecipeRepository (interface)
 │   │   └── data/           # IsarRecipeRepository, SubstitutionRuleEngine
 │   │
 │   └── directory/          # (alias entry point — delegates to restaurant feature)
@@ -137,11 +152,23 @@ timestamp         date (indexed)    date (indexed)     date (indexed)
 fatG              totalFatG         energyScore 1-5    bloodKetones
 netCarbsG         totalNetCarbsG    clarityScore 1-5   breathKetones
 proteinG          totalProteinG     hungerScore 1-5    fastingGlucose
-calories          waterMl           physicalScore 1-5  bodyWeightKg
-ingredients[]     sodiumMg          moodScore 1-5      notes
-imageRef          potassiumMg       notes
-mealName          magnesiumMg
-ketoRatio         ketoRatioAvg
+ingredients[]     waterMl           physicalScore 1-5  bodyWeightKg
+imageRef          sodiumMg          moodScore 1-5      notes
+mealName          potassiumMg       notes
+                  magnesiumMg
+                  ketoRatioAvg
+```
+
+`MealEntry.ketoRatio` is a **computed getter**, not a stored column — a
+persisted copy can go stale against the macros it was derived from.
+`DailyLog.ketoRatioAvg` *is* stored, because it averages across meals that are
+no longer individually loaded when the dashboard reads the day.
+
+An earlier version of this table listed a `calories` column on `MealEntry`. No
+issue implements it and the MVP tracks fat / net carbs / protein only, so it
+has been dropped rather than left as a field nobody creates.
+
+```
 
 StreakState       RecipeEntry       DirectoryEntry (cached)
 ───────────       ───────────       ───────────────────────
@@ -159,7 +186,7 @@ gracePeriodEnd    savedAt           ketoTips[]
 
 - All schemas live in `data/` — never imported from `domain/` or `presentation/`.
 - Mappers (`IsarMealEntry.toDomain()` / `MealEntry.toIsar()`) live alongside schemas.
-- Collections are opened once in `main.dart` via `Isar.open([...])` and injected via `isarProvider`.
+- Collections are registered in `appIsarSchemas` (`lib/core/database/isar_provider.dart`), opened once in `main.dart`, and injected via `isarProvider`. `main.dart` skips `Isar.open` entirely while that list is empty — Isar rejects an empty schema list, which crashed the app at launch before #154.
 - Queries always use Isar's type-safe query builder, never raw strings.
 
 ---
@@ -306,7 +333,7 @@ All platform integrations are wrapped behind domain interfaces and injected via 
 | Domain models | Unit | `dart test` — no mocks needed |
 | Application services | Unit | `mocktail` mocks of domain interfaces |
 | Repository contract | Integration | Real Isar instance (in-memory) |
-| Riverpod providers | Unit | `riverpod_test` + `ProviderContainer` |
+| Riverpod providers | Unit | `ProviderContainer.test()` — riverpod 3's built-in replacement for `riverpod_test`, which is not a dependency (see `design/m0_handoff.md` §3) |
 | Widgets | Widget | `flutter_test` + `mocktail` |
 | Full flows | Integration | `integration_test` on simulator |
 

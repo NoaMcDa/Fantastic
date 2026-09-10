@@ -1,6 +1,9 @@
 # Miscellaneous
 *.class
 *.lock
+# ...but Fantastic is an application, not a package: its lockfile is committed
+# so every machine and CI resolve identical dependency versions (#159).
+!pubspec.lock
 *.log
 *.pyc
 *.swp

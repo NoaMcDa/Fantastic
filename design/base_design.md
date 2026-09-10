@@ -13,36 +13,59 @@ Each class owns exactly one reason to change.
 ### Repository Interfaces (Domain Layer)
 Each Isar schema gets its own repository interface. A `MealRepository` never touches `StreakState`.
 
+Ids are `int?` throughout — Isar's `Id` typedef lives in
+`package:isar_community`, which the domain layer never imports. All methods
+return plain futures and throw on failure (see **Error Handling Contract**).
+
 ```dart
 abstract interface class MealRepository {
   Future<MealEntry> save(MealEntry entry);
-  Future<MealEntry?> findById(Id id);
+  Future<MealEntry?> findById(int id);
   Future<List<MealEntry>> findByDate(DateTime date);
-  Future<void> delete(Id id);
+  Future<List<MealEntry>> findAll();
+  Future<void> delete(int id);
 }
 
 abstract interface class DailyLogRepository {
-  Future<DailyLog> upsert(DailyLog log);
+  Future<DailyLog> save(DailyLog log);          // upsert by date
   Future<DailyLog?> findByDate(DateTime date);
-  Stream<DailyLog?> watchDate(DateTime date);
+  Future<List<DailyLog>> findAll();
+  Future<void> deleteByDate(DateTime date);
 }
 
 abstract interface class SymptomLogRepository {
-  Future<SymptomLog> save(SymptomLog log);
-  Future<List<SymptomLog>> findRange(DateTime from, DateTime to);
-}
-
-abstract interface class BiomarkerLogRepository {
-  Future<BiomarkerLog> save(BiomarkerLog log);
-  Future<List<BiomarkerLog>> findRange(DateTime from, DateTime to);
+  Future<SymptomLog> save(SymptomLog log);      // upsert by date
+  Future<SymptomLog?> findByDate(DateTime date);
+  Future<List<SymptomLog>> findAll();
+  Future<void> deleteByDate(DateTime date);
 }
 
 abstract interface class StreakRepository {
-  Future<StreakState> load();
-  Future<void> save(StreakState state);
-  Stream<StreakState> watch();
+  /// Null before the user's first compliant day — the first-launch sentinel.
+  Future<StreakState?> load();
+  Future<StreakState> save(StreakState state);
+  /// Emits on every write. Required by `streakStateProvider` (#59).
+  Stream<StreakState?> watch();
 }
 ```
+
+An earlier draft of this block differed from the M1 issues in four ways, all
+resolved in favour of the issues except the last:
+
+- `findById(Id id)` / `delete(Id id)` used Isar's `Id` in a domain interface.
+  Now `int`.
+- `DailyLogRepository.upsert` is named `save`, matching every other repository;
+  the upsert semantics are documented rather than encoded in the name.
+- `SymptomLogRepository.findRange(from, to)` is replaced by `findAll()`. MVP
+  data volumes are one record per day, and the diary's date-strip filters in
+  memory; a range query can be added when something needs it.
+- `StreakRepository.watch()` is **kept**, because `streakStateProvider` (#59)
+  is specified as a stream watching this repository. `DailyLogRepository`'s
+  `watchDate` was dropped — the dashboard refreshes by provider invalidation
+  after a meal log, which needs no stream.
+
+`BiomarkerLogRepository` is deferred with biomarker logging to v1.1 and has no
+M1 issue.
 
 ### Service Classes (Application Layer)
 One service per use-case group. Never mix meal-logging logic with adaptation-phase logic.
@@ -224,13 +247,20 @@ All domain models are immutable value objects with no Flutter or Isar annotation
 ```dart
 @immutable
 class MealEntry {
-  final Id? id;
+  // `int?`, never Isar's `Id` — `Id` is a typedef from package:isar_community,
+  // and the domain layer imports no Isar. The data layer converts.
+  final int? id;
   final DateTime timestamp;
   final double fatG;
   final double netCarbsG;
   final double proteinG;
+  final String mealName;
   final List<String> ingredients;
   final String? imageRef;
+
+  /// Computed, never stored — a persisted copy can go stale against its macros.
+  double get ketoRatio =>
+      (netCarbsG + proteinG) == 0 ? 0 : fatG / (netCarbsG + proteinG);
 
   const MealEntry({...});
   MealEntry copyWith({...});
@@ -238,6 +268,7 @@ class MealEntry {
 
 @immutable
 class DailyLog {
+  final int? id;
   final DateTime date;
   final double totalFatG;
   final double totalNetCarbsG;
@@ -246,6 +277,7 @@ class DailyLog {
   final double sodiumMg;
   final double potassiumMg;
   final double magnesiumMg;
+  final double ketoRatioAvg;
 
   const DailyLog({...});
 }
@@ -257,6 +289,8 @@ class StreakState {
   final AdaptationPhase phase;
   final DateTime? lastCompliantDate;
   final bool inGracePeriod;
+  /// When the 24-hour grace period expires. Null unless [inGracePeriod].
+  final DateTime? gracePeriodEnd;
 
   const StreakState({...});
 }
@@ -279,19 +313,50 @@ enum VerdictBadge { cleanKeto, cautionQuantityDependent, nonKeto }
 
 ## Error Handling Contract
 
-All repository methods return `Result<T>` (using a sealed class) rather than throwing. Services propagate `Result` upward; widgets pattern-match on success/failure.
+Repository methods return a plain `Future<T>` and **throw** a typed domain
+exception on failure. Services let those exceptions propagate — they do not
+catch to convert. Presentation reads them as `AsyncValue.error` from the
+provider that wrapped the call.
 
 ```dart
-sealed class Result<T> {
-  const Result();
+// Domain layer — one exception type per failure mode, no Isar/Flutter imports.
+sealed class RepositoryException implements Exception {
+  const RepositoryException(this.message);
+  final String message;
 }
-final class Success<T> extends Result<T> {
-  final T value;
-  const Success(this.value);
+
+final class EntityNotFoundException extends RepositoryException {
+  const EntityNotFoundException(super.message);
 }
-final class Failure<T> extends Result<T> {
-  final Object error;
-  final StackTrace stackTrace;
-  const Failure(this.error, this.stackTrace);
+
+final class PersistenceException extends RepositoryException {
+  const PersistenceException(super.message, this.cause);
+  final Object cause;
 }
 ```
+
+```dart
+// Presentation — the error surfaces through AsyncValue, not a second channel.
+ref.watch(todaysMealsProvider).when(
+  data: (meals) => MealListSection(meals: meals),
+  loading: () => const MealListSkeleton(),
+  error: (error, _) => ErrorState(message: error.toString()),
+);
+```
+
+### Why not `Result<T>`
+
+An earlier draft of this document specified that every repository method return
+a `sealed class Result<T>` with `Success` / `Failure` variants, and that widgets
+pattern-match on it. That was dropped before M1.
+
+Riverpod already models success, loading and failure as `AsyncValue` at exactly
+the boundary where the UI consumes a repository call. Returning `Result<T>`
+underneath it produces two parallel error channels — an `AsyncValue.data`
+wrapping a `Result.failure` — and every provider has to unwrap one to populate
+the other. Throwing lets a single mechanism carry the failure the whole way.
+
+The decision is recorded rather than deleted so it is not silently
+re-litigated: if a future milestone needs an error channel that survives
+outside a provider, revisit it there rather than reintroducing `Result<T>`
+across all five repository interfaces.

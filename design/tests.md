@@ -173,7 +173,9 @@ test('reduces sodium target in Phase 3', () {
 Each repository interface has a shared contract test suite that every concrete implementation must pass. This enforces Liskov Substitution at the test level.
 
 ```dart
-// test/features/diary/domain/meal_repository_contract_test.dart
+// test/features/diary/data/meal_repository_contract_test.dart
+// Contract tests live beside the implementation they exercise, in data/ —
+// they open a real Isar instance, which the domain layer never touches.
 
 void runMealRepositoryContractTests(MealRepository Function() factory) {
   late MealRepository repo;
