@@ -71,6 +71,14 @@ mistakes.
 
 ## Known issues
 
+> **⚠️ SUPERSEDED — this section is no longer true.** The helper was rewritten
+> during M1: `test/helpers/test_isar.dart` resolves `libisar.so` from the
+> installed `isar_community_flutter_libs` package via
+> `.dart_tool/package_config.json` instead of downloading it, so no network
+> access is involved. All 316 tests, these three included, pass on Linux.
+> Verified 2026-09-10 while implementing CI (`design/cicd_plan.md` §10). The
+> account below is kept as the historical record of why the helper changed.
+
 **3 failing tests — `test/helpers/test_isar_test.dart`** (`openTestIsar returns
 an open Isar instance`, `two sequential calls return different instances`,
 `a closed instance cannot be reused`).
