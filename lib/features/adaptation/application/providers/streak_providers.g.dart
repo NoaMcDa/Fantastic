@@ -81,3 +81,86 @@ final class StreakStateProvider
 }
 
 String _$streakStateHash() => r'4e9494aaec2de53b731142bd121ad4d82855669f';
+
+/// The adaptation phase the user is currently in.
+///
+/// Derived, not stored: [AdaptationPhaseService.currentPhase] computes it from
+/// the streak length every time, so a record written before a threshold moved
+/// cannot pin a user to a stale phase. `StreakState.phase` is a cache of this
+/// same computation, never an input to it.
+///
+/// A first-launch null streak resolves to `StreakState.initial`'s zero streak,
+/// which is [AdaptationPhase.induction] — the phase a new user is genuinely
+/// in, not a placeholder.
+///
+/// Chained off [streakStateProvider] rather than subscribing to the repository
+/// again: one subscription, one source of truth, and re-emitting on every
+/// write comes for free.
+
+@ProviderFor(currentPhase)
+const currentPhaseProvider = CurrentPhaseProvider._();
+
+/// The adaptation phase the user is currently in.
+///
+/// Derived, not stored: [AdaptationPhaseService.currentPhase] computes it from
+/// the streak length every time, so a record written before a threshold moved
+/// cannot pin a user to a stale phase. `StreakState.phase` is a cache of this
+/// same computation, never an input to it.
+///
+/// A first-launch null streak resolves to `StreakState.initial`'s zero streak,
+/// which is [AdaptationPhase.induction] — the phase a new user is genuinely
+/// in, not a placeholder.
+///
+/// Chained off [streakStateProvider] rather than subscribing to the repository
+/// again: one subscription, one source of truth, and re-emitting on every
+/// write comes for free.
+
+final class CurrentPhaseProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<AdaptationPhase>,
+          AdaptationPhase,
+          FutureOr<AdaptationPhase>
+        >
+    with $FutureModifier<AdaptationPhase>, $FutureProvider<AdaptationPhase> {
+  /// The adaptation phase the user is currently in.
+  ///
+  /// Derived, not stored: [AdaptationPhaseService.currentPhase] computes it from
+  /// the streak length every time, so a record written before a threshold moved
+  /// cannot pin a user to a stale phase. `StreakState.phase` is a cache of this
+  /// same computation, never an input to it.
+  ///
+  /// A first-launch null streak resolves to `StreakState.initial`'s zero streak,
+  /// which is [AdaptationPhase.induction] — the phase a new user is genuinely
+  /// in, not a placeholder.
+  ///
+  /// Chained off [streakStateProvider] rather than subscribing to the repository
+  /// again: one subscription, one source of truth, and re-emitting on every
+  /// write comes for free.
+  const CurrentPhaseProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'currentPhaseProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$currentPhaseHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<AdaptationPhase> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<AdaptationPhase> create(Ref ref) {
+    return currentPhase(ref);
+  }
+}
+
+String _$currentPhaseHash() => r'f816e1b72479e15e94956447ea2d314a7a360d92';
