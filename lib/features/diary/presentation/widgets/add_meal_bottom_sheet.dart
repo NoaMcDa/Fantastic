@@ -160,6 +160,27 @@ class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
     return null;
   }
 
+  /// [date]'s calendar day, at the current time of day.
+  ///
+  /// The day must come from [date]: a diary entry belongs to the day being
+  /// viewed, not to today. The time must come from the clock, because [date]
+  /// is normalised to midnight so the date-keyed providers have a stable cache
+  /// key — storing it verbatim stamped every meal ever logged `00:00` (#201).
+  ///
+  /// For a past day the current time is a stand-in: the form does not ask when
+  /// the meal was eaten, and a plausible time beats a uniform midnight.
+  static DateTime _timestampFor(DateTime date) {
+    final now = DateTime.now();
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+      now.hour,
+      now.minute,
+      now.second,
+    );
+  }
+
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
@@ -175,7 +196,7 @@ class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
       fatG: double.parse(_fatController.text.trim()),
       netCarbsG: double.parse(_carbsController.text.trim()),
       proteinG: double.parse(_proteinController.text.trim()),
-      timestamp: widget.date,
+      timestamp: _timestampFor(widget.date),
     );
 
     try {
