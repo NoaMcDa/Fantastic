@@ -7,6 +7,7 @@ import 'package:fantastic/core/widgets/empty_state_widget.dart';
 import 'package:fantastic/core/widgets/skeleton_box.dart';
 import 'package:fantastic/features/onboarding/domain/models/user_profile.dart';
 import 'package:fantastic/features/profile/application/providers/profile_providers.dart';
+import 'package:fantastic/features/profile/presentation/widgets/estimation_settings_section.dart';
 import 'package:fantastic/features/profile/presentation/widgets/notification_setting_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -172,6 +173,12 @@ class _Profile extends StatelessWidget {
 
         const _SectionHeader(ProfileCopy.notificationsSection),
         const NotificationSettingTile(),
+
+        // The one place in the app that turns on sending anything anywhere
+        // (#321). Keto Lens's no-network invariant is untouched -- a scan
+        // still makes no network call -- and the disclosure says so.
+        const _SectionHeader(ProfileCopy.estimationSection),
+        const EstimationSettingsSection(),
 
         const _SectionHeader(ProfileCopy.aboutSection),
         _ValueRow(
