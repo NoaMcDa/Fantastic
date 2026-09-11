@@ -9,6 +9,7 @@ import 'package:fantastic/features/onboarding/presentation/screens/onboarding_sc
 import 'package:fantastic/features/onboarding/domain/models/onboarding_data.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen2.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen3.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen4.dart';
 import 'package:fantastic/features/profile/presentation/profile_placeholder.dart';
 import 'package:fantastic/features/recipe/presentation/recipe_placeholder.dart';
 import 'package:fantastic/features/restaurant/presentation/restaurant_placeholder.dart';
@@ -146,6 +147,7 @@ Widget onboardingScreen(int step, Object? extra) => switch (step) {
   1 => const OnboardingScreen1(),
   2 => const OnboardingScreen2(),
   3 when extra is PartialOnboardingData => OnboardingScreen3(partial: extra),
+  4 when extra is OnboardingData => OnboardingScreen4(data: extra),
   _ => OnboardingPlaceholder(step: step),
 };
 

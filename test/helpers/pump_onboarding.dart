@@ -36,6 +36,9 @@ Future<void> pumpOnboarding(
     initialLocation: '/start',
     routes: [
       GoRoute(path: '/start', builder: (_, _) => screen),
+      // The dashboard the finished flow lands on. Registered explicitly
+      // because '/' has no path segment for the catch-all below to match.
+      GoRoute(path: '/', builder: (_, state) => _record(state)),
       GoRoute(
         path: '/:a',
         builder: (_, state) => _record(state),

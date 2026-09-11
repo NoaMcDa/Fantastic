@@ -5,6 +5,7 @@ import 'package:fantastic/features/onboarding/presentation/onboarding_placeholde
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen2.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen3.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen4.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -97,25 +98,28 @@ void main() {
   });
 
   group('onboardingScreen', () {
-    test('steps 1 to 3 are the real screens', () {
+    test('every step is a real screen', () {
       expect(onboardingScreen(1, null), isA<OnboardingScreen1>());
       expect(onboardingScreen(2, null), isA<OnboardingScreen2>());
       expect(
         onboardingScreen(3, UserProfileFixture.partial()),
         isA<OnboardingScreen3>(),
       );
+      expect(
+        onboardingScreen(4, UserProfileFixture.data()),
+        isA<OnboardingScreen4>(),
+      );
     });
 
-    // The flow stays reachable end to end while M4 is being built: a step
-    // whose screen has not landed yet still renders the placeholder rather
-    // than a blank route.
-    test('a step M4 has not replaced yet still renders', () {
-      for (var step = 4; step <= kOnboardingStepCount; step++) {
-        expect(
-          onboardingScreen(step, UserProfileFixture.data()),
-          isA<OnboardingPlaceholder>(),
-        );
-      }
+    // Unreachable through the route, which redirects such a step to the
+    // start of the flow — but the fall-through must still be a screen
+    // rather than a crash.
+    test('a step with the wrong data falls through to the placeholder', () {
+      expect(onboardingScreen(3, null), isA<OnboardingPlaceholder>());
+      expect(
+        onboardingScreen(4, UserProfileFixture.partial()),
+        isA<OnboardingPlaceholder>(),
+      );
     });
   });
 
