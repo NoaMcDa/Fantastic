@@ -11,7 +11,7 @@ import 'package:fantastic/features/onboarding/domain/models/onboarding_data.dart
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen2.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen3.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen4.dart';
-import 'package:fantastic/features/profile/presentation/profile_placeholder.dart';
+import 'package:fantastic/features/profile/presentation/screens/profile_screen.dart';
 import 'package:fantastic/features/recipe/presentation/recipe_placeholder.dart';
 import 'package:fantastic/features/restaurant/presentation/restaurant_placeholder.dart';
 import 'package:flutter/material.dart';
@@ -80,10 +80,7 @@ GoRouter appRouter(Ref ref) => GoRouter(
             GoRoute(path: 'phase', redirect: (_, _) => '/adaptation'),
           ],
         ),
-        GoRoute(
-          path: '/profile',
-          builder: (_, _) => const ProfilePlaceholder(),
-        ),
+        GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
       ],
     ),
     // Deferred v1.1 features (design/architecture.md's fuller route table),
