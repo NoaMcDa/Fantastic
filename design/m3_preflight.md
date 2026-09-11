@@ -306,7 +306,8 @@ reinterprets every existing record the day a value is inserted mid-enum."*
 
 `permission_handler` is in #61's technology table and appears nowhere in its
 snippet — `flutter_local_notifications` requests iOS permission itself, which is
-what the snippet actually does. **It is not added to `pubspec.yaml`.**
+what the snippet actually does. **It is not added to `pubspec.yaml`.** See also
+§6, where #61's `initialize` call is corrected against the resolved version.
 
 ### 5.6 #63's animation is specified and then not written
 
@@ -317,37 +318,58 @@ needs no `StatefulWidget`.
 
 ---
 
-## Part 6 — Notifications (#61, #62) are web-hostile
+## Part 6 — Notifications (#61, #62) and the web target
 
 New since these issues were written: **CI builds the web target** (step 6 of
 `.github/workflows/ci.yml`) and the app is expected to run in a browser.
 
-`flutter_local_notifications` has no web implementation. An unguarded
-`await notificationService.initialise()` in `main()` — which is exactly what
-#61's Definition of Done requires — is the same class of failure as the Isar
-bug that white-screened the app before `runApp` ever ran.
+> **Corrected while implementing #61.** This section first said
+> `flutter_local_notifications` has no web implementation. That was wrong for
+> the version that resolves: **22.3.0 ships `flutter_local_notifications_web`
+> 1.0.0.** The conclusion below is unchanged, but the reasons are different
+> and they are better ones.
 
-**Both issues are scheduled last in M3, and `main()` guards the call:**
+What that web implementation actually does:
+
+- **`initialize()` works — and registers its own service worker at runtime,
+  replacing Flutter's.** Its source says so outright. For an app that bundles
+  CanvasKit locally (`--no-web-resources-cdn`) specifically so it boots
+  offline, handing the service worker to a notification plugin is not a trade
+  worth making for a daily reminder.
+- **`zonedSchedule()` throws `UnsupportedError` on web**, unconditionally.
+  So does `periodicallyShow`. The browser cannot schedule a future
+  notification without a service worker, and the plugin does not pretend
+  otherwise. #62's entire deliverable is a `zonedSchedule` call.
+
+**So both issues are scheduled last in M3, and every call is guarded.** The
+guard lives *inside* `NotificationService` rather than at the call site, so
+`main` and the onboarding flow stay platform-blind:
 
 ```dart
-if (!kIsWeb) {
-  await ref.read(notificationServiceProvider).initialise();
+Future<bool> initialise() async {
+  if (kIsWeb) return false;
+  ...
 }
 ```
 
-The providers themselves still resolve on web, so nothing else has to branch.
+`initialise` returns whether the platform supports notifications at all, so a
+caller can skip offering a toggle it cannot honour.
 
-Two further notes:
+Three further notes, all confirmed against the resolved package rather than
+assumed:
 
-- Nothing about notification *delivery* is verifiable in this environment — no
-  iOS device, no macOS host. #61 and #62 ship with unit tests against a mocked
-  plugin and are marked unverified in the M3 handoff, as `m2_handoff.md`'s
-  known blocker already records for the simulator generally.
-- `IOSFlutterLocalNotificationsPlugin` (#61's `resolvePlatformSpecificImplementation`
-  type argument) has been renamed across major versions of the plugin. Check the
-  version `pub` actually resolves before writing against the name.
+- **`IOSFlutterLocalNotificationsPlugin` is still the right name** in 22.3.0,
+  and `requestPermissions(alert:badge:sound:)` is still its signature. This
+  was listed as a thing to verify; it checks out.
+- **`initialize` takes a named `settings:` parameter** in v22. #61's snippet
+  passes it positionally and does not compile.
+- **`permission_handler` is not added.** It is in #61's technology table and
+  appears nowhere in its snippet — the plugin asks the OS itself.
 
----
+Nothing about notification *delivery* is verifiable in this environment — no
+iOS device, no macOS host. #61 and #62 ship with unit tests against a mocked
+plugin and are marked unverified in the M3 handoff, as `m2_handoff.md`'s
+known blocker already records for the simulator generally.
 
 ## Part 7 — What M3 must code against
 

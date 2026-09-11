@@ -79,6 +79,8 @@ dependencies:
   # via flutter_lints) flags the undeclared import, and the domain layer may
   # not import package:flutter/foundation.dart to get the annotation instead.
   meta: ^1.15.0
+  flutter_local_notifications: ^22.3.0
+  timezone: ^0.11.1
 
 dev_dependencies:
   flutter_test:
