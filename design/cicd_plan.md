@@ -175,6 +175,13 @@ been built at all, the repository had never had a `Podfile`, and CocoaPods had
 never resolved a single native dependency. `flutter analyze` is
 platform-independent and could not have told anyone.
 
+**A `paths` filter on `pull_request` matches the whole PR diff, not the latest
+push.** Once a PR has touched `ios/**`, every later push to it re-runs the macOS
+job even if that push is documentation only — observed on this very PR. The
+filter is therefore a per-PR switch, not a per-commit one, and the way to keep
+the 10× rate down inside one PR is `concurrency` (which cancels the superseded
+run) rather than the filter.
+
 This does **not** unpark anything in §7.1. `--no-codesign` needs no Apple
 Developer account, no signing secret, no `match`, no fastlane and no simulator;
 it compiles and assembles `Runner.app` and stops there. A compile is not a
