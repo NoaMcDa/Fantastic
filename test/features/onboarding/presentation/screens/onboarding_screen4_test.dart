@@ -244,10 +244,7 @@ void main() {
       await pumpScreen(tester);
 
       expect(
-        find.descendant(
-          of: find.byType(Form),
-          matching: find.byType(ListView),
-        ),
+        find.descendant(of: find.byType(Form), matching: find.byType(ListView)),
         findsNothing,
       );
       expect(

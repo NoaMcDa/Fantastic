@@ -1,14 +1,15 @@
 import 'package:flutter/widgets.dart';
 
-/// Today's calendar date, with the time of day stripped.
+/// [instant]'s calendar date, with the time of day stripped.
 ///
 /// The one definition. Every date-keyed provider family in the app is keyed on
 /// a value of this shape, so a caller that builds its own midnight is a caller
 /// that can get it subtly wrong.
-DateTime todayDate() {
-  final now = DateTime.now();
-  return DateTime(now.year, now.month, now.day);
-}
+DateTime dateOnly(DateTime instant) =>
+    DateTime(instant.year, instant.month, instant.day);
+
+/// Today's calendar date, with the time of day stripped.
+DateTime todayDate() => dateOnly(DateTime.now());
 
 /// Holds [today] for a screen and refreshes it when the app comes back to the
 /// foreground on a later calendar day.
@@ -30,7 +31,7 @@ DateTime todayDate() {
 /// the end of a `testWidgets` body fails the test, which is a poor trade for
 /// the rarer case.
 mixin TodayTracker<T extends StatefulWidget> on State<T> {
-  late DateTime _today = resolveToday();
+  late DateTime _today = dateOnly(now());
 
   late final ResumeObserver _observer = ResumeObserver(refreshToday);
 
@@ -42,8 +43,15 @@ mixin TodayTracker<T extends StatefulWidget> on State<T> {
   /// Production reads the real one. A test overrides it to step the calendar
   /// without waiting for midnight, which is the only way to exercise the
   /// rollover at all.
+  ///
+  /// Returns a wall-clock **instant**, not a date. Stripping it to midnight is
+  /// this mixin's own job and deliberately not overridable: the date-keyed
+  /// provider families are keyed on the stripped value, so an override that
+  /// forgot to strip would key them on a time of day and allocate a fresh
+  /// provider on every resolve. An earlier draft of this seam returned the
+  /// date and its first override made exactly that mistake.
   @protected
-  DateTime resolveToday() => todayDate();
+  DateTime now() => DateTime.now();
 
   @override
   void initState() {
@@ -71,7 +79,7 @@ mixin TodayTracker<T extends StatefulWidget> on State<T> {
   /// every one of them for nothing.
   @protected
   void refreshToday() {
-    final current = resolveToday();
+    final current = dateOnly(now());
     if (current == _today) {
       return;
     }

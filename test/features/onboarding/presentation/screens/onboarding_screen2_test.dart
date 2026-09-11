@@ -125,10 +125,7 @@ void main() {
       await pumpOnboarding(tester, const OnboardingScreen2());
 
       expect(
-        find.descendant(
-          of: find.byType(Form),
-          matching: find.byType(ListView),
-        ),
+        find.descendant(of: find.byType(Form), matching: find.byType(ListView)),
         findsNothing,
       );
       expect(

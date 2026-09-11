@@ -19,7 +19,7 @@ class _HostState extends State<_Host> with TodayTracker {
   final List<DateTime> rollovers = [];
 
   @override
-  DateTime resolveToday() => widget.clock();
+  DateTime now() => widget.clock();
 
   @override
   void onTodayChanged(DateTime previous) => rollovers.add(previous);
@@ -41,8 +41,11 @@ void main() {
 
   setUp(() => clock = DateTime(2026, 9, 11, 23, 50));
 
-  Future<void> pumpHost(WidgetTester tester) =>
-      tester.pumpWidget(MaterialApp(home: _Host(key: key, clock: () => clock)));
+  Future<void> pumpHost(WidgetTester tester) => tester.pumpWidget(
+    MaterialApp(
+      home: _Host(key: key, clock: () => clock),
+    ),
+  );
 
   _HostState state(WidgetTester tester) =>
       tester.state<_HostState>(find.byKey(key));
@@ -51,6 +54,14 @@ void main() {
     state(tester).resume();
     await tester.pump();
   }
+
+  group('dateOnly', () {
+    test('strips the time of day', () {
+      final today = dateOnly(DateTime(2026, 9, 11, 23, 50, 30, 250));
+
+      expect(today, DateTime(2026, 9, 11));
+    });
+  });
 
   group('todayDate', () {
     test('strips the time of day', () {
