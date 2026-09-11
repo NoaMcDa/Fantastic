@@ -8,8 +8,11 @@
 /// `menuAnalyzerProvider` to this same file in a later wave.
 library;
 
+import 'package:fantastic/features/diary/data/providers.dart';
 import 'package:fantastic/features/keto_lens/data/providers.dart';
 import 'package:fantastic/features/menu/application/menu_page_reader.dart';
+import 'package:fantastic/features/menu/application/remote_menu_analyzer.dart';
+import 'package:fantastic/features/menu/domain/services/menu_analyzer.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'providers.g.dart';
@@ -22,3 +25,17 @@ part 'providers.g.dart';
 @riverpod
 MenuPageReader menuPageReader(Ref ref) =>
     MenuPageReader(recognizer: ref.watch(textRecognitionServiceProvider));
+
+/// The composition root for the menu engine, and the **only** file that
+/// names a concrete [MenuAnalyzer]. A vision-direct analyser is a second
+/// class and a branch here — never an edit above this line.
+///
+/// `llmChatClientProvider` is M15's seam (`lib/features/diary/data/providers.dart`)
+/// — reused rather than duplicated, per `design/m16_menu_scanner_research.md`
+/// §4 and `CLAUDE.md`'s note that M16 does not relax the OCR no-network
+/// invariant.
+@riverpod
+MenuAnalyzer menuAnalyzer(Ref ref) => RemoteMenuAnalyzer(
+  client: ref.watch(llmChatClientProvider),
+  pageReader: ref.watch(menuPageReaderProvider),
+);
