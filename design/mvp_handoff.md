@@ -139,7 +139,14 @@ test count suggests.
 
 ---
 
-## What M7 inherits — and four issues that are already done
+## What M7 inherits — and the audit that acted on it
+
+> **Superseded in part — the audit this section called for has been done.**
+> See `design/m7_preflight.md` for the evidence and `design/backlog_handoff.md`
+> for the resulting backlog. **Three** of the seven were obsolete, not four:
+> #91 was genuinely partial and is now a rewritten refactor. #90, #93 and #94
+> are closed; #88, #89, #91 and #92 were rewritten; nine issues were filed.
+> The table below is kept because its reasoning is still the reasoning.
 
 **M7's issue list is stale in the same way every other milestone's was.** Audit
 it before implementing. Four of its seven issues are already satisfied or
@@ -156,14 +163,19 @@ Genuinely outstanding: **#88** (skeleton shimmer), **#89** (global error
 snackbar), **#92** (app icon and launch screen), **#151** (`CFBundleLocalizations`
 — verified absent).
 
-Also carried forward from the milestone handoffs: `MealListSection` and
-`ElectrolytesCard` still use the loading-first `.when` pattern; `ElectrolytesCard`
-renders nothing on a day with no `DailyLog`, so a new user gets no electrolyte
-guidance on day one; and the streak ring and macro card disagree on colour for
-the same ratio.
+Also carried forward from the milestone handoffs, and **all now filed**:
+~~`MealListSection`~~ and `ElectrolytesCard` use the loading-first `.when`
+pattern — `MealListSection` has since been fixed (`hasError` first, with a
+comment citing `m8_preflight.md` Part 10 defect 2), so **`ElectrolytesCard` is
+the only one left** and it is #302; `ElectrolytesCard` renders nothing on a day
+with no `DailyLog`, so a new user gets no electrolyte guidance on day one
+(#302); and the streak ring and macro card disagree on colour for the same
+ratio (#305).
 
 **M8** is the other half of the verification gap: #95–#101 are the seven
-integration tests, and #150 is the scaffold they need. They are the closest this
+integration tests, and #150 is the scaffold they need. **Six of the seven have
+since shipped** (#273) and are closed; **#98 alone is left**, and it is the
+whole remaining blocker on M8 — see `design/backlog_handoff.md` §2. They are the closest this
 project can get to proving the flows end to end without a device.
 
 ---
@@ -191,9 +203,12 @@ audit as M1 through M6 did.
 1. ~~**#257.**~~ Done — see `design/m6_platform_handoff.md`. The next-highest
    correctness item is now **image pre-processing**: nothing crops to the guide,
    and Tesseract is far more sensitive to that than ML Kit was.
-2. **Audit M7 (#88–#94) and write `design/m7_preflight.md`** before implementing
-   — the four stale issues above are what that audit is for.
-3. **M8's integration tests (#95–#101)**, which is the only verification path
-   available without hardware.
+2. ~~**Audit M7 (#88–#94) and write `design/m7_preflight.md`**~~ Done — see
+   `design/m7_preflight.md` and `design/backlog_handoff.md`. M7 is now 14 open
+   issues with a build order; start at #91.
+3. ~~**M8's integration tests (#95–#101)**~~ Shipped in #273 — 14 tests across
+   7 flows, headless on `flutter-tester`, on every PR. **#98 (breach → grace →
+   expiry → reset) is the one that was never written**, and M8 cannot close
+   until it is.
 4. **Get it on a device.** Epics #4 and #10 cannot close until someone does, and
    every iOS claim in every handoff is inference until then.
