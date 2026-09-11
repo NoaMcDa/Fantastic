@@ -19,6 +19,7 @@ class AddMealBottomSheet extends ConsumerStatefulWidget {
     this.initialNetCarbsG,
     this.initialProteinG,
     this.source = MacroSource.manual,
+    this.imageRef,
     super.key,
   });
 
@@ -66,6 +67,21 @@ class AddMealBottomSheet extends ConsumerStatefulWidget {
   /// an estimate, and the honest label is the one the opener knew.
   final MacroSource source;
 
+  /// A reference to the photograph the meal was logged from, or null.
+  ///
+  /// **It is the path the picker returned, and nothing is copied into app
+  /// storage.** On every platform that is a cache path the OS may reclaim, so
+  /// this is a reference that **may dangle**, and a later reader must treat a
+  /// missing file as normal rather than as corruption.
+  ///
+  /// **Nothing renders it yet.** A durable copy plus a thumbnail in the meal
+  /// card is separate work; filling this field now is what makes that work
+  /// possible later, and pretending otherwise here would ship a broken image
+  /// in a card. The field itself has been persisted, mapped and
+  /// contract-tested since M1 and had never been written by any production
+  /// code path until the photo mode.
+  final String? imageRef;
+
   /// Opens the sheet as a modal over [context].
   ///
   /// Lives here rather than at the call site so the sheet owns how it is
@@ -79,6 +95,7 @@ class AddMealBottomSheet extends ConsumerStatefulWidget {
     double? initialNetCarbsG,
     double? initialProteinG,
     MacroSource source = MacroSource.manual,
+    String? imageRef,
   }) => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -89,6 +106,7 @@ class AddMealBottomSheet extends ConsumerStatefulWidget {
       initialNetCarbsG: initialNetCarbsG,
       initialProteinG: initialProteinG,
       source: source,
+      imageRef: imageRef,
     ),
   );
 
@@ -275,6 +293,7 @@ class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
       proteinG: double.parse(_proteinController.text.trim()),
       timestamp: _timestampFor(widget.date),
       source: widget.source,
+      imageRef: widget.imageRef,
     );
 
     try {

@@ -6,6 +6,7 @@ import 'package:fantastic/features/diary/domain/models/estimated_item.dart';
 import 'package:fantastic/features/diary/domain/models/macro_source.dart';
 import 'package:fantastic/features/diary/domain/models/meal_estimate.dart';
 import 'package:fantastic/features/diary/presentation/widgets/add_meal_bottom_sheet.dart';
+import 'package:fantastic/features/diary/presentation/widgets/estimate_failure_view.dart';
 import 'package:fantastic/features/diary/presentation/widgets/estimate_review_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -137,7 +138,7 @@ class _AddMealDescriptionSheetState
             ],
             if (_failure != null) ...[
               const SizedBox(height: 16),
-              _Failure(
+              EstimateFailureView(
                 reason: _failure!,
                 onRetry: _estimate,
                 onManual: _openManual,
@@ -277,104 +278,4 @@ class _AddMealDescriptionSheetState
         ? text.substring(0, AddMealBottomSheet.maxNameLength)
         : text;
   }
-}
-
-/// One headline, one explanation and one way out per failure reason.
-///
-/// Per reason rather than generic, for the reason `ScanFailureReason`
-/// established: "turn it on in settings" and "you are offline" are not the
-/// same problem, and a user told only that something failed has nothing to
-/// do next. **Every one of them also offers manual entry**, so no failure is
-/// a dead end and nothing typed is discarded.
-class _Failure extends StatelessWidget {
-  const _Failure({
-    required this.reason,
-    required this.onRetry,
-    required this.onManual,
-    required this.onProfile,
-  });
-
-  final EstimateFailureReason reason;
-  final VoidCallback onRetry;
-  final Future<void> Function() onManual;
-  final VoidCallback onProfile;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      key: const Key('estimate_failure'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          _headline,
-          key: const Key('estimate_failure_headline'),
-          style: theme.textTheme.titleMedium?.copyWith(
-            color: theme.colorScheme.error,
-          ),
-        ),
-        if (_detail != null) ...[
-          const SizedBox(height: 4),
-          Text(_detail!, style: theme.textTheme.bodySmall),
-        ],
-        const SizedBox(height: 12),
-        if (_offersRetry)
-          OutlinedButton(
-            key: const Key('estimate_retry_button'),
-            onPressed: onRetry,
-            child: const Text(AddMealCopy.retry),
-          ),
-        if (_offersProfile)
-          OutlinedButton(
-            key: const Key('estimate_profile_button'),
-            onPressed: onProfile,
-            child: const Text(AddMealCopy.openProfile),
-          ),
-        const SizedBox(height: 8),
-        TextButton(
-          key: const Key('estimate_manual_button'),
-          onPressed: () => onManual(),
-          child: const Text(AddMealCopy.enterManually),
-        ),
-      ],
-    );
-  }
-
-  String get _headline => switch (reason) {
-    // Unreachable in this sheet — the estimate button is disabled on an
-    // empty field — and worded anyway, because an unhandled case would be a
-    // blank headline rather than a compile error.
-    EstimateFailureReason.emptyInput => AddMealCopy.failedEmptyInput,
-    EstimateFailureReason.notConfigured => AddMealCopy.failedNotConfigured,
-    EstimateFailureReason.offline => AddMealCopy.failedOffline,
-    EstimateFailureReason.rateLimited => AddMealCopy.failedRateLimited,
-    EstimateFailureReason.unauthorised => AddMealCopy.failedUnauthorised,
-    EstimateFailureReason.badResponse => AddMealCopy.failedBadResponse,
-    EstimateFailureReason.nothingIdentified =>
-      AddMealCopy.failedNothingIdentified,
-  };
-
-  String? get _detail => switch (reason) {
-    EstimateFailureReason.rateLimited => AddMealCopy.rateLimitDetail,
-    EstimateFailureReason.nothingIdentified =>
-      AddMealCopy.nothingIdentifiedDetail,
-    _ => null,
-  };
-
-  /// Retry is offered only where retrying could plausibly work.
-  ///
-  /// Not for a missing or rejected key: the same request would fail the same
-  /// way, and a button that cannot help is worse than no button.
-  bool get _offersRetry => switch (reason) {
-    EstimateFailureReason.offline ||
-    EstimateFailureReason.badResponse ||
-    EstimateFailureReason.nothingIdentified => true,
-    _ => false,
-  };
-
-  bool get _offersProfile =>
-      reason == EstimateFailureReason.notConfigured ||
-      reason == EstimateFailureReason.unauthorised;
 }
