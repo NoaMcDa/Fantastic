@@ -1,3 +1,4 @@
+import 'package:fantastic/core/widgets/skeleton_box.dart';
 import 'package:fantastic/features/adaptation/presentation/screens/phase_detail_screen.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
 import 'package:flutter/material.dart';
@@ -75,6 +76,17 @@ void main() {
       findsNothing,
       reason: 'MealListSection spun instead of reporting the failure',
     );
+    // Extended rather than replaced (#88): riverpod 3 retries a failed
+    // provider on a backoff, so a screen over a dead store would otherwise
+    // skeleton forever — the same defect in a new coat.
+    expect(
+      find.descendant(
+        of: find.byType(MealListSection),
+        matching: find.byType(SkeletonBox),
+      ),
+      findsNothing,
+      reason: 'MealListSection skeletoned instead of reporting the failure',
+    );
 
     // The add-meal button is still there over a dead store. It is the only
     // way to log a meal from this screen, so it must not be behind any
@@ -103,6 +115,16 @@ void main() {
         matching: find.byType(CircularProgressIndicator),
       ),
       findsNothing,
+    );
+    // Extended rather than replaced (#88): convention 9 is that the loading
+    // indicator is absent, and a skeleton is now what that indicator is.
+    expect(
+      find.descendant(
+        of: find.byType(PhaseDetailScreen),
+        matching: find.byType(SkeletonBox),
+      ),
+      findsNothing,
+      reason: 'PhaseDetailScreen skeletoned instead of reporting the failure',
     );
   });
 }

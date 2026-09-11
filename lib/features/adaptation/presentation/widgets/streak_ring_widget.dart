@@ -5,6 +5,7 @@ import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/features/adaptation/application/providers/streak_providers.dart';
 import 'package:fantastic/features/dashboard/application/keto_ratio_calculator.dart';
 import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
+import 'package:fantastic/features/adaptation/presentation/widgets/streak_ring_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -51,7 +52,7 @@ class StreakRingWidget extends ConsumerWidget {
     // the arc animate to the new value.
     if ((streakAsync.isLoading && !streakAsync.hasValue) ||
         (logAsync.isLoading && !logAsync.hasValue)) {
-      return const _RingSpace(child: CircularProgressIndicator());
+      return const StreakRingSkeleton();
     }
 
     final log = logAsync.value;

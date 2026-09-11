@@ -5,6 +5,7 @@ import 'package:fantastic/features/diary/presentation/physical_symptom_copy.dart
 import 'package:fantastic/features/diary/presentation/symptom_scale.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_log_sheet.dart';
 import 'package:fantastic/core/widgets/empty_state_widget.dart';
+import 'package:fantastic/features/diary/presentation/widgets/symptom_diary_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,10 +34,7 @@ class SymptomDiarySection extends ConsumerWidget {
     if (logAsync.hasError) {
       body = const _Message('לא ניתן לטעון את התסמינים');
     } else if (logAsync.isLoading) {
-      body = const Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(child: CircularProgressIndicator()),
-      );
+      body = const SymptomDiarySkeleton();
     } else {
       final log = logAsync.value;
       body = log == null ? _Empty(date: date) : _Summary(date: date, log: log);

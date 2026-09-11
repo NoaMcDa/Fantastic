@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fantastic/features/keto_lens/domain/models/macro_verdict.dart';
+import 'package:fantastic/core/widgets/skeleton_box.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../../helpers/pump_app.dart';
@@ -344,6 +345,7 @@ void main() {
       );
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(SkeletonBox), findsNothing);
     });
   });
 

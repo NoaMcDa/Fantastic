@@ -8,6 +8,7 @@ import 'package:fantastic/features/diary/presentation/widgets/empty_meals_state.
 import 'package:fantastic/features/onboarding/application/providers/user_profile_providers.dart';
 import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
 import 'package:flutter/material.dart';
+import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card_skeleton.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../../fixtures/fixtures.dart';
@@ -199,7 +200,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(MacroSummaryCardSkeleton), findsOneWidget);
     });
 
     // A failed read is not "no meals logged" — conflating them would tell the
@@ -228,6 +229,7 @@ void main() {
       // `isLoading` first would spin forever and this test would still pass
       // without the assertion (`design/m3_handoff.md`).
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(MacroSummaryCardSkeleton), findsNothing);
     });
 
     // Same trap on the other input. A card that only guarded the daily log
@@ -250,6 +252,7 @@ void main() {
 
       expect(find.text('לא ניתן לטעון את הנתונים'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(MacroSummaryCardSkeleton), findsNothing);
       expect(find.byType(LinearProgressIndicator), findsNothing);
     });
   });

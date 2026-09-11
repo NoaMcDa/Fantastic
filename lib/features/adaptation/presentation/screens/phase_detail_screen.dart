@@ -5,6 +5,7 @@ import 'package:fantastic/features/adaptation/presentation/widgets/grace_period_
 import 'package:fantastic/features/adaptation/presentation/widgets/phase_description_card.dart';
 import 'package:fantastic/features/adaptation/presentation/widgets/streak_calendar_widget.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
+import 'package:fantastic/features/adaptation/presentation/widgets/phase_detail_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -53,9 +54,8 @@ class _PhaseDetailScreenState extends ConsumerState<PhaseDetailScreen> {
         final phase when phase.hasError => const Center(
           child: Text('לא ניתן לטעון את הנתונים'),
         ),
-        final phase when phase.isLoading && !phase.hasValue => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        final phase when phase.isLoading && !phase.hasValue =>
+          const PhaseDetailSkeleton(),
         _ => _Body(phase: phaseAsync.requireValue, month: _month),
       },
     );

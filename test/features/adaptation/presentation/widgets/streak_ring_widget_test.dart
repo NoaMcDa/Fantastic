@@ -9,6 +9,7 @@ import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
 import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fantastic/features/adaptation/presentation/widgets/streak_ring_skeleton.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -217,7 +218,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(StreakRingSkeleton), findsOneWidget);
       expect(
         tester.getSize(find.byType(StreakRingWidget)).width,
         StreakRingWidget.diameter,
@@ -249,6 +250,7 @@ void main() {
       // never-resolved failure as AsyncLoading *with* an error, so both
       // branches are reachable from one state.
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(StreakRingSkeleton), findsNothing);
       expect(
         tester.getSize(find.byType(StreakRingWidget)).width,
         StreakRingWidget.diameter,
@@ -274,6 +276,7 @@ void main() {
       await tester.pump();
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(StreakRingSkeleton), findsNothing);
       expect(painters(tester), isNotEmpty);
     });
   });

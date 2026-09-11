@@ -10,6 +10,7 @@ import 'package:fantastic/features/keto_lens/presentation/camera/photo_picker.da
 import 'package:fantastic/features/keto_lens/presentation/screens/camera_screen.dart';
 import 'package:fantastic/features/keto_lens/presentation/widgets/scan_result_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:fantastic/core/widgets/skeleton_box.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -154,6 +155,7 @@ void main() {
       await pumpScreen(tester, ocrAvailable: false);
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(SkeletonBox), findsNothing);
     });
 
     testWidgets('offers no retry', (tester) async {
@@ -180,6 +182,7 @@ void main() {
       );
       expect(find.byKey(const Key('lens_retry_button')), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(SkeletonBox), findsNothing);
     });
 
     testWidgets('a permanently refused permission offers no retry', (
@@ -216,6 +219,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(SkeletonBox), findsNothing);
     });
 
     testWidgets('an unexpected failure is still a state, not a crash', (
@@ -267,6 +271,7 @@ void main() {
       expect(find.byKey(const Key('torch_button')), findsOneWidget);
       expect(find.textContaining('הערכים התזונתיים'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(SkeletonBox), findsNothing);
     });
 
     testWidgets('releases the camera when the screen goes away', (

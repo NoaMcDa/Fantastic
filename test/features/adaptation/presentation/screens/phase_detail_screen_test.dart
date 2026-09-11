@@ -12,6 +12,7 @@ import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repos
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fantastic/features/adaptation/presentation/widgets/phase_detail_skeleton.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -199,7 +200,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(PhaseDetailSkeleton), findsOneWidget);
     });
 
     // Unlike the streak ring, this screen has nothing else on it — failing
