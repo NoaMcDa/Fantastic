@@ -173,6 +173,38 @@ Three decisions worth revisiting when a device exists:
 
 ---
 
+## Epic #7's Definition of Done: two items not met
+
+All twelve child issues shipped, but the Epic carries invariants its own
+decomposition never covered. Recorded here rather than quietly checked off,
+and **Epic #7 stays open** because of them (`milestone_conventions.md` §2
+condition 6).
+
+- **"Notification scheduling cancelled immediately when a compliant meal is
+  logged."** Nothing does this. The 20:00 reminder fires whether or not the
+  day is already logged, which makes it noise on exactly the days the user is
+  doing well — and noise is how a reminder gets switched off. No issue in
+  #57–#68 asked for it. Doing it properly means cancelling today's pending
+  notification on a compliant evaluation and scheduling the next for
+  tomorrow, since `matchDateTimeComponents` cannot express a condition.
+- **"Push notification fires at 20:00 when no meal logged."** Unverifiable
+  here regardless (no iOS device), but the *"when no meal logged"* half is
+  the same gap as above.
+
+Met: the state machine is pure application-layer over the repository
+interface; thresholds are tested on both sides of day 8 and day 28; grace
+expiry resets the streak; the ring animates on first render; analyze and test
+are clean; coverage clears the gate.
+
+**Partially met — "grace period timestamps stored and compared in UTC."** The
+comparison is correct: `DateTime.isAfter` compares absolute instants whatever
+the flag says, and the mapper stores `millisecondsSinceEpoch`, which is
+absolute. But the values are not explicitly UTC-typed on the way back out, so
+the invariant holds by construction rather than by declaration. Worth making
+explicit if anyone ever formats a grace deadline.
+
+---
+
 ## Known gaps M4, M5 and M7 inherit
 
 - **Nothing requests notification permission.** The reminder is scheduled on
