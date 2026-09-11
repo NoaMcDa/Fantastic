@@ -1,3 +1,4 @@
+import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/core/services/notification_service.dart';
 import 'package:fantastic/features/adaptation/application/adaptation_phase_service.dart';
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
@@ -266,6 +267,61 @@ void main() {
           now: UserProfileFixture.defaultToday,
         ),
         completes,
+      );
+    });
+
+    // Only the profile write can fail this method. Screen 4 reports any
+    // throw as `השמירה נכשלה` and never opens the gate, so a throw from
+    // either step below told the user their profile had not been saved when
+    // it had, and trapped them on the last screen of the flow.
+    test('a failed streak seed does not fail the flow', () async {
+      when(() => streaks.save(any())).thenThrow(
+        const PersistenceException('StreakRepository.save', 'closed'),
+      );
+
+      await expectLater(
+        service.completeOnboarding(
+          data: UserProfileFixture.data(
+            ketoStartDate: UserProfileFixture.defaultToday.subtract(
+              const Duration(days: 10),
+            ),
+          ),
+          targets: UserProfileFixture.targets(),
+          now: UserProfileFixture.defaultToday,
+        ),
+        completes,
+      );
+
+      verify(() => profiles.save(any())).called(1);
+    });
+
+    test('a throwing permission prompt does not fail the flow', () async {
+      when(notifications.requestPermission).thenThrow(StateError('no plugin'));
+
+      await expectLater(
+        service.completeOnboarding(
+          data: UserProfileFixture.data(),
+          targets: UserProfileFixture.targets(),
+          now: UserProfileFixture.defaultToday,
+        ),
+        completes,
+      );
+    });
+
+    // The profile is the commit, and it still has to be reported when it is
+    // the thing that failed — the fix above must not swallow this one too.
+    test('a failed profile save still fails the flow', () async {
+      when(() => profiles.save(any())).thenThrow(
+        const PersistenceException('UserProfileRepository.save', 'closed'),
+      );
+
+      await expectLater(
+        service.completeOnboarding(
+          data: UserProfileFixture.data(),
+          targets: UserProfileFixture.targets(),
+          now: UserProfileFixture.defaultToday,
+        ),
+        throwsA(isA<PersistenceException>()),
       );
     });
   });

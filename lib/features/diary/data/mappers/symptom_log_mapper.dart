@@ -24,12 +24,19 @@ abstract final class SymptomLogMapper {
   static SymptomLog fromRecord(int key, Map<String, Object?> record) =>
       SymptomLog(
         id: key,
-        date: DateTime.fromMillisecondsSinceEpoch(record['date']! as int),
-        energyScore: record['energyScore']! as int,
-        clarityScore: record['clarityScore']! as int,
-        hungerScore: record['hungerScore']! as int,
-        physicalScore: record['physicalScore']! as int,
-        moodScore: record['moodScore']! as int,
+        // Every number through `num`, never a direct `as int`: `CLAUDE.md`
+        // §Local Persistence. IndexedDB hands JSON numbers back without the
+        // int/double distinction Dart's VM keeps, and a direct cast is one
+        // stored `3.0` away from throwing on read — where a codec mistake
+        // surfaces, since sembast validates nothing on write.
+        date: DateTime.fromMillisecondsSinceEpoch(
+          (record['date']! as num).toInt(),
+        ),
+        energyScore: (record['energyScore']! as num).toInt(),
+        clarityScore: (record['clarityScore']! as num).toInt(),
+        hungerScore: (record['hungerScore']! as num).toInt(),
+        physicalScore: (record['physicalScore']! as num).toInt(),
+        moodScore: (record['moodScore']! as num).toInt(),
         notes: record['notes'] as String?,
       );
 

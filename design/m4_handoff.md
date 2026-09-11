@@ -233,6 +233,47 @@ own decomposition never covered.
 
 ---
 
+## Post-milestone bug fixes
+
+A later audit of the shipped M4 and M5 code found four defects in M4's half.
+All four are fixed, with tests.
+
+1. **A failed streak seed or permission prompt reported "the save failed" —
+   and trapped the user.** `completeOnboarding`'s own doc comment called the
+   two steps after the profile write "best-effort extras", but nothing caught
+   them. Screen 4 catches `Object` and reports any throw as
+   `השמירה נכשלה`, so a broken `streak_state` store told the user their
+   profile had not been saved when it had, and never called `markCompleted()`
+   — leaving them on the last screen of the flow for the rest of the session.
+   Only the next cold start let them in, because `seedOnboardingGate` found
+   the profile that had been on disk all along. Both steps are now caught.
+   A swallowed seed costs one pre-filled streak; the alternative cost the
+   whole flow.
+2. **`Form.validate()` could skip a field the `ListView` had disposed.**
+   Screens 2 and 4 put their `TextFormField`s in a lazy `ListView` under a
+   `Form`. A `FormFieldState` deregisters when it is disposed, so a field
+   scrolled past the 250pt cache extent is not validated — and `_onNext`
+   then runs `int.parse('')` while `_onConfirm` trips the non-null assertions
+   behind `positiveFinite(...)!`. At the default text scale the content is
+   too short to reach that, so it did not reproduce; a large accessibility
+   text scale is exactly the case that does, and one more field would be
+   enough on its own. Both screens are now `SingleChildScrollView` +
+   `Column`, which builds every child eagerly — the shape `SymptomLogSheet`
+   already used. The regression test is structural, because whether the bug
+   reproduces depends on a viewport and a text scale no fixed-size test pins
+   down.
+3. **A profile record that would not decode bricked the app.**
+   `UserProfileMapper.fromRecord` runs inside `guardPersistence`, so a
+   renamed enum value surfaces as the same `PersistenceException` a dead
+   store does — and `seedOnboardingGate` let it escape into `main`'s catch,
+   which shows `לא ניתן לפתוח את מסד הנתונים`. The database had opened fine,
+   and there was no screen left to fix the profile from. The gate now
+   swallows its own failures and stays shut, which shows onboarding: the only
+   recovery path there is.
+4. **`showDatePicker`'s result was applied without a `mounted` guard.**
+   `context` is not used across the gap, so the lint stays quiet; `setState`
+   on a disposed `State` still throws.
+
 ## Next
 
 M5 and M6 were built in parallel with this milestone and have their own
