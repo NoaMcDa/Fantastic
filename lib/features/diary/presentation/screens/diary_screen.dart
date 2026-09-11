@@ -120,6 +120,10 @@ class _DateChip extends StatelessWidget {
         color: selected ? colors.primary : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
+          // Addressable by the day it stands for: the chip renders only a
+          // weekday initial and a day number, and both repeat across a
+          // month's strip.
+          key: Key('date_chip_${date.year}_${date.month}_${date.day}'),
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Container(

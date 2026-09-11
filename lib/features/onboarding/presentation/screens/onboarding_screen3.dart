@@ -44,6 +44,7 @@ class _OnboardingScreen3State extends State<OnboardingScreen3> {
         children: [
           for (final goal in GoalCopy.order) ...[
             GoalCard(
+              key: Key('goal_${goal.name}'),
               title: GoalCopy.titles[goal]!,
               subtitle: GoalCopy.subtitles[goal]!,
               icon: _icons[goal]!,

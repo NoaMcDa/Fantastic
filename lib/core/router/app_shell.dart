@@ -11,6 +11,19 @@ class AppShell extends StatelessWidget {
   final Widget child;
 
   static const _labels = ['בית', 'מצלמה', 'יומן', 'התאמה', 'פרופיל'];
+
+  /// Keys for the five destinations, in `kTabPaths` order.
+  ///
+  /// Not decoration: `'יומן'` is both this bar's third label and
+  /// `DiaryScreen`'s own app-bar title, so a flow test that taps a tab by
+  /// its text finds two widgets and fails (`design/m8_preflight.md` §6.4).
+  static const _keys = [
+    Key('tab_home'),
+    Key('tab_lens'),
+    Key('tab_diary'),
+    Key('tab_adaptation'),
+    Key('tab_profile'),
+  ];
   static const _icons = [
     Icons.home,
     Icons.camera_alt,
@@ -45,6 +58,7 @@ class AppShell extends StatelessWidget {
         destinations: [
           for (var i = 0; i < kTabPaths.length; i++)
             NavigationDestination(
+              key: _keys[i],
               icon: Icon(_icons[i]),
               selectedIcon: Icon(_icons[i], color: AppTheme.accent),
               label: _labels[i],

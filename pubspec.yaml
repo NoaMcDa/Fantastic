@@ -151,6 +151,16 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  # End-to-end flow tests (`integration_test/`). An SDK package, pinned by the
+  # Flutter version rather than by pub.
+  #
+  # They do NOT need a simulator: `flutter test -d flutter-tester
+  # integration_test/app_test.dart` drives the real app over a real in-memory
+  # sembast database, headless, on the same ubuntu runner as the rest of CI.
+  # See `design/m8_preflight.md` Part 0.
+  integration_test:
+    sdk: flutter
+
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
