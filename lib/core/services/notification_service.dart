@@ -31,6 +31,18 @@ class NotificationService {
   /// Asking a capability rather than checking `kIsWeb` is what keeps the next
   /// platform from repeating the bug: the answer is false by default and each
   /// platform has to earn a true.
+  ///
+  /// **Windows earned its true by inspection, not by inheritance.** It was
+  /// listed here before anything had ever compiled for Windows, so it was
+  /// checked the same way Linux was: `flutter_local_notifications_windows`
+  /// 3.1.1 implements `zonedSchedule` for real — it renders the toast XML and
+  /// calls `scheduleNotification` through its FFI bindings — and the umbrella
+  /// plugin dispatches to it on `TargetPlatform.windows`. Nothing throws.
+  ///
+  /// One caveat that is a degradation and not a crash, so it does not change
+  /// the answer here: the Windows path silently drops
+  /// `matchDateTimeComponents`, so the daily reminder does not repeat on its
+  /// own. See `StreakNotificationService.scheduleDailyReminder`.
   static bool get supportsScheduling {
     if (kIsWeb) return false;
     return switch (defaultTargetPlatform) {
