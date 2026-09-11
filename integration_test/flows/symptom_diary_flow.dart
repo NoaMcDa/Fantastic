@@ -1,25 +1,34 @@
 import 'package:fantastic/features/diary/data/providers.dart';
+import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/app_harness.dart';
 
-/// F7 (#99) — five scales logged from the dashboard, read back in the diary.
+/// F7 (#99) — four scales plus the physical-symptom set, logged from the
+/// dashboard and read back in the diary.
 ///
 /// **Every score is distinct.** M5's audit found four issues naming a field
 /// the model has never had, and an all-3s fixture that would have hidden a
-/// mood score under a brain-fog label. Five identical scores here would
+/// mood score under a brain-fog label. Four identical scores here would
 /// prove nothing about which scale went where.
 const Map<String, int> _scores = {
   'energy': 5,
   'clarity': 4,
   'hunger': 2,
-  'physical': 3,
   'mood': 1,
 };
 
+/// Two symptoms, neither first nor last in `PhysicalSymptom.values`, and not
+/// adjacent to each other — a picker that writes the whole enum, or the wrong
+/// index, cannot produce this set by accident.
+const Set<PhysicalSymptom> _symptoms = {
+  PhysicalSymptom.muscleCramps,
+  PhysicalSymptom.dizziness,
+};
+
 void main() {
-  testWidgets('five scales logged on the dashboard appear in the diary', (
+  testWidgets('scales and symptoms logged on the dashboard reach the diary', (
     tester,
   ) async {
     final app = await bootApp(onboarded: true);
@@ -34,6 +43,9 @@ void main() {
     for (final entry in _scores.entries) {
       await tapAt(tester, find.byKey(Key('score_${entry.key}_${entry.value}')));
     }
+    for (final symptom in _symptoms) {
+      await tapAt(tester, find.byKey(Key('symptom_filter_${symptom.name}')));
+    }
     await enterInto(tester, 'symptom_notes_field', 'יום טוב');
     await tapAt(tester, find.byKey(const Key('save_symptoms_button')));
 
@@ -46,9 +58,12 @@ void main() {
     expect(log!.energyScore, 5);
     expect(log.clarityScore, 4);
     expect(log.hungerScore, 2);
-    expect(log.physicalScore, 3);
     expect(log.moodScore, 1);
     expect(log.notes, 'יום טוב');
+
+    // Exactly the two marked, not a superset: the set survives the mapper's
+    // name-list round trip, and nothing tapped a chip on the user's behalf.
+    expect(log.symptoms, _symptoms);
 
     // And readable in the diary, which is a different screen reading the
     // same day.
@@ -64,6 +79,15 @@ void main() {
       findsOneWidget,
       reason: 'the mood chip must carry mood\'s score, not another scale\'s',
     );
+
+    // The symptoms render as their own chips, and only the marked ones do.
+    for (final symptom in PhysicalSymptom.values) {
+      expect(
+        find.byKey(Key('diary_symptom_${symptom.name}')),
+        _symptoms.contains(symptom) ? findsOneWidget : findsNothing,
+        reason: '${symptom.name} chip',
+      );
+    }
   });
 
   testWidgets('a past date shows its own day, not today', (tester) async {
@@ -93,5 +117,29 @@ void main() {
 
     expect(find.byKey(const Key('symptom_chip_energy')), findsNothing);
     expect(find.text('לא הוקלטו תסמינים'), findsOneWidget);
+  });
+
+  testWidgets('a day logged with no symptoms says so, distinctly', (
+    tester,
+  ) async {
+    final app = await bootApp(onboarded: true);
+    await pumpApp(tester, app);
+
+    // Log the day without touching a single symptom chip.
+    await scrollDown(tester);
+    await tapAt(tester, find.byKey(const Key('symptom_cell_energy')));
+    await tapAt(tester, find.byKey(const Key('score_energy_5')));
+    await tapAt(tester, find.byKey(const Key('save_symptoms_button')));
+
+    final log = await app.container
+        .read(symptomLogRepositoryProvider)
+        .findByDate(DateTime.now());
+    expect(log!.symptoms, isEmpty);
+
+    // "Logged, felt none" and "not logged at all" are different statements,
+    // and the diary must not collapse them into one empty state.
+    await goToTab(tester, 'tab_diary');
+    expect(find.byKey(const Key('no_physical_symptoms')), findsOneWidget);
+    expect(find.text('לא הוקלטו תסמינים'), findsNothing);
   });
 }

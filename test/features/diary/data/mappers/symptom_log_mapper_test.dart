@@ -1,4 +1,5 @@
 import 'package:fantastic/features/diary/data/mappers/symptom_log_mapper.dart';
+import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -36,7 +37,7 @@ void main() {
   });
 
   group('SymptomLogMapper round-trip', () {
-    test('preserves all five scores and notes', () {
+    test('preserves all four scores, symptoms, and notes', () {
       final original = SymptomLogFixture.worstDay(date: DateTime(2026, 9, 10));
 
       final restored = _roundTrip(original);
@@ -66,28 +67,25 @@ void main() {
         worst.energyScore,
         worst.clarityScore,
         worst.hungerScore,
-        worst.physicalScore,
         worst.moodScore,
       ], everyElement(1));
       expect([
         best.energyScore,
         best.clarityScore,
         best.hungerScore,
-        best.physicalScore,
         best.moodScore,
       ], everyElement(5));
     });
 
     test('each scale keeps its own value — no cross-wiring', () {
-      // Five distinct values, so a codec that assigns the wrong field to the
+      // Four distinct values, so a codec that assigns the wrong field to the
       // wrong scale cannot pass by coincidence the way an all-3s fixture lets
       // it.
       final original = SymptomLogFixture.fixture(
         energyScore: 1,
         clarityScore: 2,
         hungerScore: 3,
-        physicalScore: 4,
-        moodScore: 5,
+        moodScore: 4,
       );
 
       final restored = _roundTrip(original);
@@ -95,14 +93,23 @@ void main() {
       expect(restored.energyScore, 1);
       expect(restored.clarityScore, 2);
       expect(restored.hungerScore, 3);
-      expect(restored.physicalScore, 4);
-      expect(restored.moodScore, 5);
+      expect(restored.moodScore, 4);
     });
 
     test('the date round-trips exactly, time of day included', () {
       final date = DateTime(2026, 9, 10, 21, 30);
 
       expect(_roundTrip(SymptomLogFixture.fixture(date: date)).date, date);
+    });
+
+    test('a non-empty symptom set round-trips intact', () {
+      final original = SymptomLogFixture.worstDay();
+
+      expect(_roundTrip(original).symptoms, original.symptoms);
+    });
+
+    test('an empty symptom set round-trips as empty', () {
+      expect(_roundTrip(SymptomLogFixture.bestDay()).symptoms, isEmpty);
     });
   });
 
@@ -136,6 +143,63 @@ void main() {
         isNot(contains('id')),
       );
     });
+
+    test('writes symptoms as a List<String> of enum names, not a Set', () {
+      final record = SymptomLogMapper.toRecord(SymptomLogFixture.worstDay());
+
+      expect(record['symptoms'], isA<List>());
+      // Every element is a String, not an enum value.
+      for (final entry in record['symptoms']! as List) {
+        expect(entry, isA<String>());
+      }
+    });
+
+    test('toRecord output is sorted by enum index regardless of Set insertion order', () {
+      // Build two logs with the same symptoms added in opposite orders.
+      final logA = SymptomLogFixture.fixture(
+        symptoms: const {
+          PhysicalSymptom.nausea,
+          PhysicalSymptom.headache,
+          PhysicalSymptom.dizziness,
+        },
+      );
+      final logB = SymptomLogFixture.fixture(
+        symptoms: const {
+          PhysicalSymptom.dizziness,
+          PhysicalSymptom.headache,
+          PhysicalSymptom.nausea,
+        },
+      );
+
+      expect(
+        SymptomLogMapper.toRecord(logA)['symptoms'],
+        SymptomLogMapper.toRecord(logB)['symptoms'],
+      );
+    });
+
+    test('symptoms are written in ascending enum index order', () {
+      final log = SymptomLogFixture.fixture(
+        symptoms: const {
+          PhysicalSymptom.nausea, // index 6
+          PhysicalSymptom.headache, // index 3
+          PhysicalSymptom.dizziness, // index 5
+        },
+      );
+
+      final stored = SymptomLogMapper.toRecord(log)['symptoms']! as List;
+
+      expect(stored, [
+        PhysicalSymptom.headache.name, // index 3
+        PhysicalSymptom.dizziness.name, // index 5
+        PhysicalSymptom.nausea.name, // index 6
+      ]);
+    });
+
+    test('an empty symptom set writes an empty list', () {
+      final record = SymptomLogMapper.toRecord(SymptomLogFixture.bestDay());
+
+      expect(record['symptoms'], isEmpty);
+    });
   });
 
   // `CLAUDE.md` §Local Persistence: every number is decoded through `num`.
@@ -149,14 +213,63 @@ void main() {
         'energyScore': 1.0,
         'clarityScore': 2.0,
         'hungerScore': 3.0,
-        'physicalScore': 4.0,
         'moodScore': 5.0,
+        'symptoms': <String>[],
         'notes': null,
       });
 
       expect(log.energyScore, 1);
       expect(log.moodScore, 5);
       expect(log.date, DateTime(2026, 9, 9));
+    });
+  });
+
+  group('SymptomLogMapper.fromRecord symptom tolerance', () {
+    test(
+      'returns empty set when symptoms key is absent (pre-change record)',
+      () {
+        // Simulate a record written before the symptom picker shipped: it has
+        // a `physicalScore` and no `symptoms` key at all.
+        final log = SymptomLogMapper.fromRecord(20260909, {
+          'date': DateTime(2026, 9, 9).millisecondsSinceEpoch,
+          'energyScore': 3,
+          'clarityScore': 3,
+          'hungerScore': 3,
+          'moodScore': 3,
+          'physicalScore': 3,
+          'notes': null,
+        });
+
+        expect(log.symptoms, isEmpty);
+      },
+    );
+
+    test('skips unrecognised names and keeps the recognised ones', () {
+      final log = SymptomLogMapper.fromRecord(20260909, {
+        'date': DateTime(2026, 9, 9).millisecondsSinceEpoch,
+        'energyScore': 3,
+        'clarityScore': 3,
+        'hungerScore': 3,
+        'moodScore': 3,
+        'symptoms': ['headache', 'unknownSymptomFromFutureBuild', 'nausea'],
+        'notes': null,
+      });
+
+      expect(log.symptoms, {PhysicalSymptom.headache, PhysicalSymptom.nausea});
+    });
+
+    test('returns empty set when symptoms holds a non-list value', () {
+      final log = SymptomLogMapper.fromRecord(20260909, {
+        'date': DateTime(2026, 9, 9).millisecondsSinceEpoch,
+        'energyScore': 3,
+        'clarityScore': 3,
+        'hungerScore': 3,
+        'moodScore': 3,
+        'symptoms': 'headache',
+        'notes': null,
+      });
+
+      expect(log.symptoms, isEmpty);
     });
   });
 }

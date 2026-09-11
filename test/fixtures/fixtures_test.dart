@@ -1,4 +1,5 @@
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
+import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fixtures.dart';
@@ -77,27 +78,43 @@ void main() {
     });
 
     // The antidote to the all-3s default: a test asserting a score reaches
-    // the right place needs five distinguishable scores.
+    // the right place needs four distinguishable scores.
     test('SymptomLogFixture.varied gives every scale a different score', () {
       final log = SymptomLogFixture.varied();
 
       expect(
-        [
-          log.energyScore,
-          log.clarityScore,
-          log.hungerScore,
-          log.physicalScore,
-          log.moodScore,
-        ],
-        [1, 2, 3, 4, 5],
+        [log.energyScore, log.clarityScore, log.hungerScore, log.moodScore],
+        [1, 2, 3, 4],
       );
     });
+
+    // A widget that renders `PhysicalSymptom.values` instead of
+    // `log.symptoms` passes against any fixture holding all eight, and a chip
+    // row hardcoded to the first enum value passes against one holding
+    // `halitosis`. Neither passes against a single mid-list value.
+    test(
+      'SymptomLogFixture.varied holds one symptom, neither first nor last',
+      () {
+        final symptoms = SymptomLogFixture.varied().symptoms;
+
+        expect(symptoms, hasLength(1));
+        expect(symptoms.single, isNot(PhysicalSymptom.values.first));
+        expect(symptoms.single, isNot(PhysicalSymptom.values.last));
+      },
+    );
 
     test('SymptomLogFixture boundary days sit at 1 and 5', () {
       expect(SymptomLogFixture.worstDay().energyScore, 1);
       expect(SymptomLogFixture.worstDay().moodScore, 1);
       expect(SymptomLogFixture.bestDay().energyScore, 5);
       expect(SymptomLogFixture.bestDay().moodScore, 5);
+    });
+
+    // The fixture is named for the condition, so it carries the symptoms that
+    // constitute it — a worst day with an empty set would be a contradiction.
+    test('SymptomLogFixture.worstDay carries the keto-flu symptoms', () {
+      expect(SymptomLogFixture.worstDay().symptoms, isNotEmpty);
+      expect(SymptomLogFixture.bestDay().symptoms, isEmpty);
     });
   });
 

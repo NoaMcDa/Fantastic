@@ -16,6 +16,10 @@
 lib/features/adaptation/domain/models/adaptation_phase.dart
 lib/features/onboarding/domain/models/biological_sex.dart
 lib/features/onboarding/domain/models/keto_goal.dart
+# Its label and icon live in `presentation/physical_symptom_copy.dart`, which
+# does carry a coverage record — the enum itself stays declaration-only so it
+# can remain Flutter-free.
+lib/features/diary/domain/models/physical_symptom.dart
 
 # `abstract interface class` — method signatures, no bodies.
 lib/features/adaptation/domain/repositories/streak_repository.dart

@@ -1,15 +1,20 @@
+import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
 import 'package:flutter/material.dart';
 
-/// The five scales a [SymptomLog] records, with the copy and iconography the
-/// diary draws them with.
+/// The four 1–5 scales a [SymptomLog] records, with the copy and iconography
+/// the diary draws them with.
 ///
-/// **One place knows the five scales.** The M5 issue text described the fifth
-/// as "brain fog" in three widgets and named a `brainFogScore` field the model
-/// has never had — the fifth scale is *mood* (`design/m5_preflight.md` §1.1).
-/// That mistake is only possible where each widget keeps its own hand-written
-/// list, so the strip, the sheet and the diary section all iterate this enum
-/// instead. Adding a sixth scale is a change here and nowhere else.
+/// **One place knows the scales.** The M5 issue text described a scale as
+/// "brain fog" in three widgets and named a `brainFogScore` field the model has
+/// never had (`design/m5_preflight.md` §1.1). That mistake is only possible
+/// where each widget keeps its own hand-written list, so the strip, the sheet
+/// and the diary section all iterate this enum instead. Adding a scale is a
+/// change here and nowhere else.
+///
+/// There is no `physical` value. Physical symptoms are recorded as a
+/// [PhysicalSymptom] set on the log, not as a score — do not "restore" a fifth
+/// value here.
 ///
 /// Presentation, not `core/constants/`, because of [icon]: `PhaseCopy` is
 /// pure copy and stays Flutter-free, and an `IconData` cannot follow it there.
@@ -19,11 +24,6 @@ enum SymptomScale {
   energy(label: 'אנרגיה', shortLabel: 'אנרגיה', icon: Icons.bolt_outlined),
   clarity(label: 'ריכוז', shortLabel: 'ריכוז', icon: Icons.psychology_outlined),
   hunger(label: 'רעב', shortLabel: 'רעב', icon: Icons.restaurant_outlined),
-  physical(
-    label: 'תסמינים פיזיים',
-    shortLabel: 'גוף',
-    icon: Icons.healing_outlined,
-  ),
   mood(label: 'מצב רוח', shortLabel: 'מצב רוח', icon: Icons.mood_outlined);
 
   const SymptomScale({
@@ -52,7 +52,6 @@ enum SymptomScale {
     SymptomScale.energy => log.energyScore,
     SymptomScale.clarity => log.clarityScore,
     SymptomScale.hunger => log.hungerScore,
-    SymptomScale.physical => log.physicalScore,
     SymptomScale.mood => log.moodScore,
   };
 }
@@ -62,10 +61,11 @@ enum SymptomScale {
 /// The mirror of [SymptomScale.scoreIn], and the only write path — so the
 /// two directions cannot disagree about which field is which.
 ///
-/// [id] and [notes] are carried through from the record being edited.
-/// Dropping them is not cosmetic: `SymptomLogRepository.save` upserts on the
-/// date, so a save built without the stored note **erases it**
-/// (`design/m5_preflight.md` §1.3).
+/// [id], [notes] and [symptoms] are carried through from the record being
+/// edited. Dropping them is not cosmetic: `SymptomLogRepository.save` upserts
+/// on the date, so a save built without the stored note **erases it**
+/// (`design/m5_preflight.md` §1.3) — and a save built without the stored
+/// symptom set erases that the same way.
 ///
 /// [date] is normalised to midnight: the record key ignores the time
 /// component, so storing a wall-clock time would make two logically identical
@@ -73,6 +73,7 @@ enum SymptomScale {
 SymptomLog buildSymptomLog({
   required DateTime date,
   required Map<SymptomScale, int> scores,
+  Set<PhysicalSymptom> symptoms = const <PhysicalSymptom>{},
   int? id,
   String? notes,
 }) => SymptomLog(
@@ -81,7 +82,7 @@ SymptomLog buildSymptomLog({
   energyScore: scores[SymptomScale.energy]!,
   clarityScore: scores[SymptomScale.clarity]!,
   hungerScore: scores[SymptomScale.hunger]!,
-  physicalScore: scores[SymptomScale.physical]!,
   moodScore: scores[SymptomScale.mood]!,
+  symptoms: symptoms,
   notes: notes,
 );

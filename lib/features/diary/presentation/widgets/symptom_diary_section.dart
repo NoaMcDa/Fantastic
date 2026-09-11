@@ -1,5 +1,7 @@
 import 'package:fantastic/features/diary/application/providers/symptom_providers.dart';
+import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
+import 'package:fantastic/features/diary/presentation/physical_symptom_copy.dart';
 import 'package:fantastic/features/diary/presentation/symptom_scale.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_log_sheet.dart';
 import 'package:flutter/material.dart';
@@ -87,7 +89,8 @@ class _Empty extends StatelessWidget {
   }
 }
 
-/// A logged day: the five scores, the note, and an edit affordance.
+/// A logged day: the four scale scores, the physical symptom chips, the note,
+/// and an edit affordance.
 class _Summary extends StatelessWidget {
   const _Summary({required this.date, required this.log});
 
@@ -99,9 +102,18 @@ class _Summary extends StatelessWidget {
     final theme = Theme.of(context);
     final notes = log.notes;
 
+    // Iterate PhysicalSymptom.values, not log.symptoms, so two days with the
+    // same symptoms always render them in the same sequence regardless of the
+    // set's insertion order — issue #293 §1.
+    final activeSymptoms = [
+      for (final symptom in PhysicalSymptom.values)
+        if (log.symptoms.contains(symptom)) symptom,
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Score chips — one per SymptomScale (four total).
         Wrap(
           spacing: 8,
           runSpacing: 4,
@@ -110,6 +122,32 @@ class _Summary extends StatelessWidget {
               _ScoreChip(scale: scale, score: scale.scoreIn(log)),
           ],
         ),
+        const SizedBox(height: 8),
+        // Physical symptom chips — a second Wrap, not merged into the score
+        // Wrap. Score chips carry a digit; symptom chips do not; interleaving
+        // them produces a run where `רעב 3` sits beside `כאב ראש` with no
+        // visual rule explaining the difference.
+        if (activeSymptoms.isNotEmpty)
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final symptom in activeSymptoms)
+                _SymptomChip(symptom: symptom),
+            ],
+          )
+        else
+          // Record exists but no physical symptoms were marked — distinct from
+          // the whole-day empty state `לא הוקלטו תסמינים` in `_Empty`, which
+          // means the day has no record at all. Both must exist; they say
+          // different things.
+          Text(
+            'לא דווחו תסמינים פיזיים',
+            key: const Key('no_physical_symptoms'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
         if (notes != null && notes.isNotEmpty) ...[
           const SizedBox(height: 8),
           // Shown, not just stored. A note the user can never see again is
@@ -162,6 +200,25 @@ class _ScoreChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A read-only chip for a single [PhysicalSymptom] — icon and Hebrew label.
+///
+/// No digit, no severity: physical symptoms are either present or absent.
+/// The score chips above show gradations; mixing them in one Wrap without a
+/// visual rule explaining why some have digits and some do not would confuse.
+class _SymptomChip extends StatelessWidget {
+  const _SymptomChip({required this.symptom});
+
+  final PhysicalSymptom symptom;
+
+  @override
+  Widget build(BuildContext context) => Chip(
+    key: Key('diary_symptom_${symptom.name}'),
+    visualDensity: VisualDensity.compact,
+    avatar: Icon(symptom.icon, size: 16),
+    label: Text(symptom.label),
+  );
 }
 
 /// A one-line message in place of the content.

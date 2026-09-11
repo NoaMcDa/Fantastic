@@ -1,6 +1,8 @@
 import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/features/diary/application/symptom_logging_service.dart';
+import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
+import 'package:fantastic/features/diary/presentation/physical_symptom_copy.dart';
 import 'package:fantastic/features/diary/presentation/symptom_scale.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_log_sheet.dart';
 import 'package:flutter/material.dart';
@@ -33,9 +35,15 @@ void main() {
     WidgetTester tester, {
     SymptomLog? existing,
     SymptomScale? focus,
+    bool focusSymptoms = false,
   }) => pumpApp(
     tester,
-    SymptomLogSheet(date: date, existing: existing, focus: focus),
+    SymptomLogSheet(
+      date: date,
+      existing: existing,
+      focus: focus,
+      focusSymptoms: focusSymptoms,
+    ),
     overrides: [symptomLoggingServiceProvider.overrideWithValue(service)],
   );
 
@@ -58,6 +66,14 @@ void main() {
     await tester.ensureVisible(button);
     await tester.pump();
     await tester.tap(button);
+    await tester.pump();
+  }
+
+  Future<void> tapChip(WidgetTester tester, PhysicalSymptom symptom) async {
+    final chip = find.byKey(Key('symptom_filter_${symptom.name}'));
+    await tester.ensureVisible(chip);
+    await tester.pump();
+    await tester.tap(chip);
     await tester.pump();
   }
 
@@ -103,6 +119,165 @@ void main() {
     }
   });
 
+  group('symptom chips', () {
+    testWidgets('renders eight chips in declaration order', (tester) async {
+      await pumpSheet(tester);
+
+      // Every chip is present.
+      for (final symptom in PhysicalSymptom.values) {
+        final chip = find.byKey(Key('symptom_filter_${symptom.name}'));
+        await tester.ensureVisible(chip);
+        expect(chip, findsOneWidget, reason: '${symptom.name} chip');
+      }
+    });
+
+    testWidgets('chip labels come from the extension, never hardcoded', (
+      tester,
+    ) async {
+      await pumpSheet(tester);
+
+      for (final symptom in PhysicalSymptom.values) {
+        await tester.ensureVisible(
+          find.byKey(Key('symptom_filter_${symptom.name}')),
+        );
+        expect(find.text(symptom.label), findsOneWidget, reason: symptom.name);
+      }
+    });
+
+    testWidgets('chips are not selected by default on a new day', (
+      tester,
+    ) async {
+      await pumpSheet(tester);
+
+      for (final symptom in PhysicalSymptom.values) {
+        final chip = tester.widget<FilterChip>(
+          find.byKey(Key('symptom_filter_${symptom.name}')),
+        );
+        expect(chip.selected, isFalse, reason: '${symptom.name} not selected');
+      }
+    });
+
+    testWidgets('tapping a chip selects it', (tester) async {
+      await pumpSheet(tester);
+      await tapChip(tester, PhysicalSymptom.headache);
+
+      final chip = tester.widget<FilterChip>(
+        find.byKey(const Key('symptom_filter_headache')),
+      );
+      expect(chip.selected, isTrue);
+    });
+
+    testWidgets('tapping a selected chip deselects it', (tester) async {
+      await pumpSheet(tester);
+      await tapChip(tester, PhysicalSymptom.headache);
+      await tapChip(tester, PhysicalSymptom.headache);
+
+      final chip = tester.widget<FilterChip>(
+        find.byKey(const Key('symptom_filter_headache')),
+      );
+      expect(chip.selected, isFalse);
+    });
+
+    testWidgets('opens with the existing log\'s symptoms pre-selected', (
+      tester,
+    ) async {
+      // `varied` has exactly one symptom: muscleCramps.
+      await pumpSheet(tester, existing: SymptomLogFixture.varied(date: date));
+
+      final selected = tester.widget<FilterChip>(
+        find.byKey(const Key('symptom_filter_muscleCramps')),
+      );
+      expect(selected.selected, isTrue);
+
+      // Every other chip is unselected.
+      for (final symptom in PhysicalSymptom.values) {
+        if (symptom == PhysicalSymptom.muscleCramps) continue;
+        final chip = tester.widget<FilterChip>(
+          find.byKey(Key('symptom_filter_${symptom.name}')),
+        );
+        expect(chip.selected, isFalse, reason: '${symptom.name} not selected');
+      }
+    });
+
+    testWidgets('clear button is absent when nothing is selected', (
+      tester,
+    ) async {
+      await pumpSheet(tester);
+
+      expect(find.byKey(const Key('clear_symptoms_button')), findsNothing);
+    });
+
+    testWidgets('clear button appears when at least one chip is selected', (
+      tester,
+    ) async {
+      await pumpSheet(tester);
+      await tapChip(tester, PhysicalSymptom.nausea);
+
+      final clear = find.byKey(const Key('clear_symptoms_button'));
+      await tester.ensureVisible(clear);
+      expect(clear, findsOneWidget);
+    });
+
+    testWidgets('clear button clears all selected chips', (tester) async {
+      await pumpSheet(tester);
+      await tapChip(tester, PhysicalSymptom.nausea);
+      await tapChip(tester, PhysicalSymptom.headache);
+
+      final clear = find.byKey(const Key('clear_symptoms_button'));
+      await tester.ensureVisible(clear);
+      await tester.tap(clear);
+      await tester.pump();
+
+      for (final symptom in PhysicalSymptom.values) {
+        final chip = tester.widget<FilterChip>(
+          find.byKey(Key('symptom_filter_${symptom.name}')),
+        );
+        expect(chip.selected, isFalse, reason: '${symptom.name} cleared');
+      }
+
+      // Clear button disappears after clearing.
+      expect(find.byKey(const Key('clear_symptoms_button')), findsNothing);
+    });
+
+    testWidgets('saving persists the selected set', (tester) async {
+      await pumpSheet(tester);
+      await tapChip(tester, PhysicalSymptom.dizziness);
+      await tapChip(tester, PhysicalSymptom.nausea);
+      await save(tester);
+
+      expect(
+        savedLog().symptoms,
+        equals({PhysicalSymptom.dizziness, PhysicalSymptom.nausea}),
+      );
+    });
+
+    testWidgets('saving with nothing selected persists an empty set', (
+      tester,
+    ) async {
+      await pumpSheet(tester);
+      await save(tester);
+
+      expect(savedLog().symptoms, isEmpty);
+    });
+
+    // The aliasing guard: `_symptoms` is a fresh copy, not a reference to
+    // `widget.existing.symptoms`. A cancelled sheet must not have mutated the
+    // log the provider is holding.
+    testWidgets('tapping chips does not mutate the passed-in existing log', (
+      tester,
+    ) async {
+      final existing = SymptomLogFixture.varied(date: date);
+      final originalSymptoms = Set<PhysicalSymptom>.from(existing.symptoms);
+
+      await pumpSheet(tester, existing: existing);
+      await tapChip(tester, PhysicalSymptom.halitosis);
+      // Do NOT save — simulate a dismissed sheet.
+      await tester.pumpWidget(const SizedBox());
+
+      expect(existing.symptoms, equals(originalSymptoms));
+    });
+  });
+
   group('initial state', () {
     testWidgets('a new day starts every scale mid-scale', (tester) async {
       await pumpSheet(tester);
@@ -126,8 +301,9 @@ void main() {
       expect(saved.energyScore, 1);
       expect(saved.clarityScore, 2);
       expect(saved.hungerScore, 3);
-      expect(saved.physicalScore, 4);
-      expect(saved.moodScore, 5);
+      expect(saved.moodScore, 4);
+      // `varied` has muscleCramps — confirm it round-trips.
+      expect(saved.symptoms, equals(const {PhysicalSymptom.muscleCramps}));
     });
 
     testWidgets('an existing note pre-fills the note field', (tester) async {
@@ -149,7 +325,7 @@ void main() {
       expect(savedLog().energyScore, 5);
     });
 
-    // Tapping one row must not move another. Five fields is five chances to
+    // Tapping one row must not move another. Four fields is four chances to
     // cross two of them.
     testWidgets('adjusting one scale leaves the others alone', (tester) async {
       await pumpSheet(tester);
@@ -161,7 +337,6 @@ void main() {
       expect(saved.energyScore, SymptomLogSheet.defaultScore);
       expect(saved.clarityScore, SymptomLogSheet.defaultScore);
       expect(saved.hungerScore, SymptomLogSheet.defaultScore);
-      expect(saved.physicalScore, SymptomLogSheet.defaultScore);
     });
 
     testWidgets('saves the day it was given, at midnight', (tester) async {
@@ -387,6 +562,37 @@ void main() {
       await save(tester);
 
       expect(savedLog().clarityScore, 1);
+    });
+
+    testWidgets('focusSymptoms highlights the symptom section', (tester) async {
+      await pumpSheet(tester, focusSymptoms: true);
+
+      final section = tester.widget<Container>(
+        find.byKey(const Key('symptom_section')),
+      );
+      expect(section.decoration, isNotNull);
+    });
+
+    testWidgets('symptom section is not highlighted without focusSymptoms', (
+      tester,
+    ) async {
+      await pumpSheet(tester);
+
+      final section = tester.widget<Container>(
+        find.byKey(const Key('symptom_section')),
+      );
+      expect(section.decoration, isNull);
+    });
+
+    testWidgets('focus on a scale does not highlight the symptom section', (
+      tester,
+    ) async {
+      await pumpSheet(tester, focus: SymptomScale.energy);
+
+      final section = tester.widget<Container>(
+        find.byKey(const Key('symptom_section')),
+      );
+      expect(section.decoration, isNull);
     });
   });
 }

@@ -1,5 +1,6 @@
 import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/features/diary/application/symptom_logging_service.dart';
+import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
 import 'package:fantastic/features/diary/domain/repositories/symptom_log_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,7 +28,6 @@ class _UncheckedSymptomLog extends SymptomLog {
         energyScore: 3,
         clarityScore: 3,
         hungerScore: 3,
-        physicalScore: 3,
         moodScore: 3,
       );
 
@@ -42,8 +42,6 @@ class _UncheckedSymptomLog extends SymptomLog {
   int get clarityScore => _score('clarityScore', super.clarityScore);
   @override
   int get hungerScore => _score('hungerScore', super.hungerScore);
-  @override
-  int get physicalScore => _score('physicalScore', super.physicalScore);
   @override
   int get moodScore => _score('moodScore', super.moodScore);
 }
@@ -87,9 +85,40 @@ void main() {
       expect(saved.energyScore, 1);
       expect(saved.clarityScore, 2);
       expect(saved.hungerScore, 3);
-      expect(saved.physicalScore, 4);
-      expect(saved.moodScore, 5);
+      expect(saved.moodScore, 4);
       expect(saved.notes, 'שבוע קשה');
+    });
+
+    // The service validates scores and touches nothing else. A validator that
+    // rebuilt the log to check it would drop the symptom set on the way past,
+    // and `SymptomLogRepository.save` upserts on the date — so the day's
+    // stored symptoms would be erased by a save that looks like a no-op.
+    test('passes the symptom set through untouched', () async {
+      await service.logSymptoms(
+        SymptomLogFixture.fixture(
+          symptoms: const {PhysicalSymptom.headache, PhysicalSymptom.insomnia},
+        ),
+      );
+
+      final saved =
+          verify(() => repository.save(captureAny())).captured.single
+              as SymptomLog;
+
+      expect(saved.symptoms, {
+        PhysicalSymptom.headache,
+        PhysicalSymptom.insomnia,
+      });
+    });
+
+    // Nothing to validate: PhysicalSymptom is a closed enum, so there is no
+    // out-of-range value to construct. Asserted so a future "defensive" check
+    // that rejects an unfamiliar set has a test standing against it.
+    test('accepts every symptom at once', () async {
+      await service.logSymptoms(
+        SymptomLogFixture.fixture(symptoms: PhysicalSymptom.values.toSet()),
+      );
+
+      verify(() => repository.save(any())).called(1);
     });
 
     test('accepts the lower bound — every scale at 1', () async {
@@ -105,14 +134,13 @@ void main() {
     });
 
     // Every scale, not just the first: a validator that checked `energyScore`
-    // five times would pass a single-field test and let a bad mood score
+    // four times would pass a single-field test and let a bad mood score
     // through. See `design/m5_preflight.md` §1.1 for what crossing scales
     // costs here.
     for (final scale in const [
       'energyScore',
       'clarityScore',
       'hungerScore',
-      'physicalScore',
       'moodScore',
     ]) {
       // Thrown synchronously, before the future is created: the validation

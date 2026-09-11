@@ -1,5 +1,6 @@
 import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/features/diary/data/repositories/sembast_symptom_log_repository.dart';
+import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:fantastic/features/diary/domain/repositories/symptom_log_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sembast/sembast.dart';
@@ -161,16 +162,15 @@ void runSymptomLogRepositoryContractTests(
   });
 
   group('round-trip', () {
-    test('all five scores survive a save/find round-trip', () async {
-      // Five distinct values, so a repository that crossed two scales cannot
+    test('all four scores survive a save/find round-trip', () async {
+      // Four distinct values, so a repository that crossed two scales cannot
       // pass by coincidence the way an all-3s fixture lets it.
       await repo.save(
         SymptomLogFixture.fixture(
           energyScore: 1,
           clarityScore: 2,
           hungerScore: 3,
-          physicalScore: 4,
-          moodScore: 5,
+          moodScore: 4,
         ),
       );
 
@@ -179,9 +179,38 @@ void runSymptomLogRepositoryContractTests(
       expect(found!.energyScore, 1);
       expect(found.clarityScore, 2);
       expect(found.hungerScore, 3);
-      expect(found.physicalScore, 4);
-      expect(found.moodScore, 5);
+      expect(found.moodScore, 4);
     });
+
+    test('a symptom set survives a save/findByDate round-trip', () async {
+      // Uses a set that is neither empty nor all-eight, and contains a value
+      // that is not the first or last enum value — guarding against a
+      // renderer that always shows all values or always shows the first.
+      final original = SymptomLogFixture.fixture(
+        symptoms: const {
+          PhysicalSymptom.headache,
+          PhysicalSymptom.muscleCramps,
+          PhysicalSymptom.nausea,
+        },
+      );
+
+      await repo.save(original);
+
+      final found = await repo.findByDate(SymptomLogFixture.defaultDate);
+
+      expect(found!.symptoms, original.symptoms);
+    });
+
+    test(
+      'an empty symptom set survives a save/findByDate round-trip',
+      () async {
+        await repo.save(SymptomLogFixture.bestDay());
+
+        final found = await repo.findByDate(SymptomLogFixture.defaultDate);
+
+        expect(found!.symptoms, isEmpty);
+      },
+    );
 
     test('notes survive a save/find round-trip', () async {
       await repo.save(SymptomLogFixture.worstDay());
