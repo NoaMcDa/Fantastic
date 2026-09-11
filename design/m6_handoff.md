@@ -252,7 +252,9 @@ does.
 ## Known gaps
 
 - **Scanned macros are per 100 g and are logged as if they were the serving**
-  (#257). The parser reads no serving size. The sheet says *"check the serving
+  (#257 — **since fixed in #281**; `ServingBasis` is parsed and the sheet
+  scales the prefill. What follows describes the behaviour M6 shipped).
+  The parser reads no serving size. The sheet says *"check the serving
   size"* and the fields are editable, but a user who taps straight through logs
   100 g of a 30 g bar — and every number downstream, including the streak, is
   computed from it. The largest correctness gap in the shipped pipeline.

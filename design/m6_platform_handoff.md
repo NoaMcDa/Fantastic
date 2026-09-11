@@ -322,6 +322,63 @@ Homebrew dylib on its own terms.
 
 ---
 
+## The serving-basis fix (#257, PR #281)
+
+The highest-value open defect in the project, and it is closed. An Israeli label
+declares its macros **per 100 g**; the parser read the numbers and recorded
+nothing about what they were *per*, so a user who scanned a 30 g bar and tapped
+through logged the whole 100 g — and the day's macros, the keto ratio, the
+streak evaluation and the adaptation phase were all computed from a figure more
+than three times too large. M6 shipped a caption asking the user to do the
+arithmetic.
+
+**What shipped**
+
+- `ServingBasis {per100g, per100ml, perServing, unknown}` in `domain/models/`,
+  with an `isPerHundred` extension so the parser, the sheet and the tests cannot
+  disagree about whether `per100ml` scales. It does.
+- `ParsedLabel` gains `basis` (**defaulting to `unknown`**) and `servingGrams`.
+  The default is the migration promise: every `ParsedLabel` built without a
+  basis — every older fixture, and the parser's own never-throws failure path —
+  keeps M6's behaviour untouched.
+- `ScanResultSheet`'s success half is now a small `StatefulWidget` with an
+  amount field, defaulted to the label's own declared serving where it printed
+  one and to 100 otherwise (a no-op scale). **The macro strip shows what will be
+  logged, not what is printed**, so the number in front of the user when they
+  save is the number that gets saved.
+
+**Three decisions worth not re-litigating**
+
+1. **The parser refuses to guess.** Exactly one basis marker resolves to that
+   basis; zero *or more than one* resolves to `unknown`. More-than-one is the
+   common and dangerous case — many Israeli labels print two columns and
+   flattened OCR cannot say which column a number came from. Picking one would
+   produce a plausible, wrong, silently-logged figure, which is the defect the
+   issue existed to remove.
+2. **An empty or unparseable amount falls back to the printed figures, never
+   to zero.** A zero-macro meal saves without complaint and is then invisible in
+   the day's totals — the same silent-wrong-number failure in a new place.
+3. **`perServing` labels offer no amount field.** The figures already describe
+   one serving; a grams box there would invite dividing by 100 a number that was
+   never per 100 of anything. If "I ate 2 servings" is wanted, it is a
+   multiplier, not this field.
+
+**Two things fixed alongside, because leaving either would have been knowingly
+shipping a defect**
+
+- The `Infinity`/`NaN`-safe numeric parse moved from `OnboardingValidators` to
+  `core/utils/NumericInput`. This change added the second screen that takes a
+  number, and duplicating that guard is precisely the drift its own doc comment
+  warned against. `OnboardingValidators.positiveFinite` delegates; no behaviour
+  change.
+- **`TessdataBundle`'s model unpack is now atomic** (write to a private name,
+  then `rename`). The in-process future serialises callers inside one app but
+  not across processes, and two parallel test suites sharing the directory
+  produced exactly one unreproducible OCR failure — the worst way for a race to
+  announce itself.
+
+---
+
 ## Conventions inherited
 
 1. **One engine, every platform.** The same argument `web_support.md` §1 used to
@@ -350,8 +407,10 @@ Homebrew dylib on its own terms.
 
 ## Known gaps
 
-- **#257 — scanned macros are per 100 g, logged as the serving.** Untouched by
-  any of this and still the highest-value open defect in the project.
+- ~~**#257 — scanned macros are per 100 g, logged as the serving.**~~ **Fixed
+  (#281)**, and it was the highest-value open defect in the project. See
+  §"The serving-basis fix" above for what shipped and what it deliberately
+  refuses to do.
 - **No image pre-processing.** The crop guide is drawn; the full frame is sent.
   This matters more with Tesseract than it did with ML Kit — it has no scene-text
   detection stage, so crop, greyscale, contrast and deskew are work the engine
@@ -366,3 +425,47 @@ Homebrew dylib on its own terms.
   reports its absence and names the fix, but an installer story does not exist.
 - **`tessdata_fast` vs `tessdata_best` is unmeasured** — 0.92 MB against 3.5 MB.
   A one-line change once the photographic corpus exists.
+- **The macOS App Sandbox may block the dylib.** `Release.entitlements` sets
+  `com.apple.security.app-sandbox`; the sandbox denies reads outside the
+  container and `/opt/homebrew` is not exempt, so the shipped app may be unable
+  to open the library CI proves is present. Unresolved and **not resolvable
+  without a Mac** — see §"What compiling on real runners found".
+- **`ios/Podfile.lock` is gitignored** by the root `*.lock` rule, so pod
+  versions are reproducible only from a CI log. Worth un-ignoring, but it needs
+  someone with a Mac to run `pod install` and commit the result.
+- **The Windows daily reminder is one-shot.** The Windows notification path
+  silently drops `matchDateTimeComponents`. `main` reschedules on every launch,
+  so a user who opens the app stays reminded and one who does not, stops.
+
+---
+
+## If you pick this up next
+
+Ordered by value, and the first item has not moved in three handoffs.
+
+1. **Get it on a device, or at least photograph some labels.** Every accuracy
+   claim in this project still rests on rendered text, not photographs. #256 and
+   Epic #10 cannot close until someone points a camera at an Israeli product.
+   `design/m6_platform_research.md` Part 7 describes the corpus; it needs no app
+   and no Flutter, just a phone and `tesseract`.
+2. **Image pre-processing** — crop to the guide, greyscale, contrast, deskew.
+   Cheapest remaining accuracy win, and measurable against that corpus the day
+   it exists.
+3. **Decide the macOS sandbox question.** It is a product decision with a
+   distribution consequence (ship unsandboxed and lose the Mac App Store /
+   bundle libtesseract in the `.app` / accept no OCR on macOS), not an
+   engineering one, and it wants its own issue.
+4. **Audit M7 (#88–#94)** and write `design/m7_preflight.md` before implementing
+   any of it — every milestone so far has needed that audit, and every one found
+   defects that would have compiled and shipped wrong behaviour.
+
+### Two process notes for whoever reads this next
+
+- **Six PRs (#277–#282, #285) were merged without a review approval**, which
+  `design/pr_conventions.md` §6 forbids. It was done on an explicit instruction
+  to merge on green. CI green means the target assembles and the suite passes —
+  **not that the diff is right**, and no human has read these. Worth a
+  retrospective read of the platform workflows in particular.
+- **A conflicted PR gets no CI run at all** (`m4_handoff.md` said so; it bit
+  twice more here). A green result from before a conflict appeared is stale —
+  re-check mergeability before merging, not just the checks.

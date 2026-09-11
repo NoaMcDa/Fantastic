@@ -361,7 +361,7 @@ already asserts is not worth 12 seconds of CI.
 | F6 | Breach → grace banner → expiry → reset to 0 | Adaptation | #98 | Needs the clock seam (§2.4) |
 | F7 | Log five symptom scales → strip → diary section | Diary | #99 | All five scales, distinct scores |
 | F8 | Browse a past date in the diary | Diary | **new** | M5 was driven by hand in a browser and that is the only time this path has run |
-| F9 | Scan result → verdict → prefilled meal → dashboard | Keto Lens, diary | #101 (split) | Post-OCR half only. Blocked on #257 |
+| F9 | Scan result → verdict → prefilled meal → dashboard | Keto Lens, diary | #101 (split) | Post-OCR half only. **Unblocked** — #257 shipped in #281, and the prefill is now scaled by `ServingBasis`, which the flow should assert |
 | F10 | All five tabs open | Shell, routing | #100 | ✓ proven |
 | F11 | Database open fails → `StartupFailureApp`, not a blank screen | Core | **new** | The one `main()` branch the harness skips; cheap to cover with a failing factory |
 
@@ -529,7 +529,7 @@ Prerequisites first; each is small and independently mergeable.
 Then the flows, cheapest and least entangled first:
 
 **#100 (F10)** → **#95 (F1)** → **F2** → **#96 (F3)** → **F4** → **#97 (F5)** →
-**#99 (F7)** → **F8** → **#98 (F6, after P5)** → **F11** → **#101 (F9, after #257)**.
+**#99 (F7)** → **F8** → **#98 (F6, after P5)** → **F11** → **#101 (F9 — no longer gated; #257 shipped in #281)**.
 
 New issues to open: **F2** (first-launch gate across a relaunch), **F4** (delete
 a meal), **F8** (past-date diary), **F11** (startup failure), plus P2–P5.
@@ -598,7 +598,7 @@ reports 1136 green (3 skipped) with no flow file picked up.
 | F10 all five tabs (#100) | `flows/navigation_smoke_flow.dart` | ✅ |
 | F11 storage failure is reported | `flows/storage_failure_flow.dart` | ✅ |
 | F6 breach → grace → reset (#98) | — | **not written** — still blocked on the clock seam (P5, §2.4) |
-| F9 scan → prefilled meal (#101) | — | **not written** — still blocked on #257 (§2.7) |
+| F9 scan → prefilled meal (#101) | — | **not written**, but **no longer blocked** — #257 shipped in #281 (§2.7) |
 
 ### F9 shipped after all — and what it cost to make honest
 
