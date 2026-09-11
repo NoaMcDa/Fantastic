@@ -200,6 +200,7 @@ dev_dependencies:
   # `ProviderContainer.test()`, riverpod 3.0's own built-in replacement for
   # it (see the riverpod 3.0.0 changelog).
   mocktail: ^1.0.4
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

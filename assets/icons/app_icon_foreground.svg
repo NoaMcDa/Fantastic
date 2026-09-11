@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Fantastic">
+  <!--
+    The Android adaptive FOREGROUND layer: the same mark, with no ground.
+
+    **Scaled 1.19, exactly like app_icon.svg, and that is deliberate.**
+    `mipmap-anydpi-v26/ic_launcher.xml` wraps this drawable in a 16% inset,
+    so the launcher already shrinks it to 68% before any mask is applied.
+    Pre-shrinking it here as well would double-shrink it: 0.80 x 0.68 = 0.54
+    of the tile, visibly smaller on Android than on iOS for no reason.
+
+    The safe zone is still respected, and the arithmetic is the check: an
+    adaptive icon guarantees only the central 66.7% (radius 170.7 in this
+    512 box), and the mark's half-diagonal at 1x is 208.4, so after the
+    inset it is 1.19 x 0.68 x 208.4 = 168.6 - inside 170.7. Raising the
+    scale past 1.20 clips on a round launcher.
+
+    The ground is supplied separately as a flat #1C1C1E colour resource, so
+    this file has no rect and renders with alpha.
+  -->
+  <g transform="translate(256 256) scale(1.19) translate(-258.81 -259.63)">
+    <path d="M84 264 C84 214 118 176 168 160 C232 140 320 142 374 164 C420 182 440 216 428 252 C442 286 430 322 390 346 C362 362 330 356 300 366 C262 378 222 372 190 368 C140 360 96 326 84 264 Z" fill="#E0342A"/>
+    <path d="M84 264 C84 214 118 176 168 160 C232 140 320 142 374 164 C420 182 440 216 428 252 C416 232 408 216 388 204 C352 182 308 176 266 180 C224 184 192 196 166 212 C144 226 120 236 102 240 C94 244 90 252 84 264 Z" fill="#F5A623"/>
+    <ellipse cx="208" cy="278" rx="16" ry="18" fill="#4A1410"/>
+    <ellipse cx="288" cy="278" rx="16" ry="18" fill="#4A1410"/>
+    <circle cx="202" cy="271" r="5.5" fill="#FFFFFF" opacity="0.92"/>
+    <circle cx="282" cy="271" r="5.5" fill="#FFFFFF" opacity="0.92"/>
+    <path d="M214 322 C228 342 268 342 282 322" fill="none" stroke="#4A1410" stroke-width="12" stroke-linecap="round"/>
+  </g>
+</svg>

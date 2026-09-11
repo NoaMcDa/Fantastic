@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Fantastic
+GenericName=Keto companion
+Comment=Keto tracking, Hebrew label scanning, and an adaptation streak
+Exec=fantastic
+Icon=com.fantastic.fantastic
+Terminal=false
+Categories=Utility;
+StartupWMClass=fantastic

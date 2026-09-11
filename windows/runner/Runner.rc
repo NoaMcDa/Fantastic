@@ -89,13 +89,20 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
+            // CompanyName and LegalCopyright still carry the reverse-DNS
+            // "com.fantastic" because nobody has decided on a company name.
+            // #92 says explicitly not to block the icon on that, so the
+            // three below - which are unambiguously the app's own name -
+            // are corrected and these two are left as they are.
             VALUE "CompanyName", "com.fantastic" "\0"
-            VALUE "FileDescription", "fantastic" "\0"
+            VALUE "FileDescription", "Fantastic" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "fantastic" "\0"
+            VALUE "InternalName", "Fantastic" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.fantastic. All rights reserved." "\0"
+            // Stays lowercase: this names the file on disk, and BINARY_NAME
+            // in windows/CMakeLists.txt is "fantastic".
             VALUE "OriginalFilename", "fantastic.exe" "\0"
-            VALUE "ProductName", "fantastic" "\0"
+            VALUE "ProductName", "Fantastic" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
