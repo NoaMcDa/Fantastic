@@ -48,7 +48,7 @@ OCR pipeline it extends), and §1.4's rule that a dependency may only point at a
 | M12 | `epic:m12-menu-analyzer` | Menu OCR → per-dish keto verdicts and modification tips |
 | M13 | `epic:m13-health-sync` | HealthKit body-weight read and macro write, iOS-only behind a platform seam |
 | M14 | `epic:m14-backup` | Portable JSON backup export and atomic restore |
-| M15 | `epic:m15-meal-entry` | Three ways to add a meal — typed, described, photographed — all landing in one editable form |
+| M15 | `epic:m15-meal-entry` | Three ways to add a meal — typed, described, photographed — and a way to correct one, all through the same editable form |
 
 ### Scope Discipline
 
@@ -122,7 +122,7 @@ One epic label per issue. These map directly to the milestone table above.
 | `epic:m12-menu-analyzer` | Menu dish extraction, per-dish verdicts, analyser screen |
 | `epic:m13-health-sync` | HealthKit seam, body-weight read, macro write |
 | `epic:m14-backup` | Backup export, validated atomic restore |
-| `epic:m15-meal-entry` | Add-meal mode chooser, macro estimation, provenance |
+| `epic:m15-meal-entry` | Add-meal mode chooser, macro estimation, provenance, meal editing |
 | `epic:login` | Authentication — **not yet milestoned**; see the note below |
 
 `epic:post-mvp` is **retired** — it was split into the seven labels above

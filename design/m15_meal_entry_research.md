@@ -16,9 +16,9 @@ photo-of-a-*label* path is the Keto Lens pipeline, live since M6 and corrected
 by #257 — it is simply not reachable from the add-meal affordance. What is
 actually missing is **an estimator: free Hebrew text, or a photographed plate →
 macros**, plus a chooser in front of the three, plus the provenance the diary
-needs once a number in it may be a guess. This document records what was
-measured, the decision taken on which engine to build, and the twelve issues
-that follow from it.
+needs once a number in it may be a guess — and, once estimates exist, a way to
+**correct a meal after it is saved**, which §11.3 settles. This document records
+what was measured, the decisions taken, and the fourteen issues that follow.
 
 ---
 
@@ -195,10 +195,12 @@ So the key is **per user**: pasted into Settings, stored in the existing
 `user_profile` store. A `--dart-define=OPENROUTER_API_KEY` stays as a developer
 and CI-smoke convenience, never as the shipping default.
 
-A hosted proxy holding a paid key is the obvious later improvement and **still
-needs no login** — it is an adapter behind `MacroEstimator`, exactly as
-`TextRecognitionService` absorbed a complete engine swap from ML Kit to
-Tesseract without a single consumer changing.
+**This is an interim state, and the product owner has said so.** The
+destination is our own backend holding the key, which **still needs no login** —
+it is an adapter behind the seams in §6.6, exactly as `TextRecognitionService`
+absorbed a complete engine swap from ML Kit to Tesseract without a single
+consumer changing. That is why §6.6 exists at all: retrofitting a seam after
+three callers have hard-coded a client is the expensive version of this.
 
 ### 4.2 Consequence two: the offline promise has to be restated, not quietly broken
 
@@ -380,6 +382,56 @@ does:
 - An implausible total is a `badResponse`, not a saved meal.
 - No field of the response is ever interpreted as an instruction.
 
+### 6.6 The seams the backend swap turns on
+
+§11.2's decision is that OpenRouter-with-a-user-key is interim and our own
+backend replaces it, **without modifying anything that already works**. Three
+seams carry that, in increasing order of how much they absorb:
+
+| Seam | Interface | Swapped by | Absorbs |
+|---|---|---|---|
+| Credentials | `EstimationCredentials` | a session-backed implementation | "where does the token come from" |
+| Transport | `LlmChatClient` | `BackendChatClient` | a different endpoint, auth and wire format |
+| The whole estimator | `MacroEstimator` | `BackendMacroEstimator` | a backend that owns the prompt too |
+
+```dart
+// data/estimation/llm_chat_client.dart
+abstract interface class LlmChatClient {
+  /// Never throws. Takes no key — a caller must not know there is one, which
+  /// is what makes the swap invisible above this line.
+  Future<ChatResult> complete({
+    required String systemPrompt,
+    required String userPrompt,
+    String? imageBase64,
+    String? imageMediaType,
+  });
+}
+
+// data/estimation/estimation_credentials.dart
+abstract interface class EstimationCredentials {
+  /// The bearer token, or null when estimation is not configured.
+  Future<String?> token();
+}
+```
+
+**`lib/features/diary/data/providers.dart` is the only file allowed to name a
+concrete transport or estimator.** That is the composition root, and a
+composition root is where a swap is *supposed* to be visible. Everywhere else —
+the prompt, the parser, the estimator, every widget, every test above the
+transport — depends on an interface and does not change.
+
+The invariant is checkable in one command, which is why §8 words it that way
+rather than as a principle:
+
+```bash
+grep -rn "OpenRouter" lib/     # exactly two files: the client, and the provider
+```
+
+Choosing which seam to use later is a property of the backend, not a decision
+M15 has to make now. A pure proxy of the same OpenAI-compatible shape swaps the
+transport; a backend exposing `POST /estimate {description, image}` and
+returning the estimate directly swaps the whole estimator. Both are additive.
+
 ---
 
 ## 7. UX
@@ -407,62 +459,73 @@ does:
 
 ### North Star
 
-A meal can be added three ways — typed, described, or photographed — and every
-one of them lands in the same editable form before anything is saved, with the
-app never presenting a guess as a measurement.
+A meal can be added three ways — typed, described, or photographed — and
+corrected afterwards; every one of them lands in the same editable form before
+anything is saved, and the app never presents a guess as a measurement.
+
+> **The North Star was widened once, before the milestone started**, from "add"
+> to "add and correct", when the product owner settled §11's third question.
+> `milestone_conventions.md` §1.3 forbids adding scope to an *open* milestone;
+> M15 had no closed issue and no merged PR, which is the only point at which a
+> re-scope is legitimate. Anything discovered after the first merge goes to a
+> new milestone.
 
 ### Explicitly out of scope
 
 - **The offline food table** (§5) → kept behind the same interface, filed separately
 - **Barcode lookup** (§4.4) → its own milestone
-- **A hosted key proxy** (§4.1) → a later adapter; BYOK ships first
+- **Building the backend itself** (§4.1) → M15 ships the seams it plugs into, not the server
 - **Accounts and login** — M15 needs a key, not an identity. `epic:login` is unaffected
-- **Editing an already-saved meal** — M15 is about *adding*. A real gap, and a separate issue
-- **Changing manual entry's behaviour** — mode 1 is a regression surface, not a work item
+- **Changing manual entry's behaviour, or the streak rules** — both are regression surfaces, per §11's decisions 1 and 3
 
 ### Architectural invariants
 
-1. No estimate reaches the database without passing through `AddMealBottomSheet`.
-2. An unidentified item is reported, never dropped and never zeroed.
-3. `MealEntry.source` is set on every write path, manual included.
-4. **Keto Lens's no-network invariant is untouched** — a scan still makes no network call.
-5. Manual entry's observable behaviour is byte-identical at the end of the milestone.
-6. No new plugin, no new permission, no change to either conditional-export firewall.
-7. No test, unit or e2e, makes a network call.
-8. Estimation is opt-in: off until a key is entered and the disclosure accepted.
+1. **Open/closed about the provider.** `lib/features/diary/data/providers.dart` is the only file permitted to name `OpenRouterClient` or `RemoteMacroEstimator`. Swapping OpenRouter for our own backend must be a new implementation file plus a branch there — never an edit to the estimator, the prompt, the parser, a repository or a widget. §11's decision 2, and §6.6 has the seams.
+2. No estimate reaches the database without passing through `AddMealBottomSheet`.
+3. An unidentified item is reported, never dropped and never zeroed.
+4. `MealEntry.source` is set on every write path, manual included; an edit that changes a macro re-sources to `manual`.
+5. **The streak path is unchanged.** No branch anywhere makes compliance depend on `MacroSource` — §11's decision 1.
+6. **Keto Lens's no-network invariant is untouched** — a scan still makes no network call.
+7. Manual entry's observable behaviour is byte-identical at the end of the milestone.
+8. No new plugin, no new permission, no change to either conditional-export firewall.
+9. No test, unit or e2e, makes a network call.
+10. Estimation is opt-in: off until a key is entered and the disclosure accepted.
 
 ### Definition of Done
 
 `milestone_conventions.md` §3's standard list, plus:
 
 - [ ] All three modes reachable from **both** hosts of `AddMealFab` — the defect in `design/user_bugs_handoff.md` was exactly one host having an affordance the other lacked
-- [ ] Three e2e flows in `integration_test/`, one per mode, run by the `e2e flows` job
+- [ ] Four e2e flows in `integration_test/` — manual, description, photo, edit — run by the `e2e flows` job
+- [ ] **`grep -rn "OpenRouter" lib/` returns hits in exactly two files**: the client and the provider. The OCP invariant, checkable in one command
 - [ ] `MacroSource` round-trips for every value, and a record written before M15 still reads
 - [ ] `design/mvp.md`'s offline claim restated per §4.2, and the privacy labels in `epic:release-v1` updated
 
 ---
 
-## 9. The twelve issues, in build order
+## 9. The fourteen issues, in build order
 
 Dependencies point backwards only. Every issue leaves `main` green on its own.
 
 | # | Issue | Layer | Depends on |
 |---|---|---|---|
-| 1 | `MacroSource` on `MealEntry` + mapper + contract tests + backward-compatible decode | domain → data | — |
-| 2 | `MealEstimate` / `EstimatedItem` / `EstimateFailureReason` + the `MacroEstimator` interface | domain | — |
-| 3 | `EstimationSettings` — BYOK key and consent flag in the `user_profile` store, `--dart-define` fallback, `guardPersistence`-wrapped | data | — |
-| 4 | `OpenRouterClient` — `http`, `POST /api/v1/chat/completions`, pinned `:free` model, typed failures for 401 / 429 / timeout / offline | data | 3 |
-| 5 | `RemoteMacroEstimator` (text) — prompt, strict-JSON response contract, tolerant parse, §6.5 validation, provider wiring | data → application | 2, 4 |
-| 6 | `RemoteMacroEstimator` (photo) — base64 image part, optional description, size and dimension cap before upload | data | 5 |
-| 7 | Settings surface — enable estimation, paste key, §4.3 disclosure copy. Lands in the `lib/features/profile/` placeholder | presentation | 3 |
-| 8 | Mode chooser sheet behind `AddMealFab`; manual path unchanged | presentation | — |
-| 9 | Description mode — input → estimate → itemised editable review → prefilled `AddMealBottomSheet`, with copy for every failure reason | presentation | 5, 8 |
-| 10 | Photo mode — capture/pick → label OCR first → remote estimate otherwise → review → prefill + `imageRef` | presentation | 6, 8, 9 |
-| 11 | Provenance in `MealCard` and the diary — an estimate reads as an estimate | presentation | 1 |
-| 12 | Three e2e flows + the docs update (`CLAUDE.md`, `design/mvp.md`, `design/technology.md`, `design/tasks.md`, this file's status line) | test / docs | 9, 10, 11 |
+| 1 | #315 `MacroSource` on `MealEntry` + mapper + contract tests + backward-compatible decode | domain → data | — |
+| 2 | #316 `MealEstimate` / `EstimatedItem` / `EstimateFailureReason` + the `MacroEstimator` interface | domain | — |
+| 3 | #317 `EstimationSettings` — BYOK key and consent flag in **their own `estimation_settings` store**, never `user_profile` (its record existence is the first-launch sentinel) | data | — |
+| 4 | #318 The **`LlmChatClient` + `EstimationCredentials` seams** and their OpenRouter/BYOK implementations — `http`, pinned `:free` model, typed failures | data | 3 |
+| 5 | #319 `RemoteMacroEstimator` (text) — prompt, strict-JSON response contract, tolerant parse, §6.5 validation. **Names no provider** | data → application | 2, 4 |
+| 6 | #320 `RemoteMacroEstimator` (photo) — base64 image part, optional description, size and dimension cap before upload | data | 5 |
+| 7 | #321 Settings surface — enable estimation, paste key, §4.3 disclosure copy. Lands in the `lib/features/profile/` placeholder | presentation | 3 |
+| 8 | #322 Mode chooser sheet behind `AddMealFab`; manual path unchanged | presentation | — |
+| 9 | #323 Description mode — input → estimate → itemised editable review → prefilled `AddMealBottomSheet`, with copy for every failure reason | presentation | 5, 8 |
+| 10 | #324 Photo mode — capture/pick → label OCR first → remote estimate otherwise → review → prefill + `imageRef` | presentation | 6, 8, 9 |
+| 11 | #325 Provenance in `MealCard` and the diary — an estimate reads as an estimate | presentation | 1 |
+| 12 | #327 `MealLoggingService.updateMeal` — **recalculates both days** a moved meal touches; the old date is read before the overwrite | application | 1 |
+| 13 | #328 Edit a saved meal from its card — one sheet, two modes; a corrected macro re-sources to `manual` | presentation | 12, 9, 10 |
+| 14 | #326 Four e2e flows + the docs update (`CLAUDE.md`, `design/mvp.md`, `design/technology.md`, `design/tasks.md`, this file's status line) | test / docs | 9, 10, 11, 13 |
 
-Issues 1, 2, 3 and 8 have no dependencies and can start immediately. **Issue 8
-is the cheapest useful thing in the milestone** — it makes the two other modes
+Issues 1, 2, 3 and 8 (#315, #316, #317, #322) have no dependencies and can start
+immediately. **#322 is the cheapest useful thing in the milestone** — it makes the two other modes
 discoverable the moment they land, and until then it is one extra tap on a path
 that already works.
 
@@ -480,7 +543,8 @@ an untested reality.
 | **The free tier runs out** | 50 requests/day per key (§4.1). A user who logs six meals a day is fine; one who retries is not. `rateLimited` must be an ordinary, well-worded state |
 | **The model returns confident nonsense** | §6.5 validates ranges and nulls, but a *plausible* wrong number passes every check. §3's three rules are the only real defence, and the reviewing user is the last one |
 | **The user just presses save** | The realistic behaviour, and why reporting unidentified items matters more than a confidence percentage nobody reads |
-| **An estimate silently drives the streak** | Mitigated by §6.3's provenance, not eliminated. Whether an estimated day should count toward the streak is a **product decision** — §11 |
+| **An estimate silently drives the streak** | **Decided, not mitigated.** §11.1: an estimated meal counts like any other, because the user saw and could edit every number before saving. A model that overstates carbs can therefore push a real streak into its grace period, and that cost is accepted deliberately rather than engineered around |
+| **The stored data cannot say whether estimates are any good** | §11.3 re-sources a corrected meal to `manual`, so "how often was an estimate edited" is unanswerable from the database afterwards. Answering it needs deliberate instrumentation or asking users — not a query |
 | **A free model is deprecated upstream** | `:free` model IDs come and go. Issue 4 pins one and carries a fallback list; a dead model must surface as `badResponse`, not a crash |
 | **The photo mode regresses M6** | It reuses `ScanOrchestrator` unchanged. Any divergence in copy or behaviour is a defect against #257's DoD |
 | **The Tzameret licence** | Unverified — `data.gov.il` was unreachable from this session (§5). Only blocks the offline fallback, which is out of M15's scope |
@@ -491,20 +555,69 @@ different approach and a different dataset.
 
 ---
 
-## 11. Open decisions for the product owner
+## 11. Decisions taken
 
-1. **Does an estimated day count toward the streak?** Today every logged meal
-   does. Count it (simple, occasionally wrong) or require one measured meal a day
-   (safer, annoying). *Recommendation: count it, and revisit once §6.3's
-   provenance shows how often estimates are edited before saving.*
-2. **BYOK forever, or a hosted proxy later?** BYOK ships M15 with no
-   infrastructure and no login. A proxy with paid credits removes the setup step
-   and the 50/day ceiling, at the cost of running something. *Recommendation:
-   ship BYOK, revisit when someone complains about the setup step — the seam
-   makes it a swap.*
-3. **Is editing a saved meal in or out?** Out of M15 as written, and a real gap
-   — an estimate you can fix before saving but not after is a strange place to
-   stop. *Recommendation: a separate issue, right after M15.*
+Three questions were put to the product owner before any work began. All three
+are settled; the issues and §8 reflect them.
+
+### 11.1 An estimated meal counts toward the streak like any other
+
+No special case. A meal logged from an estimate feeds
+`AdaptationPhaseService.evaluateToday` exactly as a typed one does. The defence
+is that the user saw every number on an editable form and pressed save — they
+are their numbers now. The cost is accepted and stated: a model that overstates
+carbs can push a real streak into its grace period.
+
+**What this means for the code:** `MealLoggingService` is *unchanged* by this
+decision. An M15 PR that adds a `source`-dependent branch to the streak path is
+implementing something nobody asked for, which is why §8 carries it as an
+invariant rather than a note.
+
+One consequence for §10's risk table: the "revisit once provenance shows how
+often estimates are edited" line that an earlier draft carried does **not**
+survive §11.3. A corrected meal is re-sourced to `manual`, so the stored data
+cannot answer that question afterwards — revisiting it means asking users or
+adding deliberate instrumentation, not querying the database.
+
+### 11.2 BYOK now, our own backend later — and the code must be open/closed about it
+
+The user pastes an OpenRouter key today. Later the app calls our backend
+instead, and **that swap must be a new file, not an edit.** §6.6 has the seams.
+
+Every argument in §4.1 for BYOK still holds — the 50-requests-per-day ceiling,
+the extractable bundle key — and it is now explicitly an interim state rather
+than a destination. That changes nothing about what M15 builds and everything
+about how it is allowed to be structured.
+
+### 11.3 A saved meal can be edited
+
+An estimate you can correct before saving but not after is a strange place to
+stop. The data layer already supports it: `SembastMealRepository.save` has been
+an upsert since M1 — *"a null id appends at a fresh key, a non-null id
+overwrites that key"* — and `_recalculateDailyLog` reads the day back from the
+repository rather than adjusting stored totals, *"because an incremental update
+that ran twice, or missed an edit, would leave the totals permanently wrong with
+nothing to detect it."* An edit is the case that comment was written for. Only
+the service method and the way in were missing.
+
+Two things fall out of it, both filed:
+
+- **A meal can move between days**, so an edit touches two `DailyLog`s — the day
+  it left and the day it joined — and the old date is only knowable by reading
+  the stored entry *before* the overwrite. That is #327's whole substance, and
+  getting it wrong leaves the old day carrying macros for a meal that is not in
+  it, permanently, with nothing to detect it.
+- **A corrected macro re-sources the meal to `MacroSource.manual`.** The badge's
+  job is to warn that a number was guessed; once a human has corrected it the
+  warning is false, and a badge people learn to ignore is worse than no badge.
+  An edit to the name alone changes nothing about the numbers' origin and leaves
+  the source untouched.
+
+### Still open
+
+- **When to build the backend.** M15 ships the seams; nothing here decides the
+  server's shape, its auth, or who pays for the tokens. The one thing already
+  decided is that it must not require the login milestone.
 
 ---
 

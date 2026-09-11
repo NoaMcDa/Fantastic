@@ -633,7 +633,7 @@ repo-admin operation from a session.
 | M12 — Menu Analyzer | `epic:m12-menu-analyzer` | #121–#122 | 2 |
 | M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |
 | M14 — Backup & Restore | `epic:m14-backup` | #123–#124 | 2 |
-| M15 — Meal Entry | `epic:m15-meal-entry` | #315–#326 | 12 |
+| M15 — Meal Entry | `epic:m15-meal-entry` | #315–#328 | 14 |
 | Login — accounts & identity | `epic:login` | #206–#226 | 16 |
 
 **M9–M15 are numbered by recommended build order, not by dependency** — they are
@@ -645,6 +645,13 @@ M0–M8 only. **`epic:release-v1` ships the MVP**, so it runs before M9, not aft
 original plan** — issue #312, rewritten into its Epic. It is also the first to make
 an outbound network call, which is a different feature from Keto Lens and **does not
 relax the OCR no-network invariant**; see `design/m15_meal_entry_research.md` §4.
+
+**M15 carries an OCP invariant, and it is checkable in one command.** Estimation
+reaches OpenRouter with a per-user key today and our own backend later, so the
+transport sits behind `LlmChatClient` and the token behind `EstimationCredentials`.
+`lib/features/diary/data/providers.dart` is the only file permitted to name a
+concrete client or estimator — `grep -rn "OpenRouter" lib/` must return exactly two
+files. Research doc §6.6.
 
 ### Epic tracking issues
 
