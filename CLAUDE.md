@@ -553,6 +553,16 @@ Full testing strategy in `design/tests.md`. Summary:
   `--platform chrome`; it covers the `dart:js_interop` boundary, which fails
   silently — a mismatched `extension type` member compiles and then throws in a
   browser only, and neither `analyze` nor `build web` catches it
+- **Never assert on raw OCR text — assert what the pipeline parsed.** Tesseract
+  5.3.4 and 5.5.3 read the same label differently (`חלבונים` vs `חזלבונים`), so
+  a `contains('חלבונים')` assertion passes locally and fails on the macOS
+  runner. The parsed macros are stable across both and are what the user
+  depends on. `HebrewLabelParser` absorbs **one** corrupted letter per keyword
+  for the same reason — narrowly, because a loose matcher that let `שומנים`
+  claim the `מתוכם שומן רווי` row would report saturated fat as total fat
+- **`CiOcrFixture` is transcribed from a CI log**, not generated, because no
+  machine here runs 5.5.3. It is a separate file so that "never hand-edit
+  `real_ocr_fixture.dart`" stays an unambiguous rule
 - **`RealOcrFixture` is generated, not written.** Every other fixture here was
   written by hand, which `design/m6_handoff.md` warns is "exactly the kind of
   test that passes and then fails on a real label". That one is verbatim

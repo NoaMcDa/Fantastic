@@ -131,22 +131,63 @@ void main() {
       // Fixing any two of the three still fails. This group is the test that
       // would have caught the bug.
 
-      test('every macro parses, and the basis is per 100 g', () async {
-        final result = await orchestratorReturning(
-          RealOcrFixture.wholeWheatRyeBread,
-        ).scan('');
+      // The same label, read by two different Tesseract versions. 5.3.4 is
+      // what this repository's container has; 5.5.3 is what the macOS CI
+      // runner installs from brew, and the two do **not** agree on the
+      // pixels:
+      //
+      //   5.3.4 -> חלבונים (גרם) 10.9
+      //   5.5.3 -> חזלבונים (גרם) 10.9
+      //
+      // That one spurious `ז` made protein vanish on a Mac while every other
+      // macro and the basis came through — a confident-looking scan with a
+      // hole in it. Asserting both captures is what keeps the parser honest
+      // about engine drift; asserting only the local one is how this reached
+      // CI in the first place.
+      final captures = {
+        'tesseract 5.3.4 (local)': RealOcrFixture.wholeWheatRyeBread,
+        'tesseract 5.5.3 (macOS CI)': CiOcrFixture.wholeWheatRyeBread553,
+      };
 
-        final success = result as ScanSucceeded;
-        // The label prints fat 3.3 g, carbs 41.2 g, fibre 7 g, protein 10.9 g.
-        // `ParsedLabel` carries net carbs rather than the two figures it is
-        // derived from, so 34.2 is the assertion that covers both.
-        expect(success.label.fatG, 3.3);
-        expect(success.label.netCarbsG, closeTo(41.2 - 7, 0.001));
-        expect(success.label.proteinG, 10.9);
+      for (final capture in captures.entries) {
+        test('every macro parses on ${capture.key}', () async {
+          final result = await orchestratorReturning(capture.value).scan('');
 
-        // Without this the sheet would log per-100 g figures as if they were
-        // one serving, which is what #257 was.
-        expect(success.label.basis, ServingBasis.per100g);
+          final success = result as ScanSucceeded;
+          // The label prints fat 3.3 g, carbs 41.2 g, fibre 7 g, protein
+          // 10.9 g. `ParsedLabel` carries net carbs rather than the two
+          // figures it is derived from, so 34.2 covers both.
+          expect(success.label.fatG, 3.3);
+          expect(success.label.netCarbsG, closeTo(41.2 - 7, 0.001));
+          expect(success.label.proteinG, 10.9);
+
+          // Without this the sheet would log per-100 g figures as if they
+          // were one serving, which is what #257 was.
+          expect(success.label.basis, ServingBasis.per100g);
+        });
+      }
+
+      test('the 5.5.3 capture really does carry the corruption', () {
+        // Guards the premise of the loop above. If someone "tidies" the
+        // fixture, the cross-version assertion silently stops testing
+        // anything - it would assert the same clean text twice.
+        expect(CiOcrFixture.wholeWheatRyeBread553, contains('חזלבונים'));
+        expect(RealOcrFixture.wholeWheatRyeBread, isNot(contains('חזלבונים')));
+      });
+
+      test('the noisier 5.5.3 rows are read, not merely tolerated', () {
+        // Three other differences in that capture, verified rather than
+        // assumed benign: `§` standing in for the fibre separator, `(Da)`
+        // where the fat unit should be, and the fat row printing its number
+        // *before* its keyword.
+        const parser = HebrewLabelParser();
+        final label = parser.parse(CiOcrFixture.wholeWheatRyeBread553);
+
+        // `כלל סיבים תזונתיים (גרם) § 7` - the § is skipped, 7 is the fibre.
+        expect(label.netCarbsG, closeTo(41.2 - 7, 0.001));
+        // `3.3 (Da) שומנים` - number first, unit corrupted, still 3.3 and not
+        // 0.9 from the saturated row below it.
+        expect(label.fatG, 3.3);
       });
 
       test('the saturated-fat sub-row is not mistaken for total fat', () {

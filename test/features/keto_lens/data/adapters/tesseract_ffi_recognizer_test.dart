@@ -2,6 +2,8 @@
 library;
 
 import 'package:fantastic/features/keto_lens/data/adapters/scaling_text_recognizer.dart';
+import 'package:fantastic/features/keto_lens/data/parsers/hebrew_label_parser.dart';
+import 'package:fantastic/features/keto_lens/domain/models/serving_basis.dart';
 import 'package:fantastic/features/keto_lens/data/adapters/tesseract_ffi_recognizer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -141,18 +143,26 @@ void main() {
         'test/fixtures/images/whole_wheat_rye_bread_label.png',
       );
 
-      // Substrings, not the whole string, for the reason the tahini test
-      // gives: pinning exact output turns a Tesseract upgrade into a
-      // regression. What must hold is that each row arrives with its own
-      // number — which is exactly what `psm 6` destroyed.
-      expect(text, contains('חלבונים'));
-      expect(text, contains('10.9'));
-      expect(text, contains('פחמימות'));
-      expect(text, contains('41.2'));
-      expect(text, contains('שומנים'));
-      expect(text, contains('3.3'));
-      expect(text, contains('נתרן'));
-      expect(text, contains('368'));
+      // **Asserting the parsed result, not the raw bytes, and deliberately.**
+      //
+      // This test used to check `text` for `contains('חלבונים')`. That passed
+      // here on Tesseract 5.3.4 and failed on CI's macOS runner, which has
+      // 5.5.3 and reads the same pixels as `חזלבונים`. The assertion was
+      // testing the wrong layer: raw OCR output legitimately varies between
+      // engine versions, so *any* assertion on it is a latent cross-platform
+      // failure waiting for someone to upgrade a runner.
+      //
+      // What the user actually depends on is what comes out of the parser,
+      // and that is stable across both engine versions. This is a stronger
+      // assertion than the one it replaced — it pins five values rather than
+      // eight substrings, and it would still have caught the original `psm 6`
+      // bug, which produced no macros at all.
+      final label = const HebrewLabelParser().parse(text);
+
+      expect(label.fatG, 3.3);
+      expect(label.netCarbsG, closeTo(41.2 - 7, 0.001));
+      expect(label.proteinG, 10.9);
+      expect(label.basis, ServingBasis.per100g);
     }, skip: available ? false : 'libtesseract is not installed');
 
     test('the serving-basis header survives with its geresh', () async {
@@ -165,8 +175,11 @@ void main() {
       // the geresh and returns a bare `גר`. Either one leaves
       // `HebrewLabelParser._basisPer100g` unmatched, the basis `unknown`, and
       // the per-100 g figures unscaled — which is what #257 was.
-      expect(text, contains('100'));
-      expect(RegExp("100\\s*גר").hasMatch(text), isTrue);
+      //
+      // Asserted through the parser rather than on the text for the reason
+      // above: `unknown` is the outcome that matters, not which glyphs got
+      // the engine there.
+      expect(const HebrewLabelParser().parse(text).basis, ServingBasis.per100g);
     }, skip: available ? false : 'libtesseract is not installed');
 
     test('delegates availability rather than deciding for itself', () {

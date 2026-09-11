@@ -440,6 +440,51 @@ saturated-fat sub-row, 53.0 is nothing on the label at all — rather than
 failing visibly. This is a 580×498 image at the edge of what the engine can do.
 These numbers are evidence that linear/1600 is right *here*, not in general.
 
+### Engine output is not stable across Tesseract versions
+
+**Found by CI, and it is the most transferable lesson in this section.** The
+macOS runner installs Tesseract **5.5.3** from brew; the container this was
+developed in has **5.3.4**. Given the *same image*, the same `psm 4`,
+`heb+eng`, `user_defined_dpi=300` and the same preparation step, the two
+engines disagree:
+
+| 5.3.4 | 5.5.3 |
+|---|---|
+| `חלבונים (גרם) 10.9` | **`חזלבונים`** `(גרם) 10.9` |
+| `כלל סיבים תזונתיים (גרם) ] 7` | `... (גרם) § 7` |
+| `שומנים (גרם) 3.3` | `3.3 (Da) ‏שומנים‎` |
+
+The parser's `חלבו[נן]` does not match `חזלבונים`, so **on a Mac this label
+logged with protein silently missing** — every other macro present, basis
+correctly `per100g`, and a hole in the middle of a confident-looking result.
+
+Three consequences, all of them now enforced in code:
+
+1. **Never assert on raw OCR text.** `expect(text, contains('חלבונים'))` is a
+   latent cross-platform failure: it pins bytes that legitimately vary by
+   engine build. **Assert the parsed result instead** — `fatG`, `netCarbsG`,
+   `proteinG`, `basis`. That is both stabler *and* stronger, because it is the
+   property a user actually depends on. The one remaining raw-text assertion
+   is in `real_ocr_pipeline_test.dart`, and it exists precisely to prove a
+   fixture still *contains* the corruption it is there to exercise.
+2. **The parser tolerates one corrupted letter per keyword**, and the
+   disqualifier tolerates one too. See `HebrewLabelParser._tolerant` for why
+   it is that narrow: a matcher loose enough to let `שומנים` claim the
+   `מתוכם שומן רווי` row would report saturated fat as total fat, which is far
+   worse than the missing protein it fixes. Tolerance is capped at one error,
+   never substitutes the first or last letter, and is refused entirely for
+   keywords under four letters.
+3. **A fixture per engine version.** `test/fixtures/ci_ocr_fixture.dart` holds
+   the 5.5.3 capture, kept out of the generated `real_ocr_fixture.dart`
+   because it was transcribed from a CI log rather than produced by
+   `tool/capture_ocr_fixtures.sh`. The pipeline assertions run against both.
+
+**This also qualifies the interpolation sweep above.** Those numbers were
+measured on **5.3.4 only**. The narrow ridge they identify — `linear` at
+1600 px — may well sit somewhere else on another engine build, and nothing
+here has checked. Treat the table as evidence that the margin is thin, not as
+a calibration that transfers.
+
 ### Still not verified
 
 The committed fixture image is **screenshot quality** — a clean, flat crop, not
@@ -465,6 +510,8 @@ path has never executed at all.
 2c. **Tesseract gets a single-channel greyscale image, never colour.** Measured:
    colour costs every digit while keeping every Hebrew row. Flattening alpha is
    not sufficient — three-channel fails identically.
+2e. **Assert the parsed result, never the raw OCR text.** Engine output varies
+   by Tesseract build; the pipeline's output is the only stable contract.
 2d. **A fixture is captured through the app's own preparation code**, not through
    a reimplementation of it. `tool/capture_ocr_fixtures.py` shells out to
    `tool/prepare_for_ocr.dart` for exactly this reason: a Pillow reimplementation

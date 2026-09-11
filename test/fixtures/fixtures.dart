@@ -5,6 +5,7 @@
 /// here, and tests never construct domain objects inline.
 library;
 
+export 'ci_ocr_fixture.dart';
 export 'daily_log_fixture.dart';
 export 'hebrew_label_fixture.dart';
 export 'meal_entry_fixture.dart';
