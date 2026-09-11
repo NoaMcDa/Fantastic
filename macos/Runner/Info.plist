@@ -7,7 +7,12 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>אפליקציית Fantastic מבקשת גישה לגלריה כדי לייבא תמונות של תוויות מזון לניתוח. הניתוח מתבצע כולו על המכשיר והתמונות אינן נשלחות לשום שרת.</string>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<string>he</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>he</string>
+		<string>en</string>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIconFile</key>
