@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fantastic/features/adaptation/data/providers.dart';
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
@@ -152,6 +154,72 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AddMealBottomSheet), findsOneWidget);
+    });
+
+    // The affordance must not depend on the data around it. A dashboard whose
+    // reads have failed is exactly when a user most needs to be able to log
+    // something, and riverpod 3 keeps a failed provider retrying — so a FAB
+    // built inside an `AsyncValue` branch would come and go with the backoff.
+    testWidgets('is present when every read has failed', (tester) async {
+      final date = today();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            todaysDailyLogProvider(date)
+                .overrideWith((ref) async => throw Exception('disk gone')),
+            todaysMealsProvider(date)
+                .overrideWith((ref) async => throw Exception('disk gone')),
+            symptomLogProvider(date)
+                .overrideWith((ref) async => throw Exception('disk gone')),
+            macroTargetsProvider.overrideWith(
+              (ref) => Stream<MacroTargets>.error(Exception('disk gone')),
+            ),
+            mealLoggingServiceProvider.overrideWithValue(loggingService),
+            streakRepositoryProvider.overrideWithValue(streakRepository),
+          ],
+          child: const MaterialApp(
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: DashboardScreen(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const Key('add_meal_fab')), findsOneWidget);
+    });
+
+    testWidgets('is present while every read is still in flight', (
+      tester,
+    ) async {
+      final date = today();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            todaysDailyLogProvider(date)
+                .overrideWith((ref) => Completer<DailyLog?>().future),
+            todaysMealsProvider(date)
+                .overrideWith((ref) => Completer<List<MealEntry>>().future),
+            symptomLogProvider(date)
+                .overrideWith((ref) => Completer<SymptomLog?>().future),
+            macroTargetsProvider.overrideWith(
+              (ref) => const Stream<MacroTargets>.empty(),
+            ),
+            mealLoggingServiceProvider.overrideWithValue(loggingService),
+            streakRepositoryProvider.overrideWithValue(streakRepository),
+          ],
+          child: const MaterialApp(
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: DashboardScreen(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byKey(const Key('add_meal_fab')), findsOneWidget);
     });
 
     testWidgets('the sheet targets today', (tester) async {

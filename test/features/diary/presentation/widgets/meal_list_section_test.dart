@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/features/diary/application/meal_logging_service.dart';
 import 'package:fantastic/features/diary/application/providers/meal_providers.dart';
 import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_card.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -143,6 +145,70 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('לא ניתן לטעון את הארוחות'), findsOneWidget);
+    });
+
+    // `design/m8_preflight.md` Part 10 defect 2, reproduced.
+    //
+    // The test above is not enough on its own: a future that rejects settles
+    // the provider into `AsyncError`, which even a loading-first `when`
+    // renders correctly. The state that broke this section is the one
+    // riverpod 3 puts a provider into *while it is retrying* a first read
+    // that failed — `AsyncLoading` carrying the error
+    // (`ProviderElement.triggerRetry`). `isLoading` and `hasError` are both
+    // true, `isReloading` is true, and `when` does not skip its loading
+    // branch for a reload — so the section spun forever over a dead store
+    // while the macro card and the symptom strip either side of it said what
+    // had happened.
+    //
+    // Driven through a container of its own, because arming the real retry
+    // is the only way to reach that state and `pumpApp`'s internal scope
+    // gives no handle on it.
+    testWidgets('says so while a failed first read is being retried', (
+      tester,
+    ) async {
+      final container = ProviderContainer(
+        // One retry, then give up. The backoff is real — it has to be, or
+        // the state under test never exists — but it is bounded so no timer
+        // outlives the test, which `flutter_test` fails on.
+        retry: (retryCount, _) =>
+            retryCount == 0 ? const Duration(milliseconds: 20) : null,
+        overrides: [
+          todaysMealsProvider(date)
+              .overrideWith((ref) async => throw Exception('disk gone')),
+          mealLoggingServiceProvider.overrideWithValue(loggingService),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.dark,
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Scaffold(body: MealListSection(date: date)),
+            ),
+          ),
+        ),
+      );
+      // One frame past the rejection, which is when the retry is armed.
+      await tester.pump();
+      await tester.pump();
+
+      final state = container.read(todaysMealsProvider(date));
+      expect(
+        state.isLoading && state.hasError,
+        isTrue,
+        reason: 'this test only means anything in the retrying state',
+      );
+
+      expect(find.text('לא ניתן לטעון את הארוחות'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+
+      // Let the one armed retry fire, so nothing is pending at teardown.
+      await tester.pump(const Duration(milliseconds: 40));
+      await tester.pumpAndSettle();
     });
   });
 

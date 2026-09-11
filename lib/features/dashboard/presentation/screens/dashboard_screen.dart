@@ -5,7 +5,7 @@ import 'package:fantastic/features/adaptation/presentation/widgets/phase_badge_w
 import 'package:fantastic/features/adaptation/presentation/widgets/streak_ring_widget.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/electrolytes_card.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card.dart';
-import 'package:fantastic/features/diary/presentation/widgets/add_meal_bottom_sheet.dart';
+import 'package:fantastic/features/diary/presentation/widgets/add_meal_fab.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_check_in_strip.dart';
 import 'package:flutter/material.dart';
@@ -73,17 +73,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                       AdaptationPhase.induction,
                 ),
                 // Clears the FAB, which would otherwise cover the last row.
-                const SizedBox(height: 80),
+                const SizedBox(height: AddMealFab.bodyClearance),
               ]),
             ),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      // Outside the scroll view and outside every `AsyncValue`, deliberately:
+      // this is the only way to log a meal from this screen, so it must not
+      // depend on a provider that is loading, failed, or retrying.
+      floatingActionButton: AddMealFab(
         key: const Key('add_meal_fab'),
-        tooltip: 'הוספת ארוחה',
-        onPressed: () => AddMealBottomSheet.show(context, date: _date),
-        child: const Icon(Icons.add),
+        date: _date,
       ),
     );
   }
