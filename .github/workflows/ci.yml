@@ -26,10 +26,10 @@ jobs:
   # on the workflow, and the difference is load-bearing: a workflow skipped by
   # a path filter never reports a conclusion at all, so a required check that
   # is filtered out leaves the PR waiting on a status that will never arrive
-  # (§5.5 of design/cicd_plan.md makes `verify` and `e2e flows` required). A
-  # *skipped job* does report, and GitHub counts it as a pass. The platform
-  # build workflows can and do use `paths` filters because none of them is a
-  # required check.
+  # (§5.5 of design/cicd_plan.md makes `verify`, `build web` and `e2e flows`
+  # required). A *skipped job* does report, and GitHub counts it as a pass.
+  # The platform build workflows can and do use `paths` filters because none
+  # of them is a required check.
   #
   # The classification itself lives in tool/docs_only.sh — one definition, run
   # locally the same way, and it decides every uncertain case as "code".
@@ -41,7 +41,7 @@ jobs:
       docs_only: ${{ steps.classify.outputs.docs_only }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # The classifier diffs two commits; the default shallow clone has
           # neither of them, and a failed diff means "run everything".
@@ -81,17 +81,17 @@ jobs:
           fi
 
   verify:
-    name: analyze · format · test · coverage · build web
+    name: analyze · format · test · coverage
     needs: changes
     # A skipped job reports success, which is what keeps this usable as a
     # required check on a docs-only PR.
     if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
-    # A cold release web build adds a few minutes on top of the gates above.
+    # The suite is the long pole at ~2 min; the rest of the gate is seconds.
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:
@@ -159,16 +159,47 @@ jobs:
           path: coverage/lcov.info
           retention-days: 14
 
+  build-web:
+    name: build web
+    needs: changes
+    # Same gate as `verify`: a Markdown edit cannot change what compiles.
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    # A cold release web build is the whole job. 20 caps a hang without
+    # cutting an honest cold build short.
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # The same pin as `verify`, for the same reason.
+          flutter-version: 3.47.3
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
       - name: Build web
         # Web is a shipping target and has no simulator gate, so a compile is
         # the only thing standing between a merge and a browser-broken main.
         # It also catches what `flutter analyze` structurally cannot: a stray
         # `dart:io` or `path_provider` import leaking past the conditional
-        # export in lib/core/database/database_factory.dart. Last, because it
-        # is by far the slowest step and this list is ordered cheapest-first.
+        # export in lib/core/database/database_factory.dart.
         #
         # --no-web-resources-cdn bundles CanvasKit into the build instead of
         # fetching it from gstatic.com at run time, so the app boots offline.
+        #
+        # **A job of its own rather than the last step of `verify`.** It was
+        # the tail of that job, so it started only once the ~2-minute suite
+        # had finished and added its own ~40 s to the critical path. Nothing
+        # it needs is produced by the suite, so the two are independent and
+        # the wait bought nothing. Here it runs beside `verify` and `e2e` and
+        # the gate finishes when the slowest of the three does. It also names
+        # itself in the checks list: a web-only break used to report as a
+        # failure of a check whose name began with "analyze · format · test".
         run: flutter build web --release --no-pub --no-web-resources-cdn
 
   e2e:
@@ -183,7 +214,7 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:
