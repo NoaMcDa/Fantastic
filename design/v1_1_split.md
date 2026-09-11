@@ -221,6 +221,49 @@ post-MVP feature work.
    `issue_conventions.md`, `mvp.md`, `base_design.md`.
 8. **`epic:post-mvp` retired** — nothing carries it.
 
+### A second pass: normalised to `issue_conventions.md` §4
+
+All 26 were later re-checked against §4's *literal* template rather than against
+house practice, and three genuine deviations were corrected in every one:
+
+- **Technologies & Approach** now uses §4's columns — `Concern | Technology / Package
+  | Version | Notes` — instead of the ad-hoc set the first pass used.
+- **`#### Contract Tests`** and **`#### Regression`** now appear as named
+  sub-sections on every issue, marked N/A where they do not apply, rather than
+  being silently omitted.
+- **Definition of Done** now carries §4's eight-item **Code** checklist verbatim
+  (no scope creep, no sembast in `domain`/`presentation`, no Flutter in
+  `domain`/`application`, no `get_it`, no magic numbers, no TODOs, no commented-out
+  code, all providers `@riverpod`) plus the issue-specific items, and §4's
+  **Validation Gate** and **Git & PR** blocks.
+- **Architectural Layer** adopted §4's seven-option `layer:*` checkbox list, which
+  is more precise than the file-path form that shipped issues use.
+
+**A finding from that pass, worth recording:** §4's literal template also mandates
+a `**Branch:** / **Labels:** / **Milestone:**` header block and `#### Background`
+sub-headings. **No issue in this repository has ever had them** — not #80 (shipped
+and implemented), not #206 (the most recently authored). The convention doc and
+actual practice have diverged, and the 26 follow practice on those two points. That
+is a fifth instance of the doc/code drift this document exists to catalogue, and
+`issue_conventions.md` §4 should be reconciled with what anyone actually writes.
+
+### A third correction: M6 shipped mid-flight
+
+Between the split and the normalisation pass, M6 Keto Lens merged — and its
+platform audit **removed ML Kit entirely** in favour of Tesseract on all six
+targets, because ML Kit has no Hebrew script model at all. Three artefacts were
+rewritten against the real shipped API rather than left pointing at a deleted
+class:
+
+- **#121, #122 and Epic #267** — `MlKitTextRecognizer` and `InputImage` replaced by
+  `TextRecognitionService` and a `String imagePath`; M12's "blocked on M6" entry
+  condition removed; and the analyser now reuses `IngredientVerdict.matchedCleanIngredients`,
+  which M6 built for precisely the "a clean badge is not evidence" problem M12 has.
+- **Epic #265 (M10)** — the scan-input deferral is now a scope decision, not a
+  dependency.
+- **#109** — M4 shipped too, so the weight fields it pre-fills are real.
+
+
 ### Stale content fixed in place, not merely re-filed
 
 All five §3 items were corrected during the rewrite rather than deferred:
