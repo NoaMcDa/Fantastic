@@ -62,6 +62,13 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <!-- Keto Lens OCR, self-hosted. Both files are served from this deploy: the
+       scan makes no network request, which Epic #10's first architectural
+       invariant requires. Loaded before the Flutter bootstrap so
+       window.fantasticOcr exists by the time the lens tab is reachable. -->
+  <script src="tesseract/tesseract.min.js"></script>
+  <script src="tesseract/fantastic_ocr.js"></script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

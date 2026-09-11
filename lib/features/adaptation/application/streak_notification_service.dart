@@ -1,3 +1,4 @@
+import 'package:fantastic/core/services/notification_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -36,15 +37,23 @@ class StreakNotificationService {
   static const String title = 'אל תשכחו לרשום את הארוחות של היום 🥑';
   static const String body = 'שמרו על הרצף — עוד לא נרשמה ארוחה היום';
 
+  /// iOS and macOS present the same way, so they share one details object.
+  static const DarwinNotificationDetails _darwinDetails =
+      DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
   /// Schedules, or reschedules, the daily reminder.
   ///
-  /// A no-op on web. `flutter_local_notifications_web` implements
-  /// `zonedSchedule` as an unconditional `UnsupportedError` — a browser
-  /// cannot schedule a future notification — so calling it there would throw
-  /// on every launch. See `NotificationService` for why the web plugin is
-  /// left alone entirely.
+  /// A no-op wherever the platform cannot schedule a future notification,
+  /// which is web *and* Linux — see [NotificationService.supportsScheduling].
+  /// Web implements `zonedSchedule` as an unconditional `UnsupportedError`
+  /// and Linux as an `UnimplementedError`; either one thrown here takes down
+  /// `main`, because the reminder is scheduled before `runApp`.
   Future<void> scheduleDailyReminder() async {
-    if (kIsWeb) {
+    if (!NotificationService.supportsScheduling) {
       return;
     }
 
@@ -60,11 +69,17 @@ class StreakNotificationService {
       body: body,
       scheduledDate: nextReminderAfter(tz.TZDateTime.now(_location)),
       notificationDetails: const NotificationDetails(
-        iOS: DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
+        iOS: _darwinDetails,
+        macOS: _darwinDetails,
+        // Android needs a channel; the id is stable because changing it
+        // orphans the user's per-channel notification settings.
+        android: AndroidNotificationDetails(
+          'streak_reminder',
+          'תזכורת יומית',
+          channelDescription: 'תזכורת לרשום את הארוחות של היום',
+          importance: Importance.defaultImportance,
         ),
+        windows: WindowsNotificationDetails(),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       // What makes the one scheduled instant repeat every day.
