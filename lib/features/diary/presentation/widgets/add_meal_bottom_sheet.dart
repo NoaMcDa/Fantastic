@@ -1,6 +1,7 @@
 import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
 import 'package:fantastic/features/diary/application/meal_logging_service.dart';
 import 'package:fantastic/features/diary/application/providers/meal_providers.dart';
+import 'package:fantastic/features/diary/domain/models/macro_source.dart';
 import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
 import 'package:fantastic/core/utils/numeric_input.dart';
 import 'package:flutter/material.dart';
@@ -17,12 +18,20 @@ class AddMealBottomSheet extends ConsumerStatefulWidget {
     this.initialFatG,
     this.initialNetCarbsG,
     this.initialProteinG,
+    this.source = MacroSource.manual,
     super.key,
   });
 
   /// The day the meal is logged against — today from the dashboard, the
   /// selected day from the diary.
   final DateTime date;
+
+  /// The name field's own maximum.
+  ///
+  /// Public because a caller that prefills the name has to cut it to the same
+  /// length — a description mode hands the user's whole sentence in here —
+  /// and two copies of `100` is how they come to disagree.
+  static const int maxNameLength = 100;
 
   /// A name to open the form with, or null for an empty field.
   ///
@@ -44,6 +53,19 @@ class AddMealBottomSheet extends ConsumerStatefulWidget {
   /// Protein in grams to open the form with, or null for an empty field.
   final double? initialProteinG;
 
+  /// Where the prefilled macros came from, recorded on the saved meal.
+  ///
+  /// Defaults to [MacroSource.manual], so every existing call site and every
+  /// existing test is unaffected and typed entry behaves exactly as it did.
+  /// A caller that prefills from an estimate passes its own source, and the
+  /// diary can then tell a figure that was measured from one that was
+  /// guessed — see `MacroSourceCopy`.
+  ///
+  /// **It is not inferred from whether the prefills are non-null.** A user who
+  /// retypes every field of an estimate has still reached the number through
+  /// an estimate, and the honest label is the one the opener knew.
+  final MacroSource source;
+
   /// Opens the sheet as a modal over [context].
   ///
   /// Lives here rather than at the call site so the sheet owns how it is
@@ -56,6 +78,7 @@ class AddMealBottomSheet extends ConsumerStatefulWidget {
     double? initialFatG,
     double? initialNetCarbsG,
     double? initialProteinG,
+    MacroSource source = MacroSource.manual,
   }) => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -65,6 +88,7 @@ class AddMealBottomSheet extends ConsumerStatefulWidget {
       initialFatG: initialFatG,
       initialNetCarbsG: initialNetCarbsG,
       initialProteinG: initialProteinG,
+      source: source,
     ),
   );
 
@@ -129,7 +153,7 @@ class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
                 key: const Key('meal_name_field'),
                 controller: _nameController,
                 textInputAction: TextInputAction.next,
-                maxLength: _maxNameLength,
+                maxLength: AddMealBottomSheet.maxNameLength,
                 decoration: const InputDecoration(labelText: 'שם המנה'),
                 validator: _validateName,
               ),
@@ -188,14 +212,12 @@ class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
     textDirection: TextDirection.ltr,
   );
 
-  static const int _maxNameLength = 100;
-
   String? _validateName(String? value) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
       return 'שדה חובה';
     }
-    if (trimmed.length > _maxNameLength) {
+    if (trimmed.length > AddMealBottomSheet.maxNameLength) {
       return 'שם ארוך מדי';
     }
     return null;
@@ -252,6 +274,7 @@ class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
       netCarbsG: double.parse(_carbsController.text.trim()),
       proteinG: double.parse(_proteinController.text.trim()),
       timestamp: _timestampFor(widget.date),
+      source: widget.source,
     );
 
     try {
