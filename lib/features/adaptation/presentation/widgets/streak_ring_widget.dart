@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:fantastic/core/constants/keto_constants.dart';
-import 'package:fantastic/core/theme/app_theme.dart';
+import 'package:fantastic/core/theme/keto_ratio_palette.dart';
 import 'package:fantastic/core/time/today_tracker.dart';
 import 'package:fantastic/features/adaptation/application/adaptation_phase_service.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
@@ -205,19 +205,17 @@ class StreakRingPainter extends CustomPainter {
 
   /// Green at or above the ideal, amber from the minimum up to it, red below.
   ///
-  /// Both boundaries are inclusive at the top of their band, matching the
-  /// convention everywhere else in the app: hitting a target meets it. The
-  /// thresholds are `KetoConstants`, not the 1.0/2.0 the issue names — 1.5 is
-  /// what `targetKetoRatioMin` has said since M0.
-  static Color colourFor(double ratio) {
-    if (ratio >= KetoConstants.targetKetoRatioIdeal) {
-      return AppTheme.success;
-    }
-    if (ratio >= KetoConstants.targetKetoRatioMin) {
-      return AppTheme.caution;
-    }
-    return AppTheme.danger;
-  }
+  /// **Delegates to [KetoRatioPalette], and that is the point of #305.** The
+  /// rule lived here as a `static`, where `MacroSummaryCard` — which renders
+  /// the same number directly below this ring — could not reach it without
+  /// importing an adaptation-feature painter. So it used a fixed accent
+  /// instead and the two disagreed: at ratio 2.6 this ring was green and full
+  /// while the bar under it was gold.
+  ///
+  /// Kept as a member rather than replaced at the call site: the existing
+  /// tests assert against it, and a painter that exposes its own colour rule
+  /// is the thing a widget test can read without sampling pixels.
+  static Color colourFor(double ratio) => KetoRatioPalette.colourFor(ratio);
 
   @override
   void paint(Canvas canvas, Size size) {

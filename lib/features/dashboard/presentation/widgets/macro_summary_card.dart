@@ -1,4 +1,5 @@
 import 'package:fantastic/core/constants/keto_constants.dart';
+import 'package:fantastic/core/theme/keto_ratio_palette.dart';
 import 'package:fantastic/features/dashboard/application/keto_ratio_calculator.dart';
 import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
@@ -153,7 +154,27 @@ class _MacroSummary extends StatelessWidget {
               // the number is meaningful to.
               unit: '',
               decimals: 1,
-              color: colors.primary,
+              // **The one row whose colour is a verdict.** The three above
+              // carry fixed hues so fat, carbs and protein can be told apart
+              // from one another — an identity, not a judgement, and
+              // recolouring those by progress is a different and much larger
+              // product decision. This row's *value* has a good/marginal/bad
+              // reading, and it used to be painted a fixed gold that said
+              // nothing while the streak ring directly above it said green,
+              // amber or red about the same number (#305).
+              //
+              // An unlogged day is neutral rather than red. A ratio of 0.0
+              // from an empty day is not a bad day — it is no day yet, and a
+              // red bar on someone's first morning, under a headline saying
+              // nothing has been logged, is a verdict on something that has
+              // not happened. The issue left this open; this is the answer.
+              color: isEmptyDay
+                  ? colors.onSurfaceVariant
+                  : KetoRatioPalette.colourFor(ratio),
+              icon: isEmptyDay ? null : KetoRatioPalette.iconFor(ratio),
+              semanticLabel: isEmptyDay
+                  ? null
+                  : KetoRatioPalette.labelFor(ratio),
             ),
           ],
         ),
@@ -171,6 +192,8 @@ class _MacroProgressRow extends StatelessWidget {
     required this.unit,
     required this.color,
     this.decimals = 0,
+    this.icon,
+    this.semanticLabel,
   });
 
   final String label;
@@ -179,6 +202,18 @@ class _MacroProgressRow extends StatelessWidget {
   final String unit;
   final Color color;
   final int decimals;
+
+  /// A non-colour signal beside the label.
+  ///
+  /// Null on the three macro rows, and on the ratio row for an unlogged day.
+  /// Colour is never the only signal (`design/m6_handoff.md` convention 8),
+  /// but a fixed hue that identifies a macro has nothing to signal.
+  final IconData? icon;
+
+  /// What [icon] means, in words.
+  ///
+  /// An icon without one is no better than a colour for a screen reader.
+  final String? semanticLabel;
 
   /// Clamped to `[0, 1]`.
   ///
@@ -204,7 +239,21 @@ class _MacroProgressRow extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label, style: theme.textTheme.bodyMedium),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(
+                      icon,
+                      size: 16,
+                      color: color,
+                      semanticLabel: semanticLabel,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(label, style: theme.textTheme.bodyMedium),
+                ],
+              ),
               Text(
                 '${logged.toStringAsFixed(decimals)}'
                 '/${target.toStringAsFixed(decimals)}$unit',
