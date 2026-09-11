@@ -241,6 +241,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(painters(tester), isEmpty);
+      // Asserted explicitly, because the loading branch also paints no ring
+      // and reserves the same box: without this the test passes while the
+      // widget shows a spinner that never stops. riverpod 3 reports a
+      // never-resolved failure as AsyncLoading *with* an error, so both
+      // branches are reachable from one state.
+      expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(
         tester.getSize(find.byType(StreakRingWidget)).width,
         StreakRingWidget.diameter,
