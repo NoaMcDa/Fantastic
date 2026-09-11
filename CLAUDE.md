@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Fantastic** is an all-in-one keto companion app built with Flutter, targeting **all six Flutter platforms** — iOS, Android, web, macOS, Windows and Linux. All six build on CI; only **web and Linux have ever been run**. See `design/m6_platform_handoff.md` — the distinction matters, and one real defect per platform surfaced only when a real toolchain touched it. It features on-device Hebrew label OCR, keto ratio & electrolyte tracking, adaptation phase tracking, restaurant menu analysis, recipe conversion, a biomarker/symptom diary, and a curated Israeli keto directory.
+**Fantastic** is an all-in-one keto companion app built with Flutter, targeting **all six Flutter platforms** — iOS, Android, web, macOS, Windows and Linux. All six build on CI; only **web and Linux have ever been run**. See `design/m6_platform_handoff.md` — the distinction matters, and one real defect per platform surfaced only when a real toolchain touched it. The first two defects reported by a real *user* are in `design/user_bugs_handoff.md`; both were live while the whole suite was green. It features on-device Hebrew label OCR, keto ratio & electrolyte tracking, adaptation phase tracking, restaurant menu analysis, recipe conversion, a biomarker/symptom diary, and a curated Israeli keto directory.
 
 ## Design Documents
 
@@ -34,8 +34,9 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/m6_platform_handoff.md` | **M6 platform handoff** — what shipped when the research was implemented: ML Kit removed, **Tesseract on all six targets**, and **the lens tab now scans in a browser** (0.5 s, zero external requests) — reversing M6's central product decision. The six things only running it revealed: **`preserve_interword_spaces=1` destroys RTL Hebrew spacing** (the research doc had recommended setting it), three fatal Linux startup bugs that all rendered the *database* error screen, `flutter create` dropping `ios`+`web` from `.metadata` again, and a Dart `'''` literal that cannot hold geresh-terminated OCR output. The seven conventions inherited; **one real defect per platform, found only when a real toolchain ran** (`jcenter()` on Android, a model absent from the iOS `.app`, wrong library names on macOS *and* Windows); the **#257 serving-basis fix**; and an explicit verified/not-verified line — all six build on CI, **only web and Linux have ever been run**. **Read before any further platform or OCR work** |
 | `design/m7_preflight.md` | **M7 pre-flight + the audit it produced** — all eight M7 issues audited against the code. **Three were already done and are closed** (#90's Isar error screen shipped in M2 as `StartupFailureApp`; #93's Hebrew usage strings shipped in M6; #94's notification work shipped in M3/M4, and its `aps-environment` step is *wrong* — that entitlement is for remote push). **Four were rewritten in place**: #89's `ProviderObserver` snippet does not compile against riverpod 3 and reaches for the `AsyncError` match four milestones learned not to — `providerDidFail` is the hook it wanted; #88 presumes a `lib/core/widgets/` that does not exist and never mentions that **a shimmer is the forever-animation that hangs `pumpAndSettle`**; #91 named two screens that cannot be empty; #92 was iOS-only for a six-platform app and is blocked on artwork nobody has drawn. **Nine issues filed** for defects four handoffs called M7 work without numbering (#301–#311). Part 5 records what was deliberately *not* filed — above all **the accessibility gap**, which no design document mentions. **Read before picking up any M7 issue** |
 | `design/backlog_handoff.md` | **Backlog handoff** — what M7 and M8 actually contain after the audit, and the **M8 audit, recorded nowhere else**: six of its seven integration-test issues had already shipped in #273 and nobody had closed them; **#98 (breach → grace → expiry → reset) is the one flow never written**, and it is the whole remaining blocker on M8. Also the three invariants that were wrong in Epic #12 — two of which would have had a reviewer reject correct code, including *"`ScanOrchestrator` is mocked"* when it is not. Carries the M7 build order, the corrections applied to `mvp_handoff.md`, what was deliberately **not** filed (accessibility; release APKs signed with the debug key), and the three issues the owner opened mid-session. **Read before picking up M7 or M8** |
-| `design/m8_preflight.md` | **M8 pre-flight + the e2e suite** — all eight M8 issues audited, and **Part 0 settles the "where do e2e tests run?" question empirically**: `flutter test -d flutter-tester integration_test/app_test.dart` drives the real app over a real in-memory sembast database, headless on Linux, in seconds — **no simulator, no macOS runner, no nightly-only compromise**, which retires `cicd_plan.md` §7.1's Phase 3 parking. The seven flow issues carry 24 defects between them (two of five tab labels do not exist; #99 drives sliders the sheet does not have). **Part 10 is what shipped**: the harness, the `e2e flows` CI job, ten flows — and the four defects the suite found on its first runs (the dashboard shows no macro targets until the first meal is logged; `MealListSection` spins forever on a storage failure; a dismissed meal is deleted asynchronously; the scan prefill shows `0.17999999999999988` where the sheet showed one decimal). **Read before picking up any M8 issue, and before writing a flow** |
+| `design/m8_preflight.md` | **M8 pre-flight + the e2e suite** — all eight M8 issues audited, and **Part 0 settles the "where do e2e tests run?" question empirically**: `flutter test -d flutter-tester integration_test/app_test.dart` drives the real app over a real in-memory sembast database, headless on Linux, in seconds — **no simulator, no macOS runner, no nightly-only compromise**, which retires `cicd_plan.md` §7.1's Phase 3 parking. The seven flow issues carry 24 defects between them (two of five tab labels do not exist; #99 drives sliders the sheet does not have). **Part 10 is what shipped**: the harness, the `e2e flows` CI job, ten flows — and the four defects the suite found on its first runs (the dashboard shows no macro targets until the first meal is logged; `MealListSection` spins forever on a storage failure — **fixed, see `design/user_bugs_handoff.md`**; a dismissed meal is deleted asynchronously; the scan prefill shows `0.17999999999999988` where the sheet showed one decimal). **Read before picking up any M8 issue, and before writing a flow** |
 | `design/mvp_handoff.md` | **MVP handoff** — the cross-milestone view. **All five MVP features ship (M0–M6 complete).** The audit pattern that defined the project (the issue text was never right, once, in seven milestones) and the worst defect each audit caught; **the riverpod-3 async-error fact that cost four milestones in four disguises**; the consolidated open-defect list (#257 is the highest-value fix); what has never been verified — no device, no camera, and **nothing has ever read a real Hebrew label**; and the M7 issues that are already done or obsolete — **three, not the four it says**; its M7 and M8 sections are superseded in part by `design/m7_preflight.md` and `design/backlog_handoff.md`, and carry pointers saying so. **Read before M7 or M8** |
+| `design/user_bugs_handoff.md` | **First user bug reports** — the first two defects reported by someone *using* the app rather than auditing it, both live while 1220 tests, a 99.58% coverage gate, ten e2e flows and six platform builds were green. **The diary tab could not log a meal** (its empty state said "tap +" and the only + logged symptoms; the dashboard FAB was fine, and that was verified by running the app before anything changed), and **the scan read nothing**. The three green-suite blind spots they exposed: a flow that exercises one route to a capability is not a test that the capability is reachable; a test that skips where the bug lives reads identically to a pass; a fixture-generating tool that does not call the app's own code path certifies a pipeline that does not ship. Eight conventions inherited, and the honest verified/not-verified line — **no camera, no mobile run, one label**. **Read before touching the add-meal affordance or trusting a green suite** |
 | `design/v1_1_split.md` | **v1.1 split proposal** — why the single `v1.1 — Post-MVP Backlog` milestone fails the project's own milestone definition, the seven capability groups it should become, the stale content it carries (Isar references after the sembast swap, an iOS-only backup design after web shipped, a mis-identified map SDK), and the work required to execute. **Executed** — labels, seven Epic issues (#264–#270), all 26 issues
 re-filed and rewritten, and the seven **GitHub milestones #11–#17** created with all 33 issues
 assigned and `v1.1` retired. §6 also records the one-shot Actions workflow that created them — the
@@ -245,6 +246,13 @@ Shared code (constants, utilities, theming) lives in `lib/core/`.
 
 `lib/features/profile/` is still a placeholder — the Profile tab has no screen yet.
 
+**A meal can be logged from the dashboard and from the diary, and both go through
+`AddMealFab`** (`lib/features/diary/presentation/widgets/add_meal_fab.dart`) — never a
+`FloatingActionButton` written out inline. The diary shipped without one while its own empty
+state told the user to tap it; see `design/user_bugs_handoff.md`. Each host passes its own key
+(`add_meal_fab`, `add_meal_fab_diary`) because the tab shell keeps the outgoing screen mounted
+during a transition, and clears a scrolling body with `AddMealFab.bodyClearance`.
+
 ## MVP Scope
 
 **All five MVP features are shipped (M0–M6 complete).** Only M7 (polish) and
@@ -383,10 +391,11 @@ See `design/m6_platform_research.md` and `design/m6_platform_handoff.md`.
 CameraScreen / gallery import
   → TextRecognitionService   (domain interface)
       browser  → TesseractJsTextRecognizer      tesseract.js (wasm), self-hosted
-      VM       → TesseractNativeTextRecognizer  dispatches on Platform:
+      VM       → ScalingTextRecognizer          greyscale + scale-up, in an isolate
+                 wrapping TesseractNativeTextRecognizer, which dispatches on Platform:
                    android/ios → TesseractPluginRecognizer  (flutter_tesseract_ocr)
                    desktop     → TesseractFfiRecognizer     (dart:ffi → libtesseract)
-                   otherwise   → UnavailableTextRecognizer
+                   otherwise   → UnavailableTextRecognizer  (not wrapped)
   → LabelParser              → HebrewLabelParser + HebrewTextNormaliser
   → IngredientClassifier     → IngredientClassifierImpl
   → ScanResult               (sealed: ScanSucceeded | ScanFailed)
@@ -430,6 +439,35 @@ label and `ParsedLabel.basis` defaults to `unknown`, which never scales.
   zero.** A zero-macro meal saves without complaint and is invisible in the
   day's totals.
 
+**The engine settings are `psm 4`, `heb+eng`, `oem 1` and an explicit
+`user_defined_dpi`, and every one of them is set in all three adapters.** A
+user scanned a real bordered Israeli panel and got nothing back; the parsers
+were innocent and the shared engine configuration was at fault, in four
+independent ways at once:
+
+- **`psm 6` flattens a bordered two-column table.** Six of the label's nine rows
+  came back as punctuation. `psm 4` keeps each row with its own number.
+- **The Hebrew model cannot read an isolated column of Latin digits.** It
+  returned 218/9/2/43/9/308 where the label printed 238/10.9/41.2/7/3.3/368,
+  and more resolution did not help. `eng.traineddata` ships beside `heb` for
+  this — 3.92 MB, and a real trade: on **pointed (niqqud)** Hebrew English
+  sometimes wins a word, and a macro degrades to `null`. **Never to `0`, and
+  never "recovered" by a second `heb`-only pass** — that fills a safe null from
+  a pass known to be unreliable on digits, which is the #257 direction.
+- **Tesseract estimates resolution when the file declares none, and estimated
+  631 dpi here**, then downscaled internally on the strength of it.
+  `user_defined_dpi` stops the guess.
+- **Colour costs every digit.** Handed a 4- or 3-channel buffer the engine read
+  every Hebrew row and not one number. `ScalingTextRecognizer` converts to
+  single-channel greyscale; flattening alpha alone is *not* sufficient.
+
+**A small image is scaled up before recognition** (`OcrImagePrep`,
+`ScalingTextRecognizer`, and a canvas in `fantastic_ocr.js`), with hard caps on
+edge length and pixel count so no input can provoke an unbounded allocation — a
+12 MP phone photo passes through untouched. The chosen kernel and width sit on
+a **narrow** plateau; adjacent settings return plausible *wrong* macros. See
+`design/m6_platform_handoff.md` §"The scan that read nothing".
+
 **`preserve_interword_spaces` must stay unset.** It reads like the safe choice
 and is, for Latin — but on RTL Hebrew it *removes* spaces: `53.8 גרם` comes back
 as `53.8גרם`. Measured identically on libtesseract and on the wasm build.
@@ -446,8 +484,8 @@ Worst badge wins. An unrecognised token is *not* flagged, so
 "nothing here was readable" — without it the UI would put a green tick on an
 unreadable label.
 
-**Tesseract has been verified to read Hebrew labels; no *photograph* has ever
-been scanned.** `test/fixtures/real_ocr_fixture.dart` holds verbatim engine
+**Tesseract has been verified to read Hebrew labels, including one real
+photographed label; no label has ever been read *through a camera*.** `test/fixtures/real_ocr_fixture.dart` holds verbatim engine
 output captured from labels rendered in the app's own font
 (`tool/capture_ocr_fixtures.sh` regenerates it), and
 `real_ocr_pipeline_test.dart` asserts what the shipped pipeline does with it.
@@ -516,11 +554,27 @@ Full testing strategy in `design/tests.md`. Summary:
 - **Two suites need something the default run does not have.**
   `tesseract_ffi_recognizer_test.dart` runs a real OCR engine and **skips** when
   libtesseract is absent (as on CI) rather than failing — a red suite people
-  learn to ignore is worse than a skip that says what is unchecked.
+  learn to ignore is worse than a skip that says what is unchecked. **It now
+  prints a loud banner when it skips**, because a silent skip once let a
+  regression through that dropped every digit off a label while CI stayed
+  green: a green run proves nothing about desktop or mobile OCR.
+  `scaling_text_recognizer_test.dart` is the pure-Dart companion that would
+  have caught that one — it asserts the *buffer* handed to the engine (single
+  channel, target width), which needs no engine and runs everywhere.
   `tesseract_js_text_recognizer_test.dart` is `@TestOn('browser')` and needs
   `--platform chrome`; it covers the `dart:js_interop` boundary, which fails
   silently — a mismatched `extension type` member compiles and then throws in a
   browser only, and neither `analyze` nor `build web` catches it
+- **Never assert on raw OCR text — assert what the pipeline parsed.** Tesseract
+  5.3.4 and 5.5.3 read the same label differently (`חלבונים` vs `חזלבונים`), so
+  a `contains('חלבונים')` assertion passes locally and fails on the macOS
+  runner. The parsed macros are stable across both and are what the user
+  depends on. `HebrewLabelParser` absorbs **one** corrupted letter per keyword
+  for the same reason — narrowly, because a loose matcher that let `שומנים`
+  claim the `מתוכם שומן רווי` row would report saturated fat as total fat
+- **`CiOcrFixture` is transcribed from a CI log**, not generated, because no
+  machine here runs 5.5.3. It is a separate file so that "never hand-edit
+  `real_ocr_fixture.dart`" stays an unambiguous rule
 - **`RealOcrFixture` is generated, not written.** Every other fixture here was
   written by hand, which `design/m6_handoff.md` warns is "exactly the kind of
   test that passes and then fails on a real label". That one is verbatim
@@ -639,6 +693,15 @@ to `main`, on every push to `main`, and on demand via `workflow_dispatch`. Uses 
 pinned Flutter 3.47.3 (the pubspec needs Dart ^3.13.2; older toolchains cannot
 resolve it), and cancels a superseded PR run but never one on `main`.
 
+**A documentation-only change runs neither job.** A `changes` job classifies
+the diff with `tool/docs_only.sh`; when every changed path is `design/**`,
+`docs/**`, a `**/*.md` or `LICENSE*`, `verify` and `e2e flows` are skipped —
+which reports as a pass, unlike a `paths-ignore` filter, whose check would
+stay pending forever. Every uncertain case (missing SHA, empty diff, a crash in
+the script) runs the full gate instead. **`*.txt` is deliberately not on the
+docs list** — `linux/CMakeLists.txt`, `windows/CMakeLists.txt` and
+`tool/coverage_ignore.txt` are all load-bearing. See `design/cicd_plan.md` §5.6.
+
 Steps, cheapest first so a formatting slip fails in seconds:
 1. `flutter pub get`
 2. **`pubspec.lock` unchanged** — fails if `pub get` rewrote the committed lockfile
@@ -721,6 +784,11 @@ that analysed clean and compiled clean on every *other* platform: a `jcenter()`
 call Gradle 9 removed, a model declared in `pubspec.yaml` but absent from the
 iOS `.app`, and library names that were simply wrong on macOS and Windows. See
 `design/m6_platform_handoff.md` §"What compiling on real runners found".
+
+All five carry a docs filter too: `build-android.yml`, `build-linux.yml` and
+`build-windows.yml`'s `push` trigger via `paths-ignore`, the three
+macOS/Windows `pull_request` triggers via `paths` include-lists that never
+matched Markdown anyway. A docs PR compiles nothing.
 
 **A green build job means the target assembles. It does not mean the app runs** —
 only web and Linux have ever been launched.

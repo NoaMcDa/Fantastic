@@ -176,14 +176,35 @@ Same as dashboard meal list but for the selected date.
 Tap any meal → meal detail / edit sheet.
 
 #### Symptoms Section
-5 rows, each with a label and a 1–5 scale selector:
+4 rows, each with a label and a 1–5 scale selector:
 - אנרגיה (Energy)
 - ריכוז (Mental clarity)
 - רעב (Hunger)
-- תסמינים פיזיים (Physical symptoms)
 - מצב רוח (Mood)
 
-Empty state: "לא הוקלטו תסמינים להיום" with a ＋ button.
+Below the scales, **תסמינים פיזיים** is a multi-select chip grid, not a scale.
+A single 1–5 number said the user felt bad without saying what they felt,
+which is the one thing that would have made the field actionable. Eight
+chips, ordered by reported occurrence rate:
+
+| Chip | Symptom |
+|---|---|
+| ריח פה | Halitosis |
+| עצירות | Constipation |
+| התכווצויות שרירים | Muscle cramps |
+| כאב ראש | Headache |
+| שלשול | Diarrhea |
+| סחרחורת | Dizziness |
+| בחילה | Nausea |
+| נדודי שינה | Insomnia |
+
+The list is deliberately somatic only — fatigue, brain fog, irritability and
+appetite change are all already covered by one of the four scales, and listing
+them twice would let the same day be reported two different ways.
+
+Empty states, which mean different things and must not look alike:
+- Nothing logged for the day → "לא הוקלטו תסמינים להיום" with a ＋ button.
+- Logged, no symptoms marked → "לא דווחו תסמינים פיזיים".
 
 #### Biomarkers Section
 Cards for each recorded biomarker:

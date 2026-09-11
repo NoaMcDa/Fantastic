@@ -155,7 +155,7 @@ macOS, no external service.
 
 | Workflow | Trigger | Runner | Blocking? |
 |---|---|---|---|
-| `ci.yml` | `pull_request` → `main`, `push` → `main`, `workflow_dispatch` | `ubuntu-latest` | **Yes** — required check |
+| `ci.yml` | `pull_request` → `main`, `push` → `main`, `workflow_dispatch` — **`verify` and `e2e flows` skipped on a documentation-only diff, §5.6** | `ubuntu-latest` | **Yes** — required check |
 | `build-ios.yml` | `pull_request` → `main` **filtered to `ios/**`, `lib/**`, `assets/**`, `pubspec.*` and itself**, `workflow_dispatch` | `macos-latest` | Not yet — enable with branch protection |
 
 ### Parked scope
@@ -479,6 +479,59 @@ Once `ci.yml` has one green run on `main`, configure on `main`:
 - Require a pull request before merging (already the convention in
   `design/pr_conventions.md`; this makes it mechanical)
 - Squash merge only, matching `design/pr_conventions.md` §Review & merge
+
+### 5.6 Documentation-only changes skip the gate
+
+A PR that touches nothing but documentation runs neither `verify` nor
+`e2e flows`, and builds no platform target. Nothing under `design/`, no
+Markdown file anywhere and no `LICENSE` is compiled, imported, or read by any
+step in §5.1 — so the four minutes the gate spends on such a PR prove only that
+the previous commit still passed.
+
+**The classification is one script, `tool/docs_only.sh`**, called once per run
+by a `changes` job whose output gates the other two:
+
+```yaml
+jobs:
+  changes:
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    # ... checkout with fetch-depth: 0, then tool/docs_only.sh BASE HEAD
+
+  verify:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+```
+
+Three decisions in that shape are worth stating, because the obvious
+alternatives are all wrong in a way that only shows up later:
+
+1. **A job-level `if`, not a workflow-level `paths-ignore`.** A workflow
+   skipped by a path filter reports **no conclusion at all** — the check stays
+   pending forever, and §5.5 makes `verify` and `e2e flows` required, so the PR
+   would be unmergeable precisely on the docs PRs this is meant to speed up. A
+   *skipped job* does report, and GitHub counts it as a pass. The platform
+   build workflows may use `paths` filters (and do) only because none of them
+   is required.
+2. **Every uncertain case is decided as code.** A missing SHA, an unrelated
+   history, an empty diff, a crash in the script itself: all print `false` and
+   run the full gate. A wrongly-skipped run puts a green tick beside an
+   untested regression; a wrongly-run one costs four minutes.
+3. **`*.txt` is not documentation in this repository.** It reads like it should
+   be, and it is the one rule that would have been actively dangerous:
+   `linux/CMakeLists.txt` and `windows/CMakeLists.txt` are the desktop build
+   definitions, and `tool/coverage_ignore.txt` is an input to the coverage gate
+   in §5.3. Not one `.txt` here is prose. The docs list is `design/**`,
+   `docs/**`, `**/*.md`, `LICENSE*` and `NOTICE` — nothing else.
+
+`workflow_dispatch` always runs everything: somebody asked for that run by
+hand.
+
+The same list appears as a `paths-ignore` on `build-android.yml`,
+`build-linux.yml` and the `push` trigger of `build-windows.yml`.
+`build-ios.yml`, `build-macos.yml` and the `pull_request` trigger of
+`build-windows.yml` needed no change — their `paths` include-lists never
+matched a Markdown file in the first place.
 
 ---
 

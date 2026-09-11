@@ -91,8 +91,9 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
   - Acceptance: pure Dart; `AdaptationPhase` enum has values `induction`, `fatAdapted`, `deepKetosis`
 
 - [ ] **Define `SymptomLog` domain model**
-  - Fields: `id`, `date`, `energyScore`, `clarityScore`, `hungerScore`, `physicalScore`, `moodScore`, `notes` (all scores 1–5)
-  - Acceptance: pure Dart; scores validated in constructor (1 ≤ n ≤ 5)
+  - Fields: `id`, `date`, `energyScore`, `clarityScore`, `hungerScore`, `moodScore` (all 1–5), `symptoms` (`Set<PhysicalSymptom>`), `notes`
+  - `PhysicalSymptom` enum: `halitosis`, `constipation`, `muscleCramps`, `headache`, `diarrhea`, `dizziness`, `nausea`, `insomnia`
+  - Acceptance: pure Dart; scores validated in constructor (1 ≤ n ≤ 5); equality uses `SetEquality` for `symptoms`, not identity
 
 - [ ] **Define `ParsedLabel` and `IngredientVerdict` domain models**
   - `ParsedLabel`: `productName`, `fatG`, `netCarbsG`, `proteinG`, `fatGPer100`, `netCarbsPer100`, `proteinPer100`, `ingredients`

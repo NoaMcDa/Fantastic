@@ -5,6 +5,7 @@ import 'dart:io';
 // both this library and the factory and reports an ambiguous import. The VM
 // resolves them to the same library and the test runs either way — only
 // `flutter analyze`, which CI gates on, objects.
+import 'package:fantastic/features/keto_lens/data/adapters/scaling_text_recognizer.dart';
 import 'package:fantastic/features/keto_lens/data/adapters/tesseract_ffi_recognizer.dart'
     show TesseractFfiRecognizer;
 import 'package:fantastic/features/keto_lens/data/adapters/tesseract_plugin_recognizer.dart'
@@ -27,12 +28,47 @@ void main() {
       // `design/m6_platform_research.md`.
       final service = createTextRecognitionService();
 
+      // Both real bindings are wrapped in `ScalingTextRecognizer`, which
+      // normalises the image before recognition. Asserting on the *wrapped*
+      // binding rather than loosening this to `isA<TextRecognitionService>()`
+      // keeps the pairing under test: the point of this assertion is which
+      // engine a platform gets, and a decorator must not be allowed to hide
+      // that.
+      expect(service, isA<ScalingTextRecognizer>());
+      final inner = (service as ScalingTextRecognizer).inner;
+
       if (Platform.isAndroid || Platform.isIOS) {
-        expect(service, isA<TesseractPluginRecognizer>());
+        expect(inner, isA<TesseractPluginRecognizer>());
       } else {
-        expect(service, isA<TesseractFfiRecognizer>());
+        expect(inner, isA<TesseractFfiRecognizer>());
       }
     });
+
+    test(
+      'the native halves are wrapped, so every image is prepared',
+      () {
+        // A guard on the wiring rather than the behaviour. The preparation step
+        // is what makes a small image readable at all, and it lives in the
+        // factory — so an adapter added later that is returned unwrapped would
+        // silently lose it, on that platform only, with every test still green.
+        final service = createTextRecognitionService();
+
+        expect(
+          service,
+          isA<ScalingTextRecognizer>(),
+          reason:
+              'a native recogniser must be wrapped in ScalingTextRecognizer',
+        );
+      },
+      skip:
+          Platform.isAndroid ||
+              Platform.isIOS ||
+              Platform.isLinux ||
+              Platform.isMacOS ||
+              Platform.isWindows
+          ? false
+          : 'no OCR binding on this platform, so nothing to wrap',
+    );
 
     test('exposes only the interface to its callers', () {
       final TextRecognitionService service = createTextRecognitionService();

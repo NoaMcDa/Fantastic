@@ -187,7 +187,46 @@ implies belongs to whoever owns the product rule.
 
 ---
 
-## 8. If you pick this up next
+## 8. `main` moved under this audit — what that changed
+
+Four PRs merged to `main` while this session ran, and the branch was updated by
+merge rather than rebase. None invalidates the audit, but three touch it:
+
+- **#298 — the physical-symptom score became a named symptom set.** Closes
+  #287–#294. `SymptomLog.physicalScore` no longer exists, and
+  `symptom_check_in_strip.dart` and `symptom_log_sheet.dart` were substantially
+  rewritten. **#307 survives** — `selected ? scheme.primary :
+  scheme.surfaceContainerHighest` is still there at `symptom_log_sheet.dart:423`
+  — but its line citations were restated against the new code, and there is now
+  a **third** site, the score dots at `symptom_check_in_strip.dart:331`.
+  It also did real accessibility work in one widget, which is why §5 of
+  `m7_preflight.md` carries a recount.
+- **#297 (#256) — the scanner now reads a real Israeli nutrition panel.** Four
+  independent engine-configuration causes, fixing any three of which still
+  fails. This changes the standing claim *"nothing has ever read a real Hebrew
+  label"*: something has now, but it was a flat screenshot-quality crop, not a
+  photo off a curved bag under shop lighting. **No accuracy figure is claimed
+  and #256 and Epic #10 stay open** — see `design/user_bugs_handoff.md`.
+  `scan_result_sheet.dart` and `add_meal_bottom_sheet.dart` were untouched, so
+  **#304 is unaffected**.
+- **#300 — CI now skips `verify` and `e2e flows` on documentation-only
+  changes.** A skipped job reports as a pass, which is what a docs-only PR such
+  as this one should expect to see.
+
+**`design/user_bugs_handoff.md` (#299) is new and should be read alongside this
+file.** It records the first two defects reported by someone *using* the app
+rather than auditing it — the diary tab could not log a meal, and the scan read
+nothing — both live while 1220 tests, a 99.58% coverage gate, ten e2e flows and
+six per-platform build jobs were green. That is the same lesson this audit keeps
+finding from the other direction: a green suite is evidence about the suite.
+
+One consequence for the closed M8 issues: the comment on **#99** describes the
+flow as asserting `log.physicalScore`, which was true when it was written and
+is not true now. A correction is posted on the issue.
+
+---
+
+## 9. If you pick this up next
 
 1. **#98** — one flow, and M8 closes.
 2. **M7, in the order in §3.** Nothing in it is blocked except #92, and #92 is

@@ -353,18 +353,25 @@ filed. Each is real and each has a `file:line`.
 
 **Accessibility — the largest completely unrepresented category.** Not
 mentioned in a single design document.
-- Three `Semantics` in all of `lib/` (`goal_card.dart:32`,
-  `symptom_check_in_strip.dart:115`, and a comment in
-  `verdict_badge_widget.dart:44`). Nothing on the dashboard, the macro card,
-  the streak ring, the electrolyte gauges, the camera screen, or the five tabs.
+- **Four `Semantics` calls in all of `lib/`, across two files** —
+  `goal_card.dart` and `symptom_check_in_strip.dart`, the latter having gained
+  three of them (plus the codebase's only three `ExcludeSemantics`) in #298's
+  symptom-set rewrite. Nothing on the dashboard, the macro card, the streak
+  ring, the electrolyte gauges, the camera screen, or the five tabs.
 - One `semanticLabel` in the codebase, correctly set to `null`
-  (`empty_meals_state.dart:33`). Zero `ExcludeSemantics`.
+  (`empty_meals_state.dart:33`).
 - `minTouchTarget = 44` declared **twice**, as private statics in two files
-  that do not import each other (`symptom_log_sheet.dart:319`,
-  `symptom_check_in_strip.dart:108`), plus a hand-rolled `BoxConstraints` in
+  that do not import each other (`symptom_log_sheet.dart:414`,
+  `symptom_check_in_strip.dart:245`), plus a hand-rolled `BoxConstraints` in
   `diary_screen.dart:148` and a comment-only mention in
   `verdict_badge_widget.dart:112`. There is no `AppTheme.minTouchTarget`.
   Dashboard, adaptation, onboarding and camera enforce nothing.
+
+  > **Recounted after merging `main`.** #298 (the physical-symptom → named
+  > symptom-set rewrite) landed while this audit ran and did real accessibility
+  > work inside one widget. The shape of the finding is unchanged — it is one
+  > feature's local decision, not a programme — but the numbers above are the
+  > post-merge ones.
 - **Zero text-scaling handling.** No `MediaQuery.textScaler`, no
   `withClampedTextScaling`. `onboarding_screen2.dart:68` notes the hazard in a
   comment and does not generalise it — and `m5_handoff.md` already records the

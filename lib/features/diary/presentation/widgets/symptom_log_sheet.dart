@@ -1,12 +1,14 @@
 import 'package:fantastic/features/diary/application/providers/symptom_providers.dart';
 import 'package:fantastic/features/diary/application/symptom_logging_service.dart';
+import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
+import 'package:fantastic/features/diary/presentation/physical_symptom_copy.dart';
 import 'package:fantastic/features/diary/presentation/symptom_scale.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// The day's symptom check-in: one 1–5 selector per [SymptomScale], an
-/// optional note, and a save.
+/// The day's symptom check-in: one 1–5 selector per [SymptomScale], a chip
+/// grid of physical symptoms, an optional note, and a save.
 ///
 /// Opened from the dashboard strip and from the diary's symptom section. Both
 /// pass the day's existing log when there is one, so the sheet opens on the
@@ -17,6 +19,7 @@ class SymptomLogSheet extends ConsumerStatefulWidget {
     required this.date,
     this.existing,
     this.focus,
+    this.focusSymptoms = false,
     super.key,
   });
 
@@ -38,6 +41,14 @@ class SymptomLogSheet extends ConsumerStatefulWidget {
   /// action, which has no particular scale.
   final SymptomScale? focus;
 
+  /// Set when the user tapped the physical-symptom row rather than a scale.
+  ///
+  /// A separate flag rather than a widened [focus]: physical symptoms stopped
+  /// being a [SymptomScale], and there is exactly one non-scale target, so a
+  /// sealed union would be more machinery than the problem has. Epic #9's
+  /// Definition of Done requires the correct pre-focused sheet either way.
+  final bool focusSymptoms;
+
   /// Mid-scale starting point for a day with nothing logged.
   static const int defaultScore = 3;
 
@@ -51,11 +62,16 @@ class SymptomLogSheet extends ConsumerStatefulWidget {
     required DateTime date,
     SymptomLog? existing,
     SymptomScale? focus,
+    bool focusSymptoms = false,
   }) => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (_) =>
-        SymptomLogSheet(date: date, existing: existing, focus: focus),
+    builder: (_) => SymptomLogSheet(
+      date: date,
+      existing: existing,
+      focus: focus,
+      focusSymptoms: focusSymptoms,
+    ),
   );
 
   @override
@@ -74,6 +90,15 @@ class _SymptomLogSheetState extends ConsumerState<SymptomLogSheet> {
           ? SymptomLogSheet.defaultScore
           : scale.scoreIn(widget.existing!),
   };
+
+  /// The symptoms the user has selected in this session.
+  ///
+  /// A fresh mutable copy, not `widget.existing!.symptoms` directly. Aliasing
+  /// the persisted log's set and mutating it in place as the user taps would
+  /// mean a cancelled sheet — one the user dismissed without saving — still
+  /// changed the object the provider is holding. The copy is correct; the
+  /// alias is a silent data mutation.
+  late final Set<PhysicalSymptom> _symptoms = {...?widget.existing?.symptoms};
 
   late final TextEditingController _notesController = TextEditingController(
     text: widget.existing?.notes ?? '',
@@ -114,6 +139,60 @@ class _SymptomLogSheetState extends ConsumerState<SymptomLogSheet> {
                 highlighted: scale == widget.focus,
                 onChanged: (score) => setState(() => _scores[scale] = score),
               ),
+            const Divider(height: 24),
+            // Physical-symptom chip grid.
+            Container(
+              key: const Key('symptom_section'),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: widget.focusSymptoms
+                  ? BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    )
+                  : null,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'סמנו מה שהרגשתם היום:',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  // `Wrap`, not `GridView`: the chips have variable width and
+                  // the sheet is already inside a `SingleChildScrollView`,
+                  // which a nested scrollable would fight. `Wrap` reflows
+                  // correctly under RTL without extra work.
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      for (final symptom in PhysicalSymptom.values)
+                        FilterChip(
+                          key: Key('symptom_filter_${symptom.name}'),
+                          avatar: Icon(symptom.icon, size: 16),
+                          label: Text(symptom.label),
+                          selected: _symptoms.contains(symptom),
+                          onSelected: (selected) => setState(() {
+                            if (selected) {
+                              _symptoms.add(symptom);
+                            } else {
+                              _symptoms.remove(symptom);
+                            }
+                          }),
+                        ),
+                    ],
+                  ),
+                  if (_symptoms.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    TextButton(
+                      key: const Key('clear_symptoms_button'),
+                      onPressed: () => setState(_symptoms.clear),
+                      child: const Text('לא הרגשתי כלום מיוחד'),
+                    ),
+                  ],
+                ],
+              ),
+            ),
             const SizedBox(height: 8),
             TextField(
               key: const Key('symptom_notes_field'),
@@ -193,9 +272,25 @@ class _SymptomLogSheetState extends ConsumerState<SymptomLogSheet> {
       notes = base?.notes;
     }
 
+    // `_symptoms` needs no equivalent of the notes dance above.
+    //
+    // For notes: an empty field when `widget.existing` was null means the
+    // user never saw a note, so we silently preserve `base?.notes` rather
+    // than treating the empty field as an instruction to clear it.
+    //
+    // For symptoms: `_symptoms` was seeded from `widget.existing?.symptoms`,
+    // so when `widget.existing` was null, `_symptoms` started as an empty
+    // set — the same state as `base?.symptoms` being empty. But unlike notes,
+    // an empty symptom set *from a sheet the user actually saw* genuinely
+    // means "felt nothing today" and should be stored as such. There is no
+    // ambiguity between "the user cleared all chips" and "the sheet never
+    // showed them" because `base` can only carry symptoms from a record the
+    // user already logged, which by definition they have already seen. The
+    // asymmetry is correct; do not add a recovery branch here.
     final log = buildSymptomLog(
       date: widget.date,
       scores: _scores,
+      symptoms: _symptoms,
       // Both carried through from the record being edited. `save` upserts on
       // the date, so a log rebuilt without them drops the note the user typed
       // and re-keys nothing — see `design/m5_preflight.md` §1.3.

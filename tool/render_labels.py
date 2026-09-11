@@ -87,7 +87,13 @@ def render(name: str, text: str, out_dir: str) -> str:
     return path
 
 
+def main_into(out_dir):
+    """Renders every label into out_dir. Importable, so
+    tool/capture_ocr_fixtures.py can drive it without a subprocess."""
+    return [render(name, text, out_dir) for name, text in LABELS.items()]
+
+
 if __name__ == "__main__":
     target = sys.argv[1] if len(sys.argv) > 1 else "."
-    for label_name, label_text in LABELS.items():
-        print(render(label_name, label_text, target))
+    for path in main_into(target):
+        print(path)

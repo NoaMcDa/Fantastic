@@ -1,15 +1,20 @@
 import 'package:fantastic/features/diary/application/providers/symptom_providers.dart';
+import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
+import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
+import 'package:fantastic/features/diary/presentation/physical_symptom_copy.dart';
 import 'package:fantastic/features/diary/presentation/symptom_scale.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_log_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// The dashboard's five-second check-in: one cell per [SymptomScale] showing
-/// today's score, each opening [SymptomLogSheet] focused on the scale tapped.
+/// today's score, each opening [SymptomLogSheet] focused on the scale tapped,
+/// plus a chip row below showing the day's marked physical symptoms.
 ///
-/// A day with nothing logged shows five empty cells rather than hiding — the
-/// prompt to log is the point, and a strip that appeared only once there was
-/// something to show would never be seen by the user who has not started.
+/// A day with nothing logged shows four empty cells and an empty chip row
+/// rather than hiding — the prompt to log is the point, and a strip that
+/// appeared only once there was something to show would never be seen by the
+/// user who has not started.
 class SymptomCheckInStrip extends ConsumerWidget {
   const SymptomCheckInStrip({required this.date, super.key});
 
@@ -79,8 +84,140 @@ class SymptomCheckInStrip extends ConsumerWidget {
                   ),
               ],
             ),
+            const Divider(height: 16),
+            _SymptomChipRow(date: date, log: log, loading: loading),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The chip row showing the day's marked physical symptoms.
+///
+/// Shows a leading healing icon, one read-only [Chip] per marked symptom
+/// (in [PhysicalSymptom.values] order, not set insertion order), and a
+/// trailing ＋ [IconButton] that opens [SymptomLogSheet] pre-focused on the
+/// symptom section.
+///
+/// States:
+/// - **loading** — reserves the row's height and renders nothing, so the
+///   card does not jump when the read lands. Mirrors [_ScaleCell]'s approach.
+/// - **not logged or logged with empty set** — icon, muted "ללא תסמינים פיזיים"
+///   text, and the ＋ button. Both states look identical on the dashboard;
+///   the nuance lives in the sheet.
+/// - **logged with symptoms** — one chip per marked symptom in enum order.
+/// - **read failed** — stays fully tappable. A failed read must not block the
+///   write; the same reasoning at `symptom_check_in_strip.dart:32` applies.
+class _SymptomChipRow extends StatelessWidget {
+  const _SymptomChipRow({
+    required this.date,
+    required this.log,
+    required this.loading,
+  });
+
+  final DateTime date;
+
+  /// Null when the day has no log or when the read failed.
+  final SymptomLog? log;
+
+  final bool loading;
+
+  /// The height to reserve while loading, matching the chip row's natural
+  /// height so the card does not jump when the read lands.
+  static const double _reservedHeight = 32;
+
+  @override
+  Widget build(BuildContext context) {
+    // Reserve height during loading so the card does not jump.
+    if (loading) {
+      return const SizedBox(height: _reservedHeight);
+    }
+
+    final theme = Theme.of(context);
+    final log = this.log;
+
+    // Chips are built in PhysicalSymptom.values order, never set order.
+    // Set iteration is insertion order: two days with identical symptoms would
+    // otherwise render them in different sequences depending on which was added
+    // first. Filtering the canonical enum order produces a stable layout.
+    final markedSymptoms = log == null
+        ? <PhysicalSymptom>[]
+        : PhysicalSymptom.values.where(log.symptoms.contains).toList();
+
+    final hasSymptoms = markedSymptoms.isNotEmpty;
+
+    // Build the semantics label for the whole row so a screen-reader user
+    // hears the list of symptoms rather than N unlabelled chips.
+    final semanticsLabel = hasSymptoms
+        ? 'תסמינים פיזיים: ${markedSymptoms.map((s) => s.label).join(', ')}'
+        : 'ללא תסמינים פיזיים';
+
+    return Semantics(
+      label: semanticsLabel,
+      child: Row(
+        children: [
+          Icon(
+            Icons.healing_outlined,
+            size: 18,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: hasSymptoms
+                ? Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      for (final symptom in markedSymptoms)
+                        Chip(
+                          key: Key('strip_symptom_${symptom.name}'),
+                          // ExcludeSemantics so the row-level Semantics label
+                          // is the single readable unit rather than each chip
+                          // announcing itself separately.
+                          label: ExcludeSemantics(
+                            child: Text(
+                              symptom.label,
+                              style: theme.textTheme.labelSmall,
+                            ),
+                          ),
+                          avatar: ExcludeSemantics(
+                            child: Icon(symptom.icon, size: 14),
+                          ),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                    ],
+                  )
+                : Text(
+                    'ללא תסמינים פיזיים',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+          ),
+          Semantics(
+            label: 'הוספת תסמינים פיזיים',
+            button: true,
+            excludeSemantics: true,
+            child: IconButton(
+              key: const Key('add_symptoms_button'),
+              icon: const Icon(Icons.add),
+              iconSize: 20,
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              onPressed: () => SymptomLogSheet.show(
+                context,
+                date: date,
+                existing: log,
+                focusSymptoms: true,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

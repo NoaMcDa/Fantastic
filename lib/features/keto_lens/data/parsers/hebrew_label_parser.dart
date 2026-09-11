@@ -28,20 +28,96 @@ import 'package:fantastic/features/keto_lens/domain/services/label_parser.dart';
 class HebrewLabelParser implements LabelParser {
   const HebrewLabelParser();
 
+  /// One Hebrew or Latin letter — what OCR inserts or substitutes when it
+  /// splits a glyph or reads a table rule as a character.
+  ///
+  /// Deliberately not `.`: a digit or a bracket standing in the middle of a
+  /// keyword is not a corruption this has ever been seen to produce, and
+  /// allowing them widens every pattern below for no measured gain.
+  static const String _strayLetter = '[\u0590-\u05FFA-Za-z]';
+
+  /// Builds a pattern matching [letters] with **at most one** OCR corruption.
+  ///
+  /// ## Why this is needed at all
+  ///
+  /// Tesseract 5.3.4 reads this label's protein row as `חלבונים`. Tesseract
+  /// 5.5.3, on a macOS CI runner, reads the same image as **`חזלבונים`** — a
+  /// spurious `ז`. An exact `חלבו[נן]` does not match that, so on a Mac the
+  /// scan succeeded with every other macro present, the basis correctly
+  /// `per100g`, and **protein silently missing**: a confident-looking result
+  /// with a hole in it. Raw engine output is not stable across versions, so
+  /// the matcher has to absorb a little of that variation.
+  ///
+  /// ## Why it is this narrow, and not edit distance
+  ///
+  /// A general "distance ≤ 1" matcher is far too loose here, and loose is
+  /// *dangerous* rather than merely untidy: a matcher that lets `שומנים` pick
+  /// up the `מתוכם שומן רווי` row reports **saturated fat as total fat** — a
+  /// plausible, wrong, silently-logged number, which is the failure mode this
+  /// whole feature exists to prevent. A missing protein is strictly better.
+  ///
+  /// So three deliberate restrictions:
+  ///
+  /// * **One corruption, not one per gap.** The alternation spells out each
+  ///   single-error form rather than making every position optional.
+  /// * **The first letter is never substituted.** It is the strongest
+  ///   evidence of which keyword this is; allowing `.לבו` would let an
+  ///   unrelated word in.
+  /// * **The last letter is never substituted either.** `שומ.` would match
+  ///   `שומש` inside `משומשום` — sesame, which is an *ingredient* on the
+  ///   project's own tahini fixture, not a fat row.
+  ///
+  /// Insertion is allowed at any interior gap, because that is the corruption
+  /// actually observed, and an inserted letter cannot turn one keyword into
+  /// another — every original letter is still required, in order.
+  ///
+  /// Words shorter than four letters get **no** tolerance: one error in three
+  /// letters is not a corrupted word, it is a different word.
+  static String _tolerant(List<String> letters) {
+    final forms = <String>[letters.join()];
+
+    if (letters.length >= 4) {
+      // One inserted letter, at each interior gap.
+      for (var i = 1; i < letters.length; i++) {
+        forms.add(
+          letters.sublist(0, i).join() +
+              _strayLetter +
+              letters.sublist(i).join(),
+        );
+      }
+      // One substituted letter, interior positions only.
+      for (var i = 1; i < letters.length - 1; i++) {
+        forms.add(
+          letters.sublist(0, i).join() +
+              _strayLetter +
+              letters.sublist(i + 1).join(),
+        );
+      }
+    }
+
+    // Exact first: the engine tries alternatives left to right, so an
+    // uncorrupted keyword never pays for the tolerance.
+    return '(?:${forms.join('|')})';
+  }
+
   /// `שומן` (singular, final nun) and `שומנים` (plural, medial nun).
   ///
   /// Unanchored, so the definite article and the conjunction — `השומן`,
   /// `ושומנים` — match without a prefix rule.
-  static final RegExp _fat = RegExp('שומ[נן]');
+  static final RegExp _fat = RegExp(_tolerant(['ש', 'ו', 'מ', '[נן]']));
 
   /// `פחמימה` / `פחמימות`.
-  static final RegExp _carbs = RegExp('פחמימ');
+  static final RegExp _carbs = RegExp(_tolerant(['פ', 'ח', 'מ', 'י', 'מ']));
 
   /// `סיבים` / `סיבים תזונתיים` / `סיבי`.
-  static final RegExp _fibre = RegExp('סיב');
+  ///
+  /// Three letters, so no tolerance — see [_tolerant].
+  static final RegExp _fibre = RegExp(_tolerant(['ס', 'י', 'ב']));
 
   /// `חלבון` (final nun) and `חלבונים` (medial nun).
-  static final RegExp _protein = RegExp('חלבו[נן]');
+  static final RegExp _protein = RegExp(
+    _tolerant(['ח', 'ל', 'ב', 'ו', '[נן]']),
+  );
 
   /// `ל-100 גרם`, `ל100 גרם`, `100 גר'`, `100 ג'`, `per 100 g`.
   ///
@@ -76,7 +152,33 @@ class HebrewLabelParser implements LabelParser {
   ///
   /// Deliberately *not* including `מתוכם`: fibre is legitimately reported as
   /// `מתוכם סיבים תזונתיים`, and excluding the qualifier would lose it.
-  static final RegExp _fatSubRow = RegExp('רווי|טרנס|בלתי|חומצות|כולסטרול');
+  ///
+  /// ## These are tolerant too, and that asymmetry is the point
+  ///
+  /// Making the *keywords* absorb an OCR error without doing the same here
+  /// would be the worst possible half-measure: a corrupted `רווי` would stop
+  /// disqualifying, the tolerant `שומ[נן]` would still match its row, and the
+  /// saturated-fat figure would be reported as total fat. The two sides of
+  /// this comparison have opposite risk profiles and must be tuned in
+  /// opposite directions —
+  ///
+  /// * over-disqualifying loses the fat row: the value is `null`, the sheet
+  ///   asks, nothing is logged wrong;
+  /// * under-disqualifying logs a plausible wrong number.
+  ///
+  /// So when in doubt this side is the one that should fire. It already pays
+  /// for itself: the real label prints `טראנס`, which the old exact `טרנס`
+  /// **did not match at all** — the trans-fat row was never being disqualified
+  /// on that label, and only line order was keeping it out of the fat field.
+  static final RegExp _fatSubRow = RegExp(
+    [
+      ['ר', 'ו', 'ו', 'י'],
+      ['ט', 'ר', 'נ', 'ס'],
+      ['ב', 'ל', 'ת', 'י'],
+      ['ח', 'ו', 'מ', 'צ', 'ו', 'ת'],
+      ['כ', 'ו', 'ל', 'ס', 'ט', 'ר', 'ו', 'ל'],
+    ].map(_tolerant).join('|'),
+  );
 
   /// How far either side of a keyword a disqualifying word can sit.
   ///
