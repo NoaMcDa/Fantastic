@@ -1,4 +1,3 @@
-cat << 'EOF' > README.md
 # Fantastic 🥩🍳🥑
 
 An offline-first Flutter application engineered for precision ketogenic lifestyle tracking. Fantastic combines strict nutritional ratio monitoring, on-device OCR ingredient scanning, and biomarker tracking with clean, decoupled architecture.
