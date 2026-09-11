@@ -4,6 +4,7 @@ import 'package:fantastic/core/providers/notification_providers.dart';
 import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/features/adaptation/application/providers/notification_providers.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
+import 'package:fantastic/features/onboarding/application/providers/onboarding_gate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -24,6 +25,15 @@ Future<void> main() async {
     final container = ProviderContainer(
       overrides: [databaseProvider.overrideWithValue(db)],
     );
+    // Before runApp, so the router's very first redirect already knows
+    // whether this is a first launch. The one asynchronous read the gate
+    // needs, done here rather than inside go_router's redirect — see
+    // `OnboardingGate`. A failure propagates to StartupFailureApp with the
+    // database open below it: if the profile cannot be read, onboarding
+    // cannot be written either, and silently re-running the flow would
+    // overwrite targets that are still on disk.
+    await seedOnboardingGate(container);
+
     // Before runApp, so a notification tapped from a cold start has a plugin
     // to be delivered to. A no-op on web — see NotificationService.
     final notifications = await container

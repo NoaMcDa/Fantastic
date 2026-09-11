@@ -6,6 +6,7 @@ import 'package:fantastic/features/directory/presentation/directory_placeholder.
 import 'package:fantastic/features/keto_lens/presentation/screens/camera_screen.dart';
 import 'package:fantastic/features/onboarding/presentation/onboarding_placeholder.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
+import 'package:fantastic/features/onboarding/application/providers/onboarding_gate.dart';
 import 'package:fantastic/features/onboarding/domain/models/onboarding_data.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen2.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen3.dart';
@@ -36,7 +37,29 @@ const int kOnboardingStepCount = 4;
 
 @Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) => GoRouter(
+  // '/' and not '#74''s `initialLocation: '/dashboard'`: the tab shell
+  // registers the dashboard at '/', `kTabPaths` lists it, and AppShell's
+  // active-tab matching keys on it. '/dashboard' exists only as an alias
+  // that redirects here (`design/m4_preflight.md` §5.2).
   initialLocation: '/',
+  // The first-launch gate (#74). Synchronous, and reading a value seeded
+  // before `runApp` — see `OnboardingGate` for why an awaited redirect
+  // cannot ship.
+  //
+  // The second clause is not in the issue and is needed: without it a
+  // returning user who deep-links into the flow runs it again and
+  // overwrites the targets they already set.
+  redirect: (_, state) {
+    final completed = ref.read(onboardingGateProvider);
+    final onOnboarding = state.matchedLocation.startsWith('/onboarding');
+    if (!completed && !onOnboarding) {
+      return '/onboarding/1';
+    }
+    if (completed && onOnboarding) {
+      return '/';
+    }
+    return null;
+  },
   routes: [
     ShellRoute(
       builder: (context, state, child) => AppShell(child: child),

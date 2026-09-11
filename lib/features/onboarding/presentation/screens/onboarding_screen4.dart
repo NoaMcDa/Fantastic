@@ -1,4 +1,5 @@
 import 'package:fantastic/features/onboarding/application/onboarding_service.dart';
+import 'package:fantastic/features/onboarding/application/providers/onboarding_gate.dart';
 import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
 import 'package:fantastic/features/onboarding/domain/models/onboarding_data.dart';
 import 'package:fantastic/features/onboarding/presentation/onboarding_validators.dart';
@@ -154,6 +155,17 @@ class _OnboardingScreen4State extends ConsumerState<OnboardingScreen4> {
       }
       return;
     }
+
+    if (!mounted) {
+      return;
+    }
+
+    // Opens the gate before navigating. Without this the router's redirect
+    // still believes onboarding is pending and sends the user straight back
+    // to step 1 — forever, on every launch. #74 expects
+    // `OnboardingService.completeOnboarding` to invalidate a provider, which
+    // it holds no `Ref` to do (`design/m4_preflight.md` §1.1).
+    ref.read(onboardingGateProvider.notifier).markCompleted();
 
     if (!mounted) {
       return;

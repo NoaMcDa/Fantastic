@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../helpers/onboarding_gate_override.dart';
+
 import '../../fixtures/fixtures.dart';
 
 void main() {
@@ -41,7 +43,12 @@ void main() {
 
   group('AppShell widget', () {
     testWidgets('renders a NavigationBar with 5 destinations', (tester) async {
-      await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [completedOnboardingGate()],
+          child: const FantasticApp(),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final navigationBar = tester.widget<NavigationBar>(
@@ -54,7 +61,12 @@ void main() {
     testWidgets('tapping the already-active tab does not change the route', (
       tester,
     ) async {
-      await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [completedOnboardingGate()],
+          child: const FantasticApp(),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final routerBefore = ProviderScope.containerOf(
