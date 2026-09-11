@@ -29,8 +29,15 @@ const List<String> kTabPaths = [
   '/lens',
   '/diary',
   '/adaptation',
-  '/profile',
+  kProfilePath,
 ];
+
+/// The Profile tab's path.
+///
+/// Named because something outside the tab bar now navigates to it: the
+/// estimation failures that say "sort the key out" take the user there, and
+/// `kTabPaths` is a positional list rather than something to index by hand.
+const String kProfilePath = '/profile';
 
 /// Number of screens in the onboarding flow (#69–#72).
 const int kOnboardingStepCount = 4;
@@ -80,7 +87,7 @@ GoRouter appRouter(Ref ref) => GoRouter(
             GoRoute(path: 'phase', redirect: (_, _) => '/adaptation'),
           ],
         ),
-        GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
+        GoRoute(path: kProfilePath, builder: (_, _) => const ProfileScreen()),
       ],
     ),
     // Deferred v1.1 features (design/architecture.md's fuller route table),

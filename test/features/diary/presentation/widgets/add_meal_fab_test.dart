@@ -94,27 +94,36 @@ void main() {
     expect(find.byType(AddMealBottomSheet), findsNothing);
   });
 
+  // Each mode opens its own sheet and, crucially, **not** the manual one: a
+  // mode that quietly fell through to manual entry would look like it worked
+  // and log the wrong thing.
   for (final (mode, sheetKey) in const [
     ('add_meal_mode_description', 'add_meal_description_sheet'),
     ('add_meal_mode_photo', 'add_meal_photo_sheet'),
   ]) {
-    testWidgets('$mode opens its placeholder and closes cleanly', (
+    testWidgets('$mode opens its own sheet, not the manual form', (
       tester,
     ) async {
       await pumpFab(tester);
 
       await choose(tester, mode);
+
       expect(find.byKey(Key(sheetKey)), findsOneWidget);
-      // Not the manual sheet: a mode that quietly fell through to manual
-      // entry would look like it worked and log the wrong thing.
       expect(find.byType(AddMealBottomSheet), findsNothing);
-
-      await tester.tap(find.byKey(const Key('coming_soon_close')));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(Key(sheetKey)), findsNothing);
     });
   }
+
+  // Still a placeholder until #324 lands. The description mode's own suite
+  // covers the real sheet.
+  testWidgets('the photo placeholder closes cleanly', (tester) async {
+    await pumpFab(tester);
+
+    await choose(tester, 'add_meal_mode_photo');
+    await tester.tap(find.byKey(const Key('coming_soon_close')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('add_meal_photo_sheet')), findsNothing);
+  });
 
   // Apple's HIG minimum, and the reason the standard FAB size is kept rather
   // than shrunk to fit a denser layout.
