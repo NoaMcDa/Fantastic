@@ -77,6 +77,42 @@ abstract final class ProfileCopy {
   /// broken.
   static const String notificationsRefused =
       'ההרשאה לא ניתנה. אפשר להפעיל אותה בהגדרות המכשיר.';
+  // Estimation (#321). Everything a user needs to decide whether to turn on
+  // the one feature in this app that sends anything anywhere.
+  static const String estimationSection = 'הערכת ערכים תזונתיים';
+
+  /// The disclosure, always visible and never behind an expander.
+  ///
+  /// Estimation sends dietary health information off a device that has until
+  /// now sent nothing anywhere. What it says is therefore specific about
+  /// three things — what leaves, when, and what never leaves — rather than a
+  /// generic privacy sentence.
+  static const String estimationDisclosure =
+      'כשתשתמשו בהערכה, התיאור שתכתבו — ובמצב צילום, גם התמונה של המנה — '
+      'יישלחו לשירות OpenRouter ולמודל שהוא מפנה אליו. '
+      'זה קורה רק כשאתם מפעילים הערכה. '
+      'רישום ידני של ארוחה לא שולח שום דבר, וסריקת תווית לא שולחת שום דבר — '
+      'הסריקה רצה כולה על המכשיר.';
+
+  static const String estimationConsent = 'אני מאשר/ת את שליחת הנתונים';
+  static const String estimationApiKey = 'מפתח API';
+  static const String estimationSave = 'שמירה';
+  static const String estimationRemoveKey = 'הסרת המפתח';
+
+  // The state line names the missing half rather than saying "disabled".
+  static const String estimationOn = 'פעיל';
+  static const String estimationNoKey = 'לא פעיל — לא הוזן מפתח';
+  static const String estimationNoConsent = 'לא פעיל — האישור לא ניתן';
+  static const String estimationNoKeyOrConsent = 'לא פעיל — חסרים מפתח ואישור';
+
+  static const String estimationKeySource = 'openrouter.ai/keys';
+  static const String estimationKeyHint =
+      'מפתח חינמי נוצר כאן, והמכסה החינמית היא כ־50 הערכות ביום:';
+
+  static const String estimationLoadFailed = 'לא ניתן לטעון את הגדרות ההערכה.';
+  static const String estimationSaveFailed =
+      'השמירה נכשלה. הנתונים שהזנתם נשמרו על המסך — נסו שוב.';
+
   static const String notificationsCheckFailed =
       'לא ניתן לבדוק את מצב ההתראות.';
 }
