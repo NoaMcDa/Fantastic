@@ -49,6 +49,58 @@ void main() {
         isEmpty,
       );
     });
+
+    test('matchedCleanIngredients defaults to an empty list', () {
+      expect(
+        const IngredientVerdict(badge: VerdictBadge.cleanKeto)
+            .matchedCleanIngredients,
+        isEmpty,
+      );
+    });
+  });
+
+  group('IngredientVerdict.recognisedNothing', () {
+    test('is true when neither list holds anything', () {
+      // A clean badge earned by a list of tokens no rule knows. The UI must
+      // not read this as "clean keto".
+      expect(
+        const IngredientVerdict(badge: VerdictBadge.cleanKeto)
+            .recognisedNothing,
+        isTrue,
+      );
+    });
+
+    test('is false when a clean ingredient was matched', () {
+      expect(
+        const IngredientVerdict(
+          badge: VerdictBadge.cleanKeto,
+          matchedCleanIngredients: ['olive oil'],
+        ).recognisedNothing,
+        isFalse,
+      );
+    });
+
+    test('is false when something was flagged', () {
+      expect(
+        const IngredientVerdict(
+          badge: VerdictBadge.nonKeto,
+          flaggedIngredients: ['canola'],
+        ).recognisedNothing,
+        isFalse,
+      );
+    });
+
+    test('a clean match does not make the verdict clean on its own', () {
+      // isClean is about the badge; recognisedNothing is about evidence.
+      const verdict = IngredientVerdict(
+        badge: VerdictBadge.nonKeto,
+        flaggedIngredients: ['canola'],
+        matchedCleanIngredients: ['butter'],
+      );
+
+      expect(verdict.isClean, isFalse);
+      expect(verdict.recognisedNothing, isFalse);
+    });
   });
 
   group('IngredientVerdict equality', () {
@@ -97,6 +149,36 @@ void main() {
         ),
         isNot(const IngredientVerdict(badge: VerdictBadge.nonKeto)),
       );
+    });
+
+    test('two instances differing only in clean matches are not equal', () {
+      expect(
+        const IngredientVerdict(
+          badge: VerdictBadge.cleanKeto,
+          matchedCleanIngredients: ['butter'],
+        ),
+        isNot(const IngredientVerdict(badge: VerdictBadge.cleanKeto)),
+      );
+    });
+
+    test('equal-but-not-identical clean-match lists are still equal', () {
+      final first = <String>['butter', 'ghee'];
+      final second = <String>['butter', 'ghee'];
+      final a = IngredientVerdict(
+        badge: VerdictBadge.cleanKeto,
+        matchedCleanIngredients: first,
+      );
+      final b = IngredientVerdict(
+        badge: VerdictBadge.cleanKeto,
+        matchedCleanIngredients: second,
+      );
+
+      expect(
+        identical(a.matchedCleanIngredients, b.matchedCleanIngredients),
+        isFalse,
+      );
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
     });
   });
 }
