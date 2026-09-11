@@ -43,6 +43,26 @@ abstract final class SymptomLogFixture {
     notes: 'keto flu',
   );
 
+  /// Five different scores, one per scale, ascending in declaration order:
+  /// energy 1, clarity 2, hunger 3, physical 4, mood 5.
+  ///
+  /// Use this — not [fixture] — in any test that asserts a score reaches the
+  /// right place. Every scale defaults to 3, so a widget that reads
+  /// `energyScore` where it means `moodScore`, or a mapper that crosses two
+  /// columns, passes against the neutral fixture and fails against this one.
+  /// `m1_handoff.md` records the cross-wiring this class of fixture hides;
+  /// `m5_preflight.md` §1.1 is the bug it predicted, arriving.
+  static SymptomLog varied({int? id, DateTime? date, String? notes}) => fixture(
+    id: id,
+    date: date,
+    energyScore: 1,
+    clarityScore: 2,
+    hungerScore: 3,
+    physicalScore: 4,
+    moodScore: 5,
+    notes: notes,
+  );
+
   /// Every scale at its upper bound — the other boundary.
   static SymptomLog bestDay({int? id, DateTime? date}) => fixture(
     id: id,

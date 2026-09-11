@@ -76,6 +76,23 @@ void main() {
       expect(state.gracePeriodEnd, isNotNull);
     });
 
+    // The antidote to the all-3s default: a test asserting a score reaches
+    // the right place needs five distinguishable scores.
+    test('SymptomLogFixture.varied gives every scale a different score', () {
+      final log = SymptomLogFixture.varied();
+
+      expect(
+        [
+          log.energyScore,
+          log.clarityScore,
+          log.hungerScore,
+          log.physicalScore,
+          log.moodScore,
+        ],
+        [1, 2, 3, 4, 5],
+      );
+    });
+
     test('SymptomLogFixture boundary days sit at 1 and 5', () {
       expect(SymptomLogFixture.worstDay().energyScore, 1);
       expect(SymptomLogFixture.worstDay().moodScore, 1);
