@@ -6,6 +6,7 @@ import 'package:fantastic/features/directory/presentation/directory_placeholder.
 import 'package:fantastic/features/keto_lens/presentation/keto_lens_placeholder.dart';
 import 'package:fantastic/features/onboarding/presentation/onboarding_placeholder.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen2.dart';
 import 'package:fantastic/features/profile/presentation/profile_placeholder.dart';
 import 'package:fantastic/features/recipe/presentation/recipe_placeholder.dart';
 import 'package:fantastic/features/restaurant/presentation/restaurant_placeholder.dart';
@@ -112,6 +113,7 @@ int onboardingStep(Map<String, String> pathParameters) {
 @visibleForTesting
 Widget onboardingScreen(int step) => switch (step) {
   1 => const OnboardingScreen1(),
+  2 => const OnboardingScreen2(),
   _ => OnboardingPlaceholder(step: step),
 };
 
