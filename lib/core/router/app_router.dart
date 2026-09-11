@@ -5,6 +5,7 @@ import 'package:fantastic/features/diary/presentation/screens/diary_screen.dart'
 import 'package:fantastic/features/directory/presentation/directory_placeholder.dart';
 import 'package:fantastic/features/keto_lens/presentation/keto_lens_placeholder.dart';
 import 'package:fantastic/features/onboarding/presentation/onboarding_placeholder.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
 import 'package:fantastic/features/profile/presentation/profile_placeholder.dart';
 import 'package:fantastic/features/recipe/presentation/recipe_placeholder.dart';
 import 'package:fantastic/features/restaurant/presentation/restaurant_placeholder.dart';
@@ -77,7 +78,7 @@ GoRouter appRouter(Ref ref) => GoRouter(
     GoRoute(
       path: '/onboarding/:step',
       builder: (_, state) =>
-          OnboardingPlaceholder(step: onboardingStep(state.pathParameters)),
+          onboardingScreen(onboardingStep(state.pathParameters)),
     ),
     // Downstream issues address the dashboard as '/dashboard' (see #74's
     // `initialLocation`), while the tab shell registers it as '/'. Keep '/'
@@ -101,6 +102,18 @@ int onboardingStep(Map<String, String> pathParameters) {
   }
   return parsed;
 }
+
+/// The screen for a 1-based onboarding [step].
+///
+/// A switch rather than four `GoRoute`s because the flow is one route with a
+/// path parameter, which is what `#69`-`#72` were written against. Steps the
+/// milestone has not replaced yet still render `OnboardingPlaceholder`, so
+/// the flow stays reachable end to end while it is being built.
+@visibleForTesting
+Widget onboardingScreen(int step) => switch (step) {
+  1 => const OnboardingScreen1(),
+  _ => OnboardingPlaceholder(step: step),
+};
 
 class _NotFoundScreen extends StatelessWidget {
   const _NotFoundScreen();
