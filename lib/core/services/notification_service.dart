@@ -167,4 +167,74 @@ class NotificationService {
     // grant would have the app promise reminders that never arrive.
     return granted ?? false;
   }
+
+  /// Whether the OS will currently deliver this app's notifications.
+  ///
+  /// **Never prompts.** The counterpart to [requestPermission], which does —
+  /// and which must not be used as a query: iOS shows its dialog at most once
+  /// for the life of an install and silently returns the stored answer
+  /// afterwards, so asking in order to find out spends the one prompt the app
+  /// gets. Calling this on every build of a settings screen is safe.
+  ///
+  /// Returns `false` on every platform that cannot schedule a reminder, for
+  /// the same reason [supportsScheduling] gates [requestPermission]: where
+  /// there is no reminder there is nothing to have permission for.
+  ///
+  /// **Android answers a different question from iOS, and the difference is
+  /// not smoothed over.** `areNotificationsEnabled` reports the OS-level
+  /// channel state, which a user can switch off in system settings *after*
+  /// granting `POST_NOTIFICATIONS`; iOS and macOS report the authorisation
+  /// the app was granted. For a settings screen the Android answer is the
+  /// more useful of the two — it is what actually decides whether a
+  /// notification appears — but the two are not the same fact, and a caller
+  /// that needs to distinguish "never asked" from "switched off" cannot get
+  /// that from here on Android.
+  ///
+  /// **A platform-channel failure propagates.** It is deliberately not caught
+  /// and reported as `false`: an unreachable channel means the answer is
+  /// unknown, and `false` is a specific claim — that notifications are off —
+  /// which a settings screen would render as a toggle the user then flips to
+  /// no effect. The project's standing rule is that a failed read and a real
+  /// negative must not look alike (`design/m5_handoff.md`), so a caller sees
+  /// an `AsyncValue.error` and can say so.
+  ///
+  /// No caching: the value changes outside the app whenever the user visits
+  /// system settings, which is exactly when a stale answer would be wrong.
+  Future<bool> isPermissionGranted() async {
+    if (!supportsScheduling) {
+      return false;
+    }
+
+    final enabled = switch (defaultTargetPlatform) {
+      TargetPlatform.iOS =>
+        (await _plugin
+                .resolvePlatformSpecificImplementation<
+                  IOSFlutterLocalNotificationsPlugin
+                >()
+                ?.checkPermissions())
+            ?.isEnabled,
+      TargetPlatform.macOS =>
+        (await _plugin
+                .resolvePlatformSpecificImplementation<
+                  MacOSFlutterLocalNotificationsPlugin
+                >()
+                ?.checkPermissions())
+            ?.isEnabled,
+      TargetPlatform.android =>
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.areNotificationsEnabled(),
+      // No runtime permission model: a registered app may post toasts, and
+      // the user's control is in Settings rather than a dialog. Matches
+      // [requestPermission]'s treatment of the same platform.
+      TargetPlatform.windows => true,
+      TargetPlatform.linux || TargetPlatform.fuchsia => false,
+    };
+
+    // Two nulls collapse here and both must read as "no": the implementation
+    // not being the running one, and the OS declining to answer.
+    return enabled ?? false;
+  }
 }

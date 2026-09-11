@@ -1,5 +1,6 @@
 import 'package:fantastic/core/services/notification_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -229,6 +230,146 @@ void main() {
         expect(await service.requestPermission(), isFalse);
         verifyNever(android.requestNotificationsPermission);
       });
+    });
+  });
+
+  group('isPermissionGranted', () {
+    /// A Darwin answer with [isEnabled] set and every other flag off.
+    ///
+    /// Only `isEnabled` is read, and the rest are set to the opposite value
+    /// so a implementation that reached for `isAlertEnabled` — or for the
+    /// record's truthiness — fails here rather than passing by coincidence.
+    NotificationsEnabledOptions darwin({required bool isEnabled}) =>
+        NotificationsEnabledOptions(
+          isEnabled: isEnabled,
+          isSoundEnabled: !isEnabled,
+          isAlertEnabled: !isEnabled,
+          isBadgeEnabled: !isEnabled,
+          isProvisionalEnabled: !isEnabled,
+          isCriticalEnabled: !isEnabled,
+          isProvidesAppNotificationSettingsEnabled: !isEnabled,
+        );
+
+    // `kIsWeb` is a `const false` on the VM, so the web branch cannot be
+    // reached from a test at all — the same limitation the `initialise`
+    // group records. Linux is the platform that proves the gate is
+    // `supportsScheduling` and not `kIsWeb`.
+    test('returns false on Linux without touching the plugin', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+
+      expect(await service.isPermissionGranted(), isFalse);
+      verifyNever(
+        plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >,
+      );
+    });
+
+    test('returns true when iOS reports the permission enabled', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      when(ios.checkPermissions)
+          .thenAnswer((_) async => darwin(isEnabled: true));
+
+      expect(await service.isPermissionGranted(), isTrue);
+    });
+
+    test('returns false when iOS reports the permission disabled', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      when(ios.checkPermissions)
+          .thenAnswer((_) async => darwin(isEnabled: false));
+
+      expect(await service.isPermissionGranted(), isFalse);
+    });
+
+    test('reads macOS through its own implementation', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      when(macos.checkPermissions)
+          .thenAnswer((_) async => darwin(isEnabled: true));
+
+      expect(await service.isPermissionGranted(), isTrue);
+      verifyNever(ios.checkPermissions);
+    });
+
+    test(
+      'returns false when the iOS implementation resolves to null',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+        when(
+          plugin.resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >,
+        ).thenReturn(null);
+
+        expect(await service.isPermissionGranted(), isFalse);
+      },
+    );
+
+    // The OS declining to answer is not a grant. Distinct from the case
+    // above: there the plugin had no implementation to ask, here it asked
+    // and got nothing back.
+    test('returns false when the OS answer is null', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      when(ios.checkPermissions).thenAnswer((_) async => null);
+
+      expect(await service.isPermissionGranted(), isFalse);
+    });
+
+    test('returns false when Android reports a null channel state', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      when(android.areNotificationsEnabled).thenAnswer((_) async => null);
+
+      expect(await service.isPermissionGranted(), isFalse);
+    });
+
+    // `areNotificationsEnabled` and `requestNotificationsPermission` answer
+    // different questions: a user can grant POST_NOTIFICATIONS and then turn
+    // the channel off in system settings. Stubbing them to opposite values
+    // is what catches an implementation that reused the request.
+    test('reads the Android channel state, not the request result', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      when(android.areNotificationsEnabled).thenAnswer((_) async => false);
+      when(android.requestNotificationsPermission)
+          .thenAnswer((_) async => true);
+
+      expect(await service.isPermissionGranted(), isFalse);
+      verifyNever(android.requestNotificationsPermission);
+    });
+
+    test('returns true on Windows, which has no runtime permission', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+
+      expect(await service.isPermissionGranted(), isTrue);
+    });
+
+    // The whole reason this method exists rather than reusing
+    // `requestPermission`: iOS shows its dialog at most once per install, so
+    // a query that prompts spends it.
+    test('never calls requestPermissions', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      when(ios.checkPermissions)
+          .thenAnswer((_) async => darwin(isEnabled: true));
+
+      await service.isPermissionGranted();
+
+      verifyNever(
+        () => ios.requestPermissions(
+          alert: any(named: 'alert'),
+          badge: any(named: 'badge'),
+          sound: any(named: 'sound'),
+        ),
+      );
+    });
+
+    // Deliberately not caught and flattened to `false`: an unreachable
+    // channel means the answer is unknown, and `false` is the specific claim
+    // that notifications are off. A failed read and a real negative must not
+    // look alike.
+    test('lets a platform-channel failure propagate', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      when(android.areNotificationsEnabled)
+          .thenThrow(PlatformException(code: 'channel-error'));
+
+      expect(service.isPermissionGranted(), throwsA(isA<PlatformException>()));
     });
   });
 }
