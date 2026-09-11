@@ -179,13 +179,8 @@ String _$estimationSettingsRepositoryHash() =>
 const estimationCredentialsProvider = EstimationCredentialsProvider._();
 
 final class EstimationCredentialsProvider
-    extends
-        $FunctionalProvider<
-          EstimationCredentials,
-          EstimationCredentials,
-          EstimationCredentials
-        >
-    with $Provider<EstimationCredentials> {
+    extends $FunctionalProvider<LlmCredentials, LlmCredentials, LlmCredentials>
+    with $Provider<LlmCredentials> {
   const EstimationCredentialsProvider._()
     : super(
         from: null,
@@ -202,26 +197,25 @@ final class EstimationCredentialsProvider
 
   @$internal
   @override
-  $ProviderElement<EstimationCredentials> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
+  $ProviderElement<LlmCredentials> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
 
   @override
-  EstimationCredentials create(Ref ref) {
+  LlmCredentials create(Ref ref) {
     return estimationCredentials(ref);
   }
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(EstimationCredentials value) {
+  Override overrideWithValue(LlmCredentials value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<EstimationCredentials>(value),
+      providerOverride: $SyncValueProvider<LlmCredentials>(value),
     );
   }
 }
 
 String _$estimationCredentialsHash() =>
-    r'a07d858276222660e9f33d60828bf8127d7540f7';
+    r'11eee1bbead61cfacf5203bffb49f6a248c5dece';
 
 /// The composition root for the estimator's transport, and **the only place
 /// besides `open_router_client.dart` where a concrete provider is named**.
