@@ -3,11 +3,14 @@ import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card.dart';
 import 'package:fantastic/features/diary/application/meal_logging_service.dart';
 import 'package:fantastic/features/diary/application/providers/meal_providers.dart';
+import 'package:fantastic/features/diary/application/providers/symptom_providers.dart';
 import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
+import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
 import 'package:fantastic/features/diary/presentation/screens/diary_day_screen.dart';
 import 'package:fantastic/features/diary/presentation/widgets/empty_meals_state.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_card.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
+import 'package:fantastic/features/diary/presentation/widgets/symptom_diary_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -28,6 +31,7 @@ void main() {
     required DateTime date,
     DailyLog? log,
     List<MealEntry> meals = const [],
+    SymptomLog? symptoms,
   }) => pumpApp(
     tester,
     DiaryDayScreen(date: date),
@@ -35,6 +39,8 @@ void main() {
       todaysDailyLogProvider(date).overrideWith((ref) async => log),
       todaysMealsProvider(date).overrideWith((ref) async => meals),
       mealLoggingServiceProvider.overrideWithValue(loggingService),
+      // #78 filled the symptom slot, so the screen now reads this too.
+      symptomLogProvider(date).overrideWith((ref) async => symptoms),
     ],
   );
 
@@ -51,7 +57,24 @@ void main() {
 
     expect(find.byType(MacroSummaryCard), findsOneWidget);
     expect(find.byType(MealListSection), findsOneWidget);
-    expect(find.text('תסמינים — בקרוב'), findsOneWidget);
+    // The slot M2 reserved with a named placeholder, now filled (#78).
+    expect(find.byType(SymptomDiarySection), findsOneWidget);
+    expect(find.text('תסמינים — בקרוב'), findsNothing);
+  });
+
+  testWidgets('passes its date to the symptom section too', (tester) async {
+    await pumpDay(
+      tester,
+      date: pastDate,
+      log: DailyLogFixture.fixture(date: pastDate),
+      symptoms: SymptomLogFixture.varied(date: pastDate),
+    );
+    await tester.pumpAndSettle();
+
+    final symptoms = tester.widget<SymptomDiarySection>(
+      find.byType(SymptomDiarySection),
+    );
+    expect(symptoms.date, pastDate);
   });
 
   testWidgets('a past day with no entries shows the empty state', (
