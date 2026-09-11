@@ -1,0 +1,35 @@
+# Generates the app icon for five of the six targets from one source.
+# Linux is not covered by this tool and is hand-placed under linux/ — see #92.
+#
+# Run after any change to assets/icons/*.svg:
+#   node tool/render_app_icon.mjs && dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/icons/app_icon.png"
+
+  android: true
+  # Two layers, not one bitmap. Since API 26 a single square PNG is rendered
+  # as a *legacy* icon — shrunk inside a system-drawn shape — which is
+  # visibly worse on every modern launcher.
+  adaptive_icon_background: "#1C1C1E"
+  adaptive_icon_foreground: "assets/icons/app_icon_foreground.png"
+
+  ios: true
+  # The App Store rejects an icon with an alpha channel, and the source has
+  # an opaque #1C1C1E ground anyway.
+  remove_alpha_ios: true
+
+  web:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+    # Matches web/manifest.json and web/index.html, which already carry this.
+    background_color: "#1C1C1E"
+    theme_color: "#1C1C1E"
+
+  macos:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+
+  windows:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+    icon_size: 256

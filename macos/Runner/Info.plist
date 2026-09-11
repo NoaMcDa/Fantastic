@@ -15,8 +15,17 @@
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<!--
+	  Named, not empty. The asset catalogue already builds an AppIcon from
+	  ASSETCATALOG_COMPILER_APPICON_NAME, but an empty CFBundleIconFile
+	  leaves macOS with nothing to resolve outside that path - which is why
+	  the Flutter template ships it blank and nobody notices until a build
+	  lands somewhere that reads the plist first (#92).
+	-->
 	<key>CFBundleIconFile</key>
-	<string></string>
+	<string>AppIcon</string>
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>

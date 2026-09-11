@@ -10,4 +10,8 @@
       paints, so a cold start would still step once on startup.
     -->
     <color name="launch_background">#1C1C1E</color>
+    <!-- The adaptive icon's background layer, referenced by
+         mipmap-anydpi-v26/ic_launcher.xml. Same value as the launch
+         background above: one ground for the whole cold start. -->
+    <color name="ic_launcher_background">#1C1C1E</color>
 </resources>

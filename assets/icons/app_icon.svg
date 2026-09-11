@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Fantastic">
+  <!--
+    Fantastic app mark: a ribeye with a keto-gold fat cap. Authored for #92.
+
+    The constraints in that issue are what the shape is for: it reads at
+    16px, it survives a circular, squircle and rounded-square mask, it
+    carries no text, and it works on a light or a dark system background.
+
+    **The red is #E0342A and deliberately NOT AppTheme.danger (#FF453A).**
+    At icon scale the system red reads as a tomato; a cut of meat needs the
+    deeper, less orange red. The gold is AppTheme.accent exactly - the fat
+    cap is the keto tie-in and the one feature that still registers at
+    16px, which is why it runs the full top edge rather than sitting as a
+    thin crescent on one side.
+
+    Geometry: the two filled paths measure 349.6 x 226.9 centred on
+    (258.81, 259.63). Every transform below is derived from that, never
+    eyeballed.
+  -->
+  <rect width="512" height="512" fill="#1C1C1E"/>
+  <g transform="translate(256 256) scale(1.19) translate(-258.81 -259.63)">
+    <path d="M84 264 C84 214 118 176 168 160 C232 140 320 142 374 164 C420 182 440 216 428 252 C442 286 430 322 390 346 C362 362 330 356 300 366 C262 378 222 372 190 368 C140 360 96 326 84 264 Z" fill="#E0342A"/>
+    <path d="M84 264 C84 214 118 176 168 160 C232 140 320 142 374 164 C420 182 440 216 428 252 C416 232 408 216 388 204 C352 182 308 176 266 180 C224 184 192 196 166 212 C144 226 120 236 102 240 C94 244 90 252 84 264 Z" fill="#F5A623"/>
+    <ellipse cx="208" cy="278" rx="16" ry="18" fill="#4A1410"/>
+    <ellipse cx="288" cy="278" rx="16" ry="18" fill="#4A1410"/>
+    <circle cx="202" cy="271" r="5.5" fill="#FFFFFF" opacity="0.92"/>
+    <circle cx="282" cy="271" r="5.5" fill="#FFFFFF" opacity="0.92"/>
+    <path d="M214 322 C228 342 268 342 282 322" fill="none" stroke="#4A1410" stroke-width="12" stroke-linecap="round"/>
+  </g>
+</svg>
