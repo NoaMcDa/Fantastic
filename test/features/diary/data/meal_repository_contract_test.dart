@@ -1,4 +1,5 @@
 import 'package:fantastic/core/error/repository_exception.dart';
+import 'package:fantastic/features/diary/domain/models/macro_source.dart';
 import 'package:fantastic/features/diary/data/repositories/sembast_meal_repository.dart';
 import 'package:fantastic/features/diary/domain/repositories/meal_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -202,6 +203,27 @@ void runMealRepositoryContractTests(
 
       expect((await repo.findById(saved.id!))!.imageRef, isNull);
     });
+
+    test('source survives a round-trip for every MacroSource value', () async {
+      for (final value in MacroSource.values) {
+        final saved = await repo.save(MealEntryFixture.fixture(source: value));
+
+        expect(
+          (await repo.findById(saved.id!))!.source,
+          value,
+          reason: value.name,
+        );
+      }
+    });
+
+    test(
+      'a meal saved without an explicit source reads back as manual',
+      () async {
+        final saved = await repo.save(MealEntryFixture.fixture());
+
+        expect((await repo.findById(saved.id!))!.source, MacroSource.manual);
+      },
+    );
   });
 
   // Every method must surface a storage failure as a typed
