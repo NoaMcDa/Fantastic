@@ -233,7 +233,78 @@ bottleneck. Add a second reviewer, not a sixth worker.
 
 ---
 
-## 8. What this plan does not claim
+## 8. What running wave 0 changed
+
+Recorded the way every other handoff here records what only running it revealed.
+
+### A spawned worker can be no more permissive than the session that spawned it
+
+`create_session` refuses `permission_mode: "auto"` with *"requires the parent
+session to be in auto mode (parent is plan)"*. A session in plan mode can
+therefore only create children in `default`, and a `default` child **blocks on
+its first permission prompt and does no work at all** — five were spawned, all
+five sat on an `add_repo` approval, none wrote a line.
+
+Two things follow for anyone running this plan:
+
+- **Spawn workers from a session already in auto mode**, or expect to approve
+  every worker's prompts by hand in the web UI.
+- **Pass `source_url` and `source_revision`.** Without them the child has no
+  repository and immediately asks to attach one, which is what the five were
+  blocked on. That prompt is avoidable; the permission ceiling is not.
+
+The fallback is not bad: **one session working the queue serially is viable**,
+because the per-issue cost is dominated by the audit and the tests, not by CI.
+
+### The container has no Flutter SDK, and installing it is worth the four minutes
+
+`flutter` and `dart` are absent. `CLAUDE.md` says CI is the validation gate and
+that is still true, but blind-pushing a change of any size and iterating through
+CI is poor. The pinned 3.47.3 Linux archive downloads from
+`storage.googleapis.com` (reachable) in about four minutes:
+
+```bash
+curl -sSL -o /tmp/flutter.tar.xz \
+  https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.47.3-stable.tar.xz
+tar -xf /tmp/flutter.tar.xz -C /tmp
+git config --global --add safe.directory /tmp/flutter/flutter   # "dubious ownership"
+export PATH="/tmp/flutter/bin:$PATH"
+```
+
+On #303 it caught, locally and in seconds, what would otherwise have been five
+or six red CI cycles: a `prefer_initializing_formals` lint that **cannot** be
+satisfied with private fields (a named parameter may not start with an
+underscore, so the fields became public), six stale `evaluateToday` references,
+and eleven widget tests whose containers needed a newly-added provider
+dependency overridden.
+
+### Adding a dependency to one `@riverpod` provider ripples into every test container
+
+`adaptationPhaseServiceProvider` gained `dailyLogRepositoryProvider`, and
+**every test that overrode only `streakRepositoryProvider` then reached
+`databaseProvider` and tried to open a real database** — five files, fifteen
+tests. Worth budgeting for whenever a service gains a repository: grep for
+`<thatProvider>.overrideWithValue` and expect to touch all of them.
+
+### The e2e flow found what no unit test did
+
+#303's own unit suite passed while `logMeal` still handed the state machine the
+**meal's** timestamp as the evaluation instant. That is the same instant for a
+meal logged now, and days wrong for a back-dated one: the derivation walks back
+from the instant it is given, so back-filling produced a streak of 2 where it
+should have been 3. Only the flow that drove the real diary UI caught it —
+`design/user_bugs_handoff.md`'s first lesson, earning itself again.
+
+### `app_router.g.dart` was already stale on `main`
+
+`build_runner` regenerates it from an unmodified source file, which means the
+committed copy had drifted. **CI cannot catch this** — it builds what you
+committed rather than running the generator. Worth a `changes`-style check one
+day; `design/cicd_plan.md` Phase 1 already lists codegen drift as next.
+
+---
+
+## 9. What this plan does not claim
 
 In the spirit of every other handoff here.
 
