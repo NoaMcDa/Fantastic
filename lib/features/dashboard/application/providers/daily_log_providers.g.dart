@@ -175,3 +175,154 @@ final class TodaysDailyLogFamily extends $Family
   @override
   String toString() => r'todaysDailyLogProvider';
 }
+
+/// Every [DailyLog] in [month]'s calendar month, keyed by day of month.
+///
+/// One read and one loading state for the whole month, rather than the
+/// thirty-one family instances a per-day provider would allocate — the grid
+/// #67 draws would otherwise flicker in cell by cell and hit the store
+/// thirty-one times to draw one screen.
+///
+/// A day with no entry is simply absent from the map; callers render it as
+/// unlogged. Filters [DailyLogRepository.findAll] rather than adding a range
+/// query, because the collection is one record per day and a year of use is
+/// three hundred and sixty-five rows.
+///
+/// **Pass a date-only value**, for the same cache-key reason
+/// [todaysDailyLog] documents. Only the year and month are read.
+
+@ProviderFor(monthlyDailyLogs)
+const monthlyDailyLogsProvider = MonthlyDailyLogsFamily._();
+
+/// Every [DailyLog] in [month]'s calendar month, keyed by day of month.
+///
+/// One read and one loading state for the whole month, rather than the
+/// thirty-one family instances a per-day provider would allocate — the grid
+/// #67 draws would otherwise flicker in cell by cell and hit the store
+/// thirty-one times to draw one screen.
+///
+/// A day with no entry is simply absent from the map; callers render it as
+/// unlogged. Filters [DailyLogRepository.findAll] rather than adding a range
+/// query, because the collection is one record per day and a year of use is
+/// three hundred and sixty-five rows.
+///
+/// **Pass a date-only value**, for the same cache-key reason
+/// [todaysDailyLog] documents. Only the year and month are read.
+
+final class MonthlyDailyLogsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Map<int, DailyLog>>,
+          Map<int, DailyLog>,
+          FutureOr<Map<int, DailyLog>>
+        >
+    with
+        $FutureModifier<Map<int, DailyLog>>,
+        $FutureProvider<Map<int, DailyLog>> {
+  /// Every [DailyLog] in [month]'s calendar month, keyed by day of month.
+  ///
+  /// One read and one loading state for the whole month, rather than the
+  /// thirty-one family instances a per-day provider would allocate — the grid
+  /// #67 draws would otherwise flicker in cell by cell and hit the store
+  /// thirty-one times to draw one screen.
+  ///
+  /// A day with no entry is simply absent from the map; callers render it as
+  /// unlogged. Filters [DailyLogRepository.findAll] rather than adding a range
+  /// query, because the collection is one record per day and a year of use is
+  /// three hundred and sixty-five rows.
+  ///
+  /// **Pass a date-only value**, for the same cache-key reason
+  /// [todaysDailyLog] documents. Only the year and month are read.
+  const MonthlyDailyLogsProvider._({
+    required MonthlyDailyLogsFamily super.from,
+    required DateTime super.argument,
+  }) : super(
+         retry: null,
+         name: r'monthlyDailyLogsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$monthlyDailyLogsHash();
+
+  @override
+  String toString() {
+    return r'monthlyDailyLogsProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<Map<int, DailyLog>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Map<int, DailyLog>> create(Ref ref) {
+    final argument = this.argument as DateTime;
+    return monthlyDailyLogs(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is MonthlyDailyLogsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$monthlyDailyLogsHash() => r'815a7fb101f66dfcae39e746c8415426f8af87b2';
+
+/// Every [DailyLog] in [month]'s calendar month, keyed by day of month.
+///
+/// One read and one loading state for the whole month, rather than the
+/// thirty-one family instances a per-day provider would allocate — the grid
+/// #67 draws would otherwise flicker in cell by cell and hit the store
+/// thirty-one times to draw one screen.
+///
+/// A day with no entry is simply absent from the map; callers render it as
+/// unlogged. Filters [DailyLogRepository.findAll] rather than adding a range
+/// query, because the collection is one record per day and a year of use is
+/// three hundred and sixty-five rows.
+///
+/// **Pass a date-only value**, for the same cache-key reason
+/// [todaysDailyLog] documents. Only the year and month are read.
+
+final class MonthlyDailyLogsFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<Map<int, DailyLog>>, DateTime> {
+  const MonthlyDailyLogsFamily._()
+    : super(
+        retry: null,
+        name: r'monthlyDailyLogsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Every [DailyLog] in [month]'s calendar month, keyed by day of month.
+  ///
+  /// One read and one loading state for the whole month, rather than the
+  /// thirty-one family instances a per-day provider would allocate — the grid
+  /// #67 draws would otherwise flicker in cell by cell and hit the store
+  /// thirty-one times to draw one screen.
+  ///
+  /// A day with no entry is simply absent from the map; callers render it as
+  /// unlogged. Filters [DailyLogRepository.findAll] rather than adding a range
+  /// query, because the collection is one record per day and a year of use is
+  /// three hundred and sixty-five rows.
+  ///
+  /// **Pass a date-only value**, for the same cache-key reason
+  /// [todaysDailyLog] documents. Only the year and month are read.
+
+  MonthlyDailyLogsProvider call(DateTime month) =>
+      MonthlyDailyLogsProvider._(argument: month, from: this);
+
+  @override
+  String toString() => r'monthlyDailyLogsProvider';
+}
