@@ -1,10 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!--
+      **This file is identical to values-night/styles.xml, deliberately.**
+
+      Fantastic is dark-only: `AppTheme.dark` is the single theme and there is
+      no light variant, so a light launch theme is not a lighter version of the
+      app - it is a white flash that cuts to #1C1C1E on every cold start in a
+      device set to light mode. The theme parent is what resolves
+      `?android:colorBackground`, which is why the fix is here and not in
+      drawable/launch_background.xml, the file with the word "white" in it.
+
+      Both files are kept rather than deleting the night variant: Flutter's
+      template ships both, and a future light theme would need the split back.
+    -->
+
     <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
-    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <!-- Show a splash screen on the activity. Automatically removed when
              the Flutter engine draws its first frame -->
         <item name="android:windowBackground">@drawable/launch_background</item>
+        <!-- What `?android:colorBackground` in drawable-v21/launch_background.xml
+             resolves to. The drawable only references the theme; this is where
+             the colour is actually decided. -->
+        <item name="android:colorBackground">@color/launch_background</item>
     </style>
     <!-- Theme applied to the Android Window as soon as the process has started.
          This theme determines the color of the Android Window while your
@@ -12,7 +30,8 @@
          running.
 
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
-    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:colorBackground">@color/launch_background</item>
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
 </resources>
