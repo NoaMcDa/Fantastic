@@ -5,6 +5,8 @@ import 'package:fantastic/features/keto_lens/application/scan_orchestrator.dart'
 import 'package:fantastic/features/keto_lens/data/providers.dart';
 import 'package:fantastic/features/keto_lens/presentation/camera/camera_controller_session.dart';
 import 'package:fantastic/features/keto_lens/presentation/camera/camera_session.dart';
+import 'package:fantastic/features/keto_lens/presentation/camera/image_picker_photo_picker.dart';
+import 'package:fantastic/features/keto_lens/presentation/camera/photo_picker.dart';
 import 'package:fantastic/features/keto_lens/presentation/widgets/scan_result_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -160,6 +162,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         onRetry: _problem == CameraProblem.permissionDeniedPermanently
             ? null
             : _retry,
+        // The real value of a gallery fallback is here, not on the
+        // viewfinder: a user whose camera will not open can still scan a
+        // photo they already have. #85's own noCamera advice promises
+        // exactly this.
+        onPickFromGallery: _pickFromGallery,
       );
     }
     if (_starting || _session == null) {
@@ -223,6 +230,24 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
             ),
           ),
           Positioned(
+            bottom: 48,
+            left: 24,
+            child: IconButton(
+              key: const Key('gallery_button'),
+              tooltip: 'ייבוא מהגלריה',
+              iconSize: 36,
+              icon: const Icon(
+                Icons.photo_library_outlined,
+                color: Colors.white,
+                size: 36,
+              ),
+              // Disabled rather than hidden, unlike the shutter: the
+              // shutter's replacement by a spinner is the busy signal, and
+              // two things vanishing at once reads as a broken layout.
+              onPressed: _scanning ? null : _pickFromGallery,
+            ),
+          ),
+          Positioned(
             bottom: 40,
             left: 0,
             right: 0,
@@ -268,6 +293,30 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     if (mounted) {
       setState(() => _torchOn = wanted);
     }
+  }
+
+  Future<void> _pickFromGallery() async {
+    if (_scanning) {
+      return;
+    }
+    final String? path;
+    try {
+      path = await ref.read(photoPickerProvider).pickFromGallery();
+    } on PhotoPickerException catch (_) {
+      // Most often a refused photo-library permission.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('לא ניתן לפתוח את הגלריה')),
+        );
+      }
+      return;
+    }
+    // Null is the user backing out of the picker. Not an error, and not
+    // worth a message.
+    if (path == null) {
+      return;
+    }
+    await scanFile(path);
   }
 
   Future<void> _capture() async {
@@ -338,6 +387,7 @@ class _MessageState extends StatelessWidget {
     required this.title,
     required this.body,
     this.onRetry,
+    this.onPickFromGallery,
     super.key,
   });
 
@@ -345,6 +395,12 @@ class _MessageState extends StatelessWidget {
   final String title;
   final String body;
   final VoidCallback? onRetry;
+
+  /// Offered when a photo already on the device is a usable way out.
+  ///
+  /// Null where it is not — in a browser, where OCR cannot run on a
+  /// gallery photo any more than on a live one.
+  final VoidCallback? onPickFromGallery;
 
   @override
   Widget build(BuildContext context) {
@@ -374,6 +430,15 @@ class _MessageState extends StatelessWidget {
                   key: const Key('lens_retry_button'),
                   onPressed: onRetry,
                   child: const Text('נסו שוב'),
+                ),
+              ],
+              if (onPickFromGallery != null) ...[
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  key: const Key('gallery_fallback_button'),
+                  onPressed: onPickFromGallery,
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('ייבוא תמונה מהגלריה'),
                 ),
               ],
             ],
