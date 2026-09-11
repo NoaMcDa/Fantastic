@@ -512,6 +512,20 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] Implement versioned JSON backup export (destination decision: platform-neutral share/download vs iOS-only iCloud)
 - [ ] Implement validated, atomic import/restore from a backup file
 
+### M15 — Meal Entry (#312) — *ready: #315, #316, #317 and #322 have no blocker*
+- [ ] #315 Add `MacroSource` to `MealEntry` + mapper + contract tests, decoding a pre-M15 record as `manual`
+- [ ] #316 Add the sealed `MealEstimate` and the `MacroEstimator` interface
+- [ ] #317 Store the BYOK API key and consent flag in their own `estimation_settings` store — **never in `user_profile`**, whose record existence is the first-launch sentinel
+- [ ] #318 Add `OpenRouterClient` with typed transport failures and an injected `http.Client`
+- [ ] #319 Implement `RemoteMacroEstimator` for a Hebrew description — prompt, tolerant parse, `NumericInput.positiveFinite` on every returned number
+- [ ] #320 Extend it to a meal photograph — downscale, re-encode, cap, base64
+- [ ] #321 Add the estimation settings screen: key field, disclosure, masked key, state line
+- [ ] #322 Put a three-mode chooser behind `AddMealFab` — inside the FAB, so both hosts get it
+- [ ] #323 Build the description mode — itemised editable review, one failure copy per reason
+- [ ] #324 Build the photo mode — **label OCR first**, estimate second, `imageRef` attached
+- [ ] #325 Show provenance on a meal card so an estimate reads as an estimate
+- [ ] #326 Add three e2e flows and close out the docs (`mvp.md`'s offline claim, the privacy labels)
+
 ### Release v1.0 — App Store Launch (#270) — *ships the MVP; runs before M9*
 - [ ] Add Hebrew `App Store Connect` metadata (description, keywords, screenshots)
 - [ ] Complete Apple privacy nutrition labels
