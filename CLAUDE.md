@@ -24,7 +24,9 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/m2_handoff.md` | **M2 handoff** — M2 shipped and the app became usable; the five conventions M3 inherits (the `pump_app` widget-test harness, date-only family keys held in state, parameters over un-overridable providers); **the RTL traps that cost the most time** (a horizontal `ListView` already starts right; `endToStart` drags *rightward*); Flutter/riverpod gotchas (`Dismissible` vs async delete, `AnimatedCrossFade` keeping both children, `Override` unexported by `flutter_riverpod`); coverage at closure; the gaps M3/M4/M5 inherit. **Read before picking up M3** |
 | `design/m3_preflight.md` | **M3 pre-flight corrections** — all twelve M3 issues audited. Four defects that compile and ship wrong behaviour: `copyWith(gracePeriodEnd: null)` silently does not clear, the streak increments per *meal* not per day, a fat-only first meal registers as a breach, and the phase boundary is off by one. Plus the canonical phase thresholds (8 and 28), two routes that do not exist, and the two places the issue text would regress M2. **Read before picking up any M3 issue** |
 | `design/v1_1_split.md` | **v1.1 split proposal** — why the single `v1.1 — Post-MVP Backlog` milestone fails the project's own milestone definition, the seven capability groups it should become, the stale content it carries (Isar references after the sembast swap, an iOS-only backup design after web shipped, a mis-identified map SDK), and the work required to execute. **Executed** — labels, seven Epic issues (#264–#270), all 26 issues
-re-filed and rewritten; GitHub milestone objects still to be created by hand |
+re-filed and rewritten. GitHub milestone objects were **deliberately not created** — labels + Epic
+issues + sub-issues carry the grouping, and the 26 issues still show the stale `v1.1` milestone, so
+filter the board by `epic:*` label rather than by milestone |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
 | `design/architecture.md` | Layer model, persistence schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
 | `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, and the **Error Handling Contract** (repositories throw typed exceptions; §"Why not `Result<T>`" records why that pattern was dropped before M1 — do not reintroduce it) |
@@ -358,8 +360,16 @@ issues #4–#12 pin the MVP milestones; #264–#270 pin the post-MVP milestones 
 v1.0 release. #13 (v1.1 Post-MVP) is closed — it was split into seven milestones,
 recorded in `design/v1_1_split.md`.
 
-**GitHub milestone objects do not yet exist for M9–M14 or the release** — the epic
-labels and the Epic issues carry the grouping. Creating them is a manual step.
+**GitHub milestone objects were deliberately not created for M9–M14 or the release.**
+The grouping is carried by the `epic:*` labels, the seven Epic tracking issues and the
+GitHub sub-issue hierarchy — the same mechanism `epic:login` already uses, and enough
+for each Epic to report real per-child progress. This is a settled decision, not
+outstanding work (`design/v1_1_split.md` §6).
+
+**⚠️ Filter the board by `epic:*` label, never by milestone.** Nothing cleared the old
+milestone field, so all 26 issues still read `v1.1 — Post-MVP Backlog` — a milestone
+filter shows exactly the pre-split lump this restructure removed. The label queries are
+the accurate view.
 
 ### Issue ranges by milestone
 

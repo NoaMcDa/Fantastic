@@ -3,8 +3,9 @@
 **Status:** **executed.** Labels created, seven Epic tracking issues opened
 (#264–#270), all 26 issues re-filed, re-titled where needed and rewritten to the
 `issue_conventions.md` standard, Epic #13 closed as superseded.
-**One manual step remains:** GitHub *milestone objects* for M9–M14 and the release
-do not exist — see §6.
+**GitHub milestone objects were deliberately not created** — the grouping is carried
+by the epic labels, the Epic tracking issues and the sub-issue hierarchy, exactly as
+`epic:login` already works. See §6, including the one consequence to know about.
 **Scope:** milestone `v1.1 — Post-MVP Backlog`, Epic #13, issues #103–#128
 
 ---
@@ -236,14 +237,35 @@ All five §3 items were corrected during the rewrite rather than deferred:
 
 ---
 
-## 6. The one manual step left
+## 6. Milestone objects: deliberately not created
 
-**GitHub milestone *objects* were not created** — the tooling available in this
-session exposes no milestone API and there is no `gh` CLI. The seven groupings are
-carried by the epic labels, the Epic tracking issues and the sub-issue hierarchy,
-which is how `epic:login` already works.
+**Decided: the seven groupings are carried by the `epic:*` labels, the Epic tracking
+issues and the GitHub sub-issue hierarchy — not by GitHub milestone objects.** That
+is the same mechanism `epic:login` (#206–#221) already uses, and it carries
+everything the board needs: each Epic reports real per-child progress, and every
+issue is reachable by one label query.
 
-To finish, create these seven in the GitHub UI and assign each group:
+This began as a tooling limit — the session that executed the split had no milestone
+API and no `gh` CLI — and was then taken as the standing decision rather than
+deferred work. **It is not an outstanding task.**
+
+### ⚠️ The one consequence: filter by label, never by milestone
+
+The 26 issues **still carry the stale `v1.1 — Post-MVP Backlog` milestone field.**
+Nothing cleared it, because there was no milestone to move them to. So:
+
+- **`label:epic:m9-biomarkers`** and its six siblings give the correct, current view
+- **Filtering the board by *milestone*** shows all 26 still lumped under
+  `v1.1 — Post-MVP Backlog`, which is exactly the pre-split picture this document
+  exists to correct
+
+That contradiction is known and recorded here so it is not mistaken later for a bug
+in the split. `CLAUDE.md`'s Project Board section carries the same warning.
+
+### If the decision is ever revisited
+
+Creating these seven in the GitHub UI and reassigning each group is all it would
+take; the labels already encode the mapping:
 
 | Milestone title | Issues |
 |---|---|
@@ -255,7 +277,9 @@ To finish, create these seven in the GitHub UI and assign each group:
 | `M13 — Apple Health Sync` | #108–#110 |
 | `M14 — Backup & Restore` | #123–#124 |
 
-Then retire the now-empty `v1.1 — Post-MVP Backlog` milestone.
+The `v1.1 — Post-MVP Backlog` milestone would then be retired. Note that the GitHub
+MCP tooling sets a milestone by **number** but only ever reports it by **name**, so
+the numbers have to be found by assigning one and reading it back.
 
 ---
 
