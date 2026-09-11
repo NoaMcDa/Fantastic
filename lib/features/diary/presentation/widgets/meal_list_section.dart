@@ -4,6 +4,7 @@ import 'package:fantastic/features/dashboard/application/providers/daily_log_pro
 import 'package:fantastic/features/diary/application/meal_logging_service.dart';
 import 'package:fantastic/features/diary/application/providers/meal_providers.dart';
 import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
+import 'package:fantastic/features/diary/presentation/widgets/add_meal_bottom_sheet.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_card.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section_skeleton.dart';
 import 'package:flutter/material.dart';
@@ -110,8 +111,25 @@ class _MealListSectionState extends ConsumerState<MealListSection> {
         setState(() => _dismissedIds.add(id));
         unawaited(_delete(id));
       },
-      child: MealCard(meal: meal),
+      child: MealCard(meal: meal, onTap: () => _edit(meal)),
     );
+  }
+
+  /// Opens the edit sheet for [meal], then refreshes what the edit touched.
+  ///
+  /// The meal's **own** day, not `widget.date`: they are the same today and
+  /// differ the moment a meal is edited from a list showing another day, and
+  /// the sheet stamps and keys off what it is given.
+  Future<void> _edit(MealEntry meal) async {
+    await AddMealBottomSheet.show(context, date: widget.date, existing: meal);
+    if (!mounted) {
+      return;
+    }
+    // Both, for the reason the delete path invalidates both: the list is what
+    // the user is looking at and the macro totals above it are stale too.
+    ref
+      ..invalidate(todaysMealsProvider(widget.date))
+      ..invalidate(todaysDailyLogProvider(widget.date));
   }
 
   Future<void> _delete(int id) async {
