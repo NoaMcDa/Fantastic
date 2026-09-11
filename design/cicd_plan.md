@@ -670,12 +670,30 @@ it was not asked for. Doing it next is the recommendation.
 
 | Phase | Contents | Parked until |
 |---|---|---|
-| **3** | `integration.yml`, nightly on a macOS simulator | **There are complete user flows to click through.** Today `integration_test/` does not exist and neither do the flows — onboarding, meal logging and the streak machine are M2–M4 work. A nightly suite over an app with five placeholder screens tests nothing. Revisit when #95–#101 have real screens to drive, i.e. M8 as originally scoped |
+| **3** | ~~`integration.yml`, nightly on a macOS simulator~~ — **[r4] superseded, see below** | ~~There are complete user flows to click through~~ — both conditions are now met |
 | **4** | fastlane, match, `ExportOptions.plist`, `testflight.yml` | **There is a stable feature set worth handing to human beta testers.** Shipping placeholder screens to TestFlight spends reviewer goodwill and a week of setup for no feedback. Revisit when the 5 MVP features are behaviourally complete |
 | **5** | `release.yml`, tag flow, environment approval, Hebrew metadata | Phase 4 is running and a submission date is real |
 
-**This is the right call, and it is not merely a deferral — it removes the
-plan's only forcing problem.** Revision 1's §8 showed the nightly macOS run
+> **[r4] Phase 3 is unparked, in a different form — `design/m8_preflight.md`
+> Part 0.** Both halves of the parking rationale have expired. The flows exist
+> (M2–M6 shipped every MVP feature), and the cost argument was about macOS
+> minutes this project no longer needs to spend: `flutter test -d flutter-tester
+> integration_test/app_test.dart` drives the real app — real router, real
+> provider graph, real repositories, real in-memory sembast — **headless on
+> Linux**, and a four-test aggregator covering onboarding → dashboard → meal →
+> streak → all five tabs ran in **14 seconds**. Measured against this
+> repository on Flutter 3.47.3; see that document's §0.2 and Part 9.
+>
+> So Phase 3 becomes a second `ubuntu-latest` job in `ci.yml`, **per PR and
+> blocking**, at ~210 effective min/mo rather than §8's ~6,000. The macOS
+> simulator tier is still worth having one day — it is the only thing that can
+> exercise the camera, ML Kit and notifications (`m8_preflight.md` §0.4) — but
+> as a supplement, once Epic #4's Mac exists, not as the primary tier.
+> §6.5's `integration.yml` and §8's nightly cost line stay as the design for
+> *that* tier, and should not be read as the plan for this one.
+
+**Parking Phases 4–5 is the right call, and it is not merely a deferral — it
+removes the plan's only forcing problem.** Revision 1's §8 showed the nightly macOS run
 alone exceeding the free Actions tier by 3×, which would have forced a choice
 between going public, dropping to weekly, or adding Codemagic as a second CI
 system. Parking Phases 3–5 makes that decision moot until there is something
