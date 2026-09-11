@@ -3,6 +3,7 @@ import 'package:fantastic/features/dashboard/application/electrolyte_advice.dart
 import 'package:fantastic/features/dashboard/application/electrolyte_advisor.dart';
 import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
+import 'package:fantastic/features/dashboard/presentation/widgets/electrolytes_card_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,6 +34,9 @@ class ElectrolytesCard extends ConsumerStatefulWidget {
 
   static const AdaptationPhase _defaultPhase = AdaptationPhase.induction;
 
+  /// Shown in place of the deficit warning on a day with no `DailyLog`.
+  static const String emptyDayMessage = 'טרם נרשמו אלקטרוליטים היום';
+
   @override
   ConsumerState<ElectrolytesCard> createState() => _ElectrolytesCardState();
 }
@@ -44,25 +48,62 @@ class _ElectrolytesCardState extends ConsumerState<ElectrolytesCard> {
   Widget build(BuildContext context) {
     final logAsync = ref.watch(todaysDailyLogProvider(widget.date));
 
-    return logAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
-      data: (log) => log == null
-          ? const SizedBox.shrink()
-          : _card(
-              ref.watch(electrolyteAdvisorProvider).advise(widget.phase, log),
-              log,
-            ),
+    // `hasError` first, and `AsyncValue.when` deliberately not used at all.
+    //
+    // riverpod 3 reports a provider that failed *before ever producing a
+    // value* as `AsyncLoading` **with an error attached** — both flags are
+    // true — and `when` is loading-first, so this card's `error:` branch was
+    // never reached for a first-read failure. Both branches happened to
+    // return `SizedBox.shrink()`, which is precisely why nobody saw it: the
+    // bug was invisible until a branch grew content (#302).
+    //
+    // Says the read failed rather than rendering nothing: an empty day and a
+    // broken store look identical otherwise, and mean opposite things.
+    if (logAsync.hasError) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: Text('לא ניתן לטעון את המדדים')),
+        ),
+      );
+    }
+
+    if (!logAsync.hasValue) {
+      return const ElectrolytesCardSkeleton();
+    }
+
+    // A day with nothing logged has no `DailyLog` at all, and every total on
+    // one already defaults to zero — so the three targets are worth showing
+    // before anything is logged, which on induction morning is exactly when
+    // the user needs them.
+    final stored = logAsync.requireValue;
+    final log = stored ?? DailyLog(date: widget.date);
+
+    return _card(
+      ref.watch(electrolyteAdvisorProvider).advise(widget.phase, log),
+      log,
+      isEmptyDay: stored == null,
     );
   }
 
-  Widget _card(ElectrolyteAdvice advice, DailyLog log) {
+  Widget _card(
+    ElectrolyteAdvice advice,
+    DailyLog log, {
+    required bool isEmptyDay,
+  }) {
     return Card(
       child: Column(
         children: [
           ListTile(
             title: const Text('אלקטרוליטים'),
-            subtitle: advice.hasAnyDeficit
+            // On a day with nothing logged, three full deficit bars read as a
+            // failure rather than as a target — the same misreading
+            // `EmptyMealsState` documents for the macro bars. A stored
+            // all-zero day is **not** this: the record exists, so the user
+            // logged something and then emptied it.
+            subtitle: isEmptyDay
+                ? const Text(ElectrolytesCard.emptyDayMessage)
+                : advice.hasAnyDeficit
                 ? const Text('חסרים אלקטרוליטים')
                 : null,
             trailing: IconButton(

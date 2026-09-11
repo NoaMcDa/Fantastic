@@ -5,6 +5,7 @@ import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dar
 import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/electrolytes_card.dart';
+import 'package:fantastic/features/dashboard/presentation/widgets/electrolytes_card_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -204,42 +205,11 @@ void main() {
     });
   });
 
-  group('non-data states', () {
-    testWidgets('renders nothing when the day has no log', (tester) async {
-      await pumpCard(tester);
-      await tester.pumpAndSettle();
-
-      expect(find.byType(Card), findsNothing);
-    });
-
-    testWidgets('renders nothing while loading', (tester) async {
-      await pumpApp(
-        tester,
-        ElectrolytesCard(date: date),
-        overrides: [
-          todaysDailyLogProvider(date)
-              .overrideWith((ref) => Completer<DailyLog?>().future),
-        ],
-      );
-      await tester.pump();
-
-      expect(find.byType(Card), findsNothing);
-    });
-
-    testWidgets('renders nothing when the read fails', (tester) async {
-      await pumpApp(
-        tester,
-        ElectrolytesCard(date: date),
-        overrides: [
-          todaysDailyLogProvider(date)
-              .overrideWith((ref) async => throw Exception('disk gone')),
-        ],
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byType(Card), findsNothing);
-    });
-  });
+  // These three asserted `findsNothing` — the defect itself, written down as
+  // intended behaviour. The card was not on screen on induction morning, and
+  // a broken store looked exactly like an empty day (#302). Rewritten rather
+  // than deleted: each one still covers its branch, now asserting what the
+  // branch should do.
 
   testWidgets('lays out without overflowing a narrow screen', (tester) async {
     tester.view.physicalSize = const Size(320, 800);
@@ -250,5 +220,126 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
+  });
+
+  group('non-data states (#302)', () {
+    /// The card over a provider that fails **before ever producing a value**.
+    ///
+    /// riverpod 3 reports that as `AsyncLoading` *with an error attached* —
+    /// both flags true — which is exactly the shape `AsyncValue.when`
+    /// dispatches to its `loading:` branch. This is the test that would have
+    /// caught it, and it fails against the old `when`.
+    Future<void> pumpFailingBeforeFirstValue(WidgetTester tester) => pumpApp(
+      tester,
+      ElectrolytesCard(date: date),
+      overrides: [
+        todaysDailyLogProvider(date).overrideWith(
+          (ref) => Future<DailyLog?>.error(Exception('disk gone')),
+        ),
+      ],
+    );
+
+    testWidgets('a failed read says so rather than rendering nothing', (
+      tester,
+    ) async {
+      await pumpFailingBeforeFirstValue(tester);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('לא ניתן לטעון את המדדים'), findsOneWidget);
+    });
+
+    // M6 convention 9.
+    testWidgets('a failed read shows no loading indicator', (tester) async {
+      await pumpFailingBeforeFirstValue(tester);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(ElectrolytesCardSkeleton), findsNothing);
+    });
+
+    testWidgets('a read in flight shows a loading state, not a blank', (
+      tester,
+    ) async {
+      await pumpApp(
+        tester,
+        ElectrolytesCard(date: date),
+        overrides: [
+          todaysDailyLogProvider(date)
+              .overrideWith((ref) => Completer<DailyLog?>().future),
+        ],
+      );
+      await tester.pump();
+
+      expect(find.byType(ElectrolytesCardSkeleton), findsOneWidget);
+    });
+
+    // Induction morning, before the first meal: the targets are exactly what
+    // the user needs to see, and the card was simply not on screen.
+    testWidgets('a day with no DailyLog shows the three targets', (
+      tester,
+    ) async {
+      await pumpCard(tester);
+      await tester.pumpAndSettle();
+
+      expect(gauges(tester), hasLength(3));
+      expect(find.text('נתרן'), findsOneWidget);
+      expect(find.text('אשלגן'), findsOneWidget);
+      expect(find.text('מגנזיום'), findsOneWidget);
+    });
+
+    testWidgets('a day with no DailyLog says nothing was logged yet', (
+      tester,
+    ) async {
+      await pumpCard(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text(ElectrolytesCard.emptyDayMessage), findsOneWidget);
+    });
+
+    // The record exists, so the user logged something and emptied it — a
+    // different fact from never having logged. The distinction is the null
+    // log, not whether the values are zero.
+    testWidgets('a stored all-zero day does not say nothing was logged', (
+      tester,
+    ) async {
+      await pumpCard(tester, log: DailyLogFixture.empty());
+      await tester.pumpAndSettle();
+
+      expect(find.text(ElectrolytesCard.emptyDayMessage), findsNothing);
+      expect(gauges(tester), hasLength(3));
+    });
+
+    // Distinct values, per CLAUDE.md: a fixture sharing one value across
+    // same-typed fields hides a crossed gauge.
+    testWidgets('a stored day shows its logged values, not zeros', (
+      tester,
+    ) async {
+      await pumpCard(
+        tester,
+        log: DailyLogFixture.fixture(
+          sodiumMg: 1000,
+          potassiumMg: 2000,
+          magnesiumMg: 300,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(ElectrolytesCard.emptyDayMessage), findsNothing);
+      expect(gauges(tester).map((g) => g.value).toSet(), hasLength(3));
+    });
+
+    // No branch of `build` may render nothing.
+    testWidgets('the card is on screen in every state', (tester) async {
+      await pumpCard(tester);
+      await tester.pumpAndSettle();
+      expect(find.byType(Card), findsWidgets);
+
+      await pumpFailingBeforeFirstValue(tester);
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(Card), findsWidgets);
+    });
   });
 }
