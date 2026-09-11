@@ -17,6 +17,8 @@ import 'package:fantastic/features/onboarding/presentation/screens/onboarding_sc
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen4.dart';
 import 'package:fantastic/main.dart';
 import 'package:flutter/material.dart';
+import 'package:fantastic/features/dashboard/data/providers.dart';
+import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -71,6 +73,11 @@ class _InMemoryStreakRepository implements StreakRepository {
 /// only test here that would catch a wiring mistake between two screens
 /// that both pass their own tests, and the closest thing this suite has to
 /// the browser run that closed M3.
+/// #303 gave `adaptationPhaseServiceProvider` a second dependency, so a
+/// container that overrides only the streak repository now reaches
+/// `databaseProvider` and tries to open a real database.
+class _MockDailyLogRepository extends Mock implements DailyLogRepository {}
+
 void main() {
   late _InMemoryProfileRepository profiles;
   late _InMemoryStreakRepository streaks;
@@ -107,6 +114,7 @@ void main() {
       overrides: [
         userProfileRepositoryProvider.overrideWithValue(profiles),
         streakRepositoryProvider.overrideWithValue(streaks),
+        dailyLogRepositoryProvider.overrideWithValue(_MockDailyLogRepository()),
         notificationServiceProvider.overrideWithValue(notifications),
         // The dashboard's own data providers are deliberately left
         // unoverridden: they fail to reach a database and render their

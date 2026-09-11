@@ -21,6 +21,8 @@ import 'package:fantastic/features/onboarding/application/providers/user_profile
 import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_check_in_strip.dart';
 import 'package:flutter/material.dart';
+import 'package:fantastic/features/dashboard/data/providers.dart';
+import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -31,6 +33,11 @@ import '../../../../fixtures/fixtures.dart';
 class _MockMealLoggingService extends Mock implements MealLoggingService {}
 
 class _MockStreakRepository extends Mock implements StreakRepository {}
+
+/// #303 gave `adaptationPhaseServiceProvider` a second dependency, so a
+/// container that overrides only the streak repository now reaches
+/// `databaseProvider` and tries to open a real database.
+class _MockDailyLogRepository extends Mock implements DailyLogRepository {}
 
 void main() {
   /// Today at midnight — the same value the screen derives internally.
@@ -69,6 +76,7 @@ void main() {
       todaysMealsProvider(date).overrideWith((ref) async => meals),
       mealLoggingServiceProvider.overrideWithValue(loggingService),
       streakRepositoryProvider.overrideWithValue(streakRepository),
+      dailyLogRepositoryProvider.overrideWithValue(_MockDailyLogRepository()),
       // MacroSummaryCard measures the day against the onboarding profile's
       // targets (#73); without an override it reaches for a database.
       macroTargetsProvider.overrideWith(
@@ -176,6 +184,9 @@ void main() {
             ),
             mealLoggingServiceProvider.overrideWithValue(loggingService),
             streakRepositoryProvider.overrideWithValue(streakRepository),
+            dailyLogRepositoryProvider.overrideWithValue(
+              _MockDailyLogRepository(),
+            ),
           ],
           child: const MaterialApp(
             home: Directionality(
@@ -208,6 +219,9 @@ void main() {
             ),
             mealLoggingServiceProvider.overrideWithValue(loggingService),
             streakRepositoryProvider.overrideWithValue(streakRepository),
+            dailyLogRepositoryProvider.overrideWithValue(
+              _MockDailyLogRepository(),
+            ),
           ],
           child: const MaterialApp(
             home: Directionality(

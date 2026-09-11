@@ -1,4 +1,3 @@
-import 'package:fantastic/core/constants/keto_constants.dart';
 import 'package:fantastic/features/adaptation/application/adaptation_phase_service.dart';
 import 'package:fantastic/features/dashboard/application/keto_ratio_calculator.dart';
 import 'package:fantastic/features/dashboard/data/providers.dart';
@@ -47,7 +46,7 @@ class MealLoggingService {
   /// totals permanently wrong with nothing to detect it.
   Future<MealEntry> logMeal(MealEntry entry) async {
     final saved = await mealRepository.save(entry);
-    await _recalculateDailyLog(entry.timestamp, evaluatedAt: entry.timestamp);
+    await _recalculateDailyLog(entry.timestamp, evaluatedAt: DateTime.now());
     return saved;
   }
 
@@ -60,8 +59,7 @@ class MealLoggingService {
   /// pass a date-only value here — the diary holds its selected date stripped
   /// to midnight — and handing that to the state machine dated the breach to
   /// 00:00, so a deletion at 22:00 opened a grace period expiring at midnight
-  /// tomorrow: two hours to recover instead of twenty-four. `logMeal` has a
-  /// real instant of its own and keeps using it.
+  /// tomorrow: two hours to recover instead of twenty-four.
   Future<void> deleteMeal(int id, DateTime date) async {
     await mealRepository.delete(id);
     await _recalculateDailyLog(date, evaluatedAt: DateTime.now());
@@ -97,56 +95,19 @@ class MealLoggingService {
     );
 
     await dailyLogRepository.save(updated);
-    await _evaluateStreak(date, updated, evaluatedAt);
-  }
 
-  /// Feeds the day's ratio to the adaptation state machine.
-  ///
-  /// A proxy for end-of-day compliance, as #58 describes: there is no
-  /// background job yet, so the streak is re-evaluated every time the day's
-  /// totals move. [AdaptationPhaseService.recordCompliantDay] is idempotent
-  /// per day, which is what makes a per-meal trigger safe.
-  ///
-  /// Two days are deliberately left alone:
-  ///
-  /// - **Any day but today.** Backdating a diary entry must not rewrite
-  ///   streak history, and it cannot: the state machine holds one current
-  ///   streak, not a per-day ledger.
-  /// - **A day with no carbs and no protein logged.** The ratio is
-  ///   `fat / (netCarbs + protein)`, and [KetoRatioCalculator] returns `0`
-  ///   for a zero denominator — "nothing to divide by", not "a bad day".
-  ///   Treating that 0 as a breach would open a grace period on the most
-  ///   ordinary keto morning there is, a coffee with butter and nothing
-  ///   else. See `design/m3_preflight.md` §1.3.
-  ///
-  /// [evaluatedAt] is the instant the state machine reasons from: it decides
-  /// the grace-period window, which [date] alone cannot once [date] has been
-  /// stripped to midnight.
-  Future<void> _evaluateStreak(
-    DateTime date,
-    DailyLog log,
-    DateTime evaluatedAt,
-  ) async {
-    if (!_isToday(date)) {
-      return;
-    }
-    if (log.totalNetCarbsG + log.totalProteinG == 0) {
-      return;
-    }
-
-    // The ratio the log already carries, not a second calculation — the two
-    // could otherwise drift and the streak would disagree with the dashboard.
-    await adaptationPhaseService.evaluateToday(
-      evaluatedAt,
-      compliant: log.ketoRatioAvg >= KetoConstants.targetKetoRatioIdeal,
-    );
-  }
-
-  static bool _isToday(DateTime date) {
-    final now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
+    // Re-derive the streak from the day history, which [date]'s totals have
+    // just changed. Every write path reaches this, including one that edits or
+    // empties a day long past — which is the whole point (#303).
+    //
+    // [date] says which day moved; [evaluatedAt] says when the evaluation is
+    // happening, and it is always the wall clock. `logMeal` used to pass the
+    // meal's own timestamp, which is the same instant for a meal logged now
+    // and badly wrong for a back-dated one: the derivation walks back from
+    // the instant it is given, so a meal dated two days ago started the walk
+    // two days ago and today stopped counting toward the streak. The e2e
+    // back-fill flow caught it.
+    await adaptationPhaseService.recomputeFor(date, at: evaluatedAt);
   }
 }
 

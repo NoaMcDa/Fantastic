@@ -6,6 +6,8 @@ import 'package:fantastic/features/adaptation/data/providers.dart';
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
+import 'package:fantastic/features/dashboard/data/providers.dart';
+import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -13,6 +15,11 @@ import 'package:mocktail/mocktail.dart';
 import '../../../../fixtures/fixtures.dart';
 
 class _MockStreakRepository extends Mock implements StreakRepository {}
+
+/// #303 gave `adaptationPhaseServiceProvider` a second dependency. Without
+/// this override the container reaches `databaseProvider` and tries to open a
+/// real database.
+class _MockDailyLogRepository extends Mock implements DailyLogRepository {}
 
 void main() {
   late _MockStreakRepository repository;
@@ -36,7 +43,10 @@ void main() {
   ProviderContainer containerWith(Stream<StreakState?> Function() stream) {
     when(repository.watch).thenAnswer((_) => stream());
     final container = ProviderContainer(
-      overrides: [streakRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        streakRepositoryProvider.overrideWithValue(repository),
+        dailyLogRepositoryProvider.overrideWithValue(_MockDailyLogRepository()),
+      ],
     );
     addTearDown(container.dispose);
     container.listen(streakStateProvider, (_, _) {});
@@ -122,7 +132,12 @@ void main() {
     ProviderContainer phaseContainer(Stream<StreakState?> Function() stream) {
       when(repository.watch).thenAnswer((_) => stream());
       final container = ProviderContainer(
-        overrides: [streakRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          streakRepositoryProvider.overrideWithValue(repository),
+          dailyLogRepositoryProvider.overrideWithValue(
+            _MockDailyLogRepository(),
+          ),
+        ],
       );
       addTearDown(container.dispose);
       container.listen(currentPhaseProvider, (_, _) {});

@@ -1,4 +1,6 @@
 import 'package:fantastic/features/adaptation/data/providers.dart';
+import 'package:fantastic/features/dashboard/data/providers.dart';
+import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
 import 'package:fantastic/features/adaptation/presentation/widgets/grace_period_banner.dart';
@@ -10,6 +12,11 @@ import '../../../../fixtures/fixtures.dart';
 import '../../../../helpers/pump_app.dart';
 
 class _MockStreakRepository extends Mock implements StreakRepository {}
+
+/// #303 gave `adaptationPhaseServiceProvider` a second dependency, so a
+/// container that overrides only the streak repository now reaches
+/// `databaseProvider` and tries to open a real database.
+class _MockDailyLogRepository extends Mock implements DailyLogRepository {}
 
 void main() {
   late _MockStreakRepository repository;
@@ -24,7 +31,10 @@ void main() {
     await pumpApp(
       tester,
       const GracePeriodBanner(),
-      overrides: [streakRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        streakRepositoryProvider.overrideWithValue(repository),
+        dailyLogRepositoryProvider.overrideWithValue(_MockDailyLogRepository()),
+      ],
     );
     await tester.pumpAndSettle();
   }
@@ -86,7 +96,12 @@ void main() {
       await pumpApp(
         tester,
         const GracePeriodBanner(),
-        overrides: [streakRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          streakRepositoryProvider.overrideWithValue(repository),
+          dailyLogRepositoryProvider.overrideWithValue(
+            _MockDailyLogRepository(),
+          ),
+        ],
       );
       await tester.pumpAndSettle();
 
@@ -164,7 +179,10 @@ void main() {
     await pumpApp(
       tester,
       const SizedBox.shrink(),
-      overrides: [streakRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        streakRepositoryProvider.overrideWithValue(repository),
+        dailyLogRepositoryProvider.overrideWithValue(_MockDailyLogRepository()),
+      ],
     );
     await tester.pumpAndSettle();
 

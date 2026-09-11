@@ -84,6 +84,24 @@ GRACE_PERIOD ──(compliant within 24h)──► resume previous phase
 GRACE_PERIOD ──(24h elapsed)──► reset to INDUCTION, streak = 0
 ```
 
+**"Breach detected" means:** the day has meals logged and their total net carbs
+exceed `KetoConstants.maxCompliantNetCarbsG` (50 g). At or below it the day is
+compliant; with nothing logged at all it is neither — an unlogged day that is
+not today breaks the streak on its own. The single definition is
+`DayCompliance.of` (`lib/features/adaptation/domain/models/day_compliance.dart`),
+and nothing else may restate it.
+
+**The keto ratio does not decide compliance**, and until #303 it did:
+`ketoRatioAvg >= 2.0`. Since the ratio is `fat / (netCarbs + protein)`, protein
+sat in the denominator beside carbs, so a disciplined 8 g-carb day with 90 g of
+protein scored 0.31 and broke the streak while 100 g of fat with 50 g of carbs
+scored exactly 2.0 and passed. The ratio keeps every other job it has — the
+ring arc, the macro card, `DailyLog.ketoRatioAvg`.
+
+**The counter is derived, not accumulated.** `AdaptationPhaseService.recomputeFor`
+walks back over `DailyLog` from today on every write, so a retroactive edit is
+honoured by construction rather than by back-dated arithmetic.
+
 **Notification trigger:** `flutter_local_notifications` fires a warning at 20:00 if no meal logged that day.
 
 ---

@@ -209,11 +209,14 @@ explicit if anyone ever formats a grace deadline.
 
 - **Nothing requests notification permission.** The reminder is scheduled on
   every launch and the OS will deliver nothing until M4 asks.
-- **A day banked compliant cannot be un-banked.** A breach later the same day
-  is ignored, because reversing it would need the previous `lastCompliantDate`
-  to restore and the singleton record does not keep it. #58's own Background
-  describes the end-of-day job that replaces the per-meal proxy; that is where
-  this belongs.
+- ~~**A day banked compliant cannot be un-banked.**~~ **Closed by #303, and the
+  end-of-day job it was waiting for is no longer needed.** The streak is now
+  *derived* by walking the `DailyLog` history rather than accumulated a day at a
+  time, so there is nothing to un-bank: every write re-reads the day's totals and
+  re-decides. Under the old keto-ratio rule the gap was harmless; under a
+  net-carb rule it would not have been, because carbs only accumulate — a
+  compliant breakfast would have banked the day and 200 g of carbs at dinner
+  could not have taken it back.
 - **The streak resets lazily.** An expired grace period is only noticed on the
   next evaluation, so the banner reads "פחות מדקה" until the user logs
   something. A launch-time evaluation would fix it. *(Partly closed — see

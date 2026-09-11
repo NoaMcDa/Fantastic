@@ -1,24 +1,42 @@
 import 'dart:math' as math;
 
+import 'package:fantastic/features/adaptation/application/streak_calculator.dart';
 import 'package:fantastic/features/adaptation/data/providers.dart';
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
+import 'package:fantastic/features/adaptation/domain/models/day_compliance.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
+import 'package:fantastic/features/dashboard/data/providers.dart';
+import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
+import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'adaptation_phase_service.g.dart';
 
-/// The adaptation state machine: compliant days advance the streak, a breach
-/// opens a 24-hour grace period, and an expired grace period resets everything
-/// but the personal best.
+/// The adaptation state machine: the streak is derived from the logged day
+/// history, a breach opens a 24-hour grace period, and an expired grace period
+/// resets everything but the personal best.
 ///
-/// Pure orchestration over [StreakRepository] — no Flutter, no store types.
-/// Every mutation goes through [StreakState.copyWith] and is persisted before
-/// it is returned, so a caller never holds state the repository has not seen.
+/// Pure orchestration over [StreakRepository] and [DailyLogRepository] — no
+/// Flutter, no store types. The derived state is persisted before it is
+/// returned, so a caller never holds state the repository has not seen.
+///
+/// **The counter is derived, not accumulated** (#303). It used to advance by
+/// one per compliant meal-write, which made a retroactive edit impossible to
+/// honour: back-dating a `+1` cannot know whether the days either side of it
+/// are contiguous, and back-dating `lastCompliantDate` rewrites history
+/// backwards. Counting back over `DailyLog` instead means a retroactive edit
+/// is correct by construction — the walk reads whatever the history now says.
 class AdaptationPhaseService {
-  const AdaptationPhaseService(this._repository);
+  const AdaptationPhaseService({
+    required this.repository,
+    required this.dailyLogRepository,
+  });
 
-  final StreakRepository _repository;
+  /// Public, like `MealLoggingService`'s, because a named parameter cannot
+  /// start with an underscore and `prefer_initializing_formals` wants one.
+  final StreakRepository repository;
+  final DailyLogRepository dailyLogRepository;
 
   /// How long a user has to get back on plan before the streak resets.
   static const Duration gracePeriod = Duration(hours: 24);
@@ -37,117 +55,127 @@ class AdaptationPhaseService {
   AdaptationPhase currentPhase(StreakState state) =>
       _phaseFor(state.currentStreak);
 
-  /// Banks [date] as a compliant day: the streak advances by one, the phase
-  /// follows it, and any open grace period closes.
+  /// Re-derives the streak after [changedDate]'s totals moved, and persists it.
   ///
-  /// **Idempotent per calendar day.** The trigger is per *meal* (#58), so
-  /// without this guard three meals would leave a three-day streak. A day
-  /// already banked returns the stored state untouched, with no write.
+  /// [at] is the instant to reason from: it decides grace-window opening and
+  /// expiry, which [changedDate] cannot once it has been stripped to midnight.
+  /// `MealLoggingService` passes the meal's own timestamp when logging and the
+  /// wall clock when deleting, for exactly that reason.
   ///
-  /// **A grace period that closed before [date] has already cost the streak.**
-  /// The window is what the user was given to get back on plan; a compliant
-  /// day logged after it closed starts a new streak at 1 rather than resuming
-  /// the old one. Checking it here and not only in [handleBreach] is what
-  /// makes that true: the reset is lazy — nothing evaluates the state machine
-  /// while the user logs nothing — so the *next* evaluation is where an
-  /// expired window has to be noticed, and it is at least as likely to be a
-  /// compliant meal as a breach.
+  /// The single entry point, replacing the `recordCompliantDay` /
+  /// `handleBreach` / `evaluateToday` trio. The caller no longer tells the
+  /// service what the verdict is — the service derives it — which is what
+  /// stops two copies of the compliance rule from reappearing.
   ///
-  /// **So has a skipped day**, whether or not any window was ever opened —
-  /// see [reconcile]. Both cases are the same question, asked of a state that
-  /// nothing has evaluated since the user last logged something.
-  ///
-  /// Known limitation: a day banked early cannot be un-banked by a later
-  /// breach on the same day. Reversing it would need the previous
-  /// `lastCompliantDate` to restore, which the singleton record does not keep.
-  /// Deferred with the end-of-day evaluation job #58's background describes.
-  Future<StreakState> recordCompliantDay(DateTime date) async {
+  /// **A breach on a past day opens no window.** A grace period is a 24-hour
+  /// chance to recover from a breach as it happens; granting one retroactively
+  /// would write an already-expired window that arms an immediate reset.
+  /// Re-deriving over a past breach simply shortens the streak, which is the
+  /// honest answer.
+  Future<StreakState> recomputeFor(
+    DateTime changedDate, {
+    required DateTime at,
+  }) async {
     final current = await _load();
-    final day = _dateOnly(date);
-    if (_isSameDay(current.lastCompliantDate, day)) {
-      return current;
-    }
+    final logs = await dailyLogRepository.findAll();
 
-    // Rebuilt rather than copied, for the same reason [handleBreach] does it:
-    // every field but the personal best returns to its initial value, and a
-    // field added to StreakState later resets correctly without anyone
-    // remembering to clear it.
-    final base = reconcile(current, date);
+    var window = _expireIfClosed(current, at);
+    window = _openWindowIfTodayBreached(
+      window,
+      logs: logs,
+      changedDate: changedDate,
+      at: at,
+    );
 
-    final streak = base.currentStreak + 1;
-    return _repository.save(
-      base.copyWith(
+    final derivation = StreakCalculator.derive(
+      logs: logs,
+      now: at,
+      gracedDate: _gracedDate(window, at),
+    );
+
+    final streak = derivation.streak;
+    return repository.save(
+      window.copyWith(
         currentStreak: streak,
-        highestStreak: math.max(base.highestStreak, streak),
+        highestStreak: math.max(current.highestStreak, streak),
         phase: _phaseFor(streak),
-        lastCompliantDate: day,
-        inGracePeriod: false,
-        // The flag, not `gracePeriodEnd: null` — `copyWith` resolves a null
-        // argument to the existing value, so passing null would leave a stale
-        // expiry behind on a streak that is no longer at risk.
-        clearGracePeriodEnd: true,
+        lastCompliantDate: derivation.lastCompliantDate,
+        // A streak of zero has nothing left to protect, so any window still
+        // open is closed with it.
+        inGracePeriod: streak == 0 ? false : window.inGracePeriod,
+        clearGracePeriodEnd: streak == 0 || !window.inGracePeriod,
+        clearLastCompliantDate: derivation.lastCompliantDate == null,
       ),
     );
   }
 
-  /// Applies a breach observed at [now].
+  /// [state] with a grace window that closed before [at] cleared.
   ///
-  /// Three outcomes, in the order they are checked:
+  /// Rebuilt on the record rather than reset wholesale: the derivation that
+  /// follows decides what the streak is worth now, so this only has to stop
+  /// the stale window from forgiving a day it no longer covers.
+  static StreakState _expireIfClosed(StreakState state, DateTime at) =>
+      _hasExpired(state, at)
+      ? state.copyWith(inGracePeriod: false, clearGracePeriodEnd: true)
+      : state;
+
+  /// [state] with a fresh window when today is the day that just breached.
   ///
-  /// 1. [now]'s day is already banked compliant — no-op. A carb-heavy snack
-  ///    after a compliant dinner must not open a grace period on a day that
-  ///    is already won.
-  /// 2. A grace period is open and has expired — the streak resets to zero
-  ///    and the phase returns to induction. [StreakState.highestStreak] is the
-  ///    only thing carried across: it is a personal best, not current state.
-  /// 3. Otherwise the first breach opens a [gracePeriod] window from [now],
-  ///    leaving the streak intact. A second breach inside an open window is a
-  ///    no-op — one lapse, one penalty.
-  Future<StreakState> handleBreach(DateTime now) async {
-    final current = await _load();
-
-    if (_isSameDay(current.lastCompliantDate, _dateOnly(now))) {
-      return current;
+  /// Only for today, and only when no window is already open — one lapse, one
+  /// penalty. A second breach on the same day cannot open a second window
+  /// because a day has one [DayCompliance]; a breach on a *later* day finds
+  /// the window already spent and lets the walk end there.
+  static StreakState _openWindowIfTodayBreached(
+    StreakState state, {
+    required List<DailyLog> logs,
+    required DateTime changedDate,
+    required DateTime at,
+  }) {
+    if (state.inGracePeriod) {
+      return state;
     }
-
-    if (current.inGracePeriod) {
-      if (!_hasExpired(current, now)) {
-        return current;
-      }
-      // Rebuilt rather than copied: every field but the personal best returns
-      // to its initial value, and a field added to StreakState later resets
-      // correctly here without anyone remembering to clear it.
-      return _repository.save(
-        StreakState(highestStreak: current.highestStreak),
-      );
+    final today = StreakCalculator.dateOnly(at);
+    if (StreakCalculator.dateOnly(changedDate) != today) {
+      return state;
     }
-
-    // Reached only when no window is open, so the streak here is broken by a
-    // skipped day or not at all. A breach after a gap opens its window against
-    // the streak the gap already cost, never against the stale number.
-    final base = reconcile(current, now);
-
-    return _repository.save(
-      base.copyWith(inGracePeriod: true, gracePeriodEnd: now.add(gracePeriod)),
+    if (DayCompliance.of(_logFor(logs, today)) != DayStatus.breach) {
+      return state;
+    }
+    return state.copyWith(
+      inGracePeriod: true,
+      gracePeriodEnd: at.add(gracePeriod),
     );
   }
 
-  /// Routes [date] to [recordCompliantDay] or [handleBreach].
+  /// The log for [day], or null when the day has no record.
+  static DailyLog? _logFor(List<DailyLog> logs, DateTime day) {
+    for (final log in logs) {
+      if (StreakCalculator.dateOnly(log.date) == day) {
+        return log;
+      }
+    }
+    return null;
+  }
+
+  /// The one breached day an open, unexpired window forgives.
   ///
-  /// [date] carries the time of day, which **both** branches compare against
-  /// the grace-period expiry — a midnight-normalised value would judge the
-  /// window by its start rather than by when the evaluation happened. That is
-  /// why `MealLoggingService` passes the wall clock on the delete path, where
-  /// the only date it holds has been stripped to midnight.
-  Future<StreakState> evaluateToday(DateTime date, {required bool compliant}) =>
-      compliant ? recordCompliantDay(date) : handleBreach(date);
+  /// Derived from the expiry already on the record — the window runs
+  /// [gracePeriod] from the breach — so **no field is added** to
+  /// [StreakState].
+  static DateTime? _gracedDate(StreakState state, DateTime at) {
+    final end = state.gracePeriodEnd;
+    if (!state.inGracePeriod || end == null || _hasExpired(state, at)) {
+      return null;
+    }
+    return StreakCalculator.dateOnly(end.subtract(gracePeriod));
+  }
 
   /// The stored state, or the first-launch seed.
   ///
   /// Null from the repository is the never-logged sentinel, not an error — see
   /// [StreakRepository.load].
   Future<StreakState> _load() async =>
-      await _repository.load() ?? StreakState.initial();
+      await repository.load() ?? StreakState.initial();
 
   static AdaptationPhase _phaseFor(int streak) {
     if (streak >= deepKetosisFromDay) {
@@ -165,82 +193,19 @@ class AdaptationPhaseService {
   /// still inside the window — the user is given the boundary, not denied it.
   ///
   /// An `inGracePeriod` with no [StreakState.gracePeriodEnd] cannot be judged
-  /// expired: there is no instant to compare against, and guessing would
-  /// reset a streak on a malformed record. Both callers leave such a state
-  /// alone, which is what they did before this was factored out.
-  /// [state] as the passage of time alone has left it, at [now].
-  ///
-  /// Pure, and the only thing in the app that applies a rule no logged meal
-  /// implies: **a skipped day breaks the streak.** Every other transition is
-  /// driven by a meal, so without this a user could log a compliant day in
-  /// January, vanish until March, log one more, and be told they were on a
-  /// two-day streak — `currentStreak` was a lifetime count of compliant days,
-  /// not a streak.
-  ///
-  /// A day counts as skipped once a whole calendar day has passed with nothing
-  /// banked, so [StreakState.lastCompliantDate] of today or yesterday is
-  /// intact and anything older is broken. Yesterday has to stay intact: today
-  /// is still winnable until midnight.
-  ///
-  /// **An open grace window survives the gap it creates.** A day the user
-  /// *breached* is not a day they skipped — the 24-hour window is exactly what
-  /// a breach buys them, and `CLAUDE.md` promises the streak resumes if a
-  /// compliant day lands inside it. A window that has *closed* breaks the
-  /// streak on its own, whatever the calendar says (#283).
-  ///
-  /// The reset rebuilds rather than copies, so a field added to [StreakState]
-  /// later resets correctly without anyone remembering to clear it.
-  /// [StreakState.highestStreak] is carried across: a personal best is
-  /// history, not current state.
-  ///
-  /// **Applied on write, not on read.** Nothing persists this until the user's
-  /// next logged meal, so the ring can show a stale number until then — the
-  /// "streak resets lazily" gap `design/m3_handoff.md` records. Applying it on
-  /// read would put `DateTime.now()` inside a provider and make every widget
-  /// test that stubs a streak time-dependent.
-  StreakState reconcile(StreakState state, DateTime now) =>
-      _isBroken(state, now)
-      ? StreakState(highestStreak: state.highestStreak)
-      : state;
-
-  /// Whether time alone has already cost [state] its streak, at [at].
-  static bool _isBroken(StreakState state, DateTime at) =>
-      _hasExpired(state, at) ||
-      (!state.inGracePeriod && _skippedADay(state, at));
-
-  /// Whether a whole calendar day has passed with nothing banked.
-  static bool _skippedADay(StreakState state, DateTime at) {
-    final last = state.lastCompliantDate;
-    if (last == null) {
-      // Nothing has ever been banked, so there is no streak to break.
-      return false;
-    }
-    final today = _dateOnly(at);
-    return !_isSameDay(last, today) && !_isSameDay(last, _dayBefore(today));
-  }
-
+  /// expired: there is no instant to compare against, and guessing would reset
+  /// a streak on a malformed record.
   static bool _hasExpired(StreakState state, DateTime at) {
     final end = state.gracePeriodEnd;
     return state.inGracePeriod && end != null && at.isAfter(end);
   }
-
-  /// The calendar day before [day].
-  ///
-  /// Built by subtracting from the day-of-month, never with a
-  /// `Duration(days: 1)`: a duration is a fixed 24 hours and lands on the
-  /// wrong day across a daylight-saving change. `DateTime` normalises a
-  /// non-positive day into the previous month.
-  static DateTime _dayBefore(DateTime day) =>
-      DateTime(day.year, day.month, day.day - 1);
-
-  static DateTime _dateOnly(DateTime value) =>
-      DateTime(value.year, value.month, value.day);
-
-  static bool _isSameDay(DateTime? a, DateTime b) =>
-      a != null && a.year == b.year && a.month == b.month && a.day == b.day;
 }
 
-/// The state machine, wired to the repository behind its domain interface.
+/// The state machine, wired to both repositories behind their domain
+/// interfaces.
 @riverpod
 AdaptationPhaseService adaptationPhaseService(Ref ref) =>
-    AdaptationPhaseService(ref.watch(streakRepositoryProvider));
+    AdaptationPhaseService(
+      repository: ref.watch(streakRepositoryProvider),
+      dailyLogRepository: ref.watch(dailyLogRepositoryProvider),
+    );

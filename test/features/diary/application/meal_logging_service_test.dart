@@ -70,12 +70,15 @@ void main() {
     when(() => dailyLogRepository.save(any())).thenAnswer(
       (invocation) async => invocation.positionalArguments.first as DailyLog,
     );
-    when(
-      () => adaptationPhaseService.evaluateToday(
-        any(),
-        compliant: any(named: 'compliant'),
-      ),
-    ).thenAnswer((_) async => const StreakState());
+    // #303 gave the state machine a second dependency: it derives the streak
+    // from the whole day history on every write.
+    when(dailyLogRepository.findAll).thenAnswer((_) async => []);
+    when(streakRepository.load).thenAnswer((_) async => null);
+    when(() => streakRepository.save(any())).thenAnswer(
+      (invocation) async => invocation.positionalArguments.first as StreakState,
+    );
+    when(() => adaptationPhaseService.recomputeFor(any(), at: any(named: 'at')))
+        .thenAnswer((_) async => const StreakState());
   });
 
   /// The `DailyLog` handed to `dailyLogRepository.save`.
@@ -365,12 +368,13 @@ void main() {
   // Corrected against design/m3_preflight.md — the issue's own snippet
   // evaluated unconditionally, which opens a grace period on a fat-only
   // breakfast (§1.3), and rebuilt the DailyLog without ketoRatioAvg (§4.1).
-  group('streak evaluation', () {
+  group('streak re-derivation', () {
     /// Today, at a fixed time of day.
     ///
-    /// The clock has to be read: "is this today" is the whole gate. Pinning
-    /// the time of day keeps everything else deterministic, and the only way
-    /// this is flaky is a run that straddles midnight.
+    /// The clock has to be read: whether a date is today decides whether a
+    /// grace window may open. Pinning the time of day keeps everything else
+    /// deterministic, and the only way this is flaky is a run that straddles
+    /// midnight.
     DateTime todayAt(int hour) {
       final now = DateTime.now();
       return DateTime(now.year, now.month, now.day, hour);
@@ -382,78 +386,61 @@ void main() {
           return meals;
         });
 
-    /// Whether the day was judged compliant.
-    bool judgedCompliant() =>
+    /// The date handed to the state machine.
+    DateTime recomputedDate() =>
         verify(
-              () => adaptationPhaseService.evaluateToday(
-                any(),
-                compliant: captureAny(named: 'compliant'),
+              () => adaptationPhaseService.recomputeFor(
+                captureAny(),
+                at: any(named: 'at'),
               ),
             ).captured.single
-            as bool;
+            as DateTime;
 
-    void verifyNotEvaluated() => verifyNever(
-      () => adaptationPhaseService.evaluateToday(
-        any(),
-        compliant: any(named: 'compliant'),
-      ),
-    );
+    /// The instant the state machine was told to reason from.
+    DateTime evaluatedAt() =>
+        verify(
+              () => adaptationPhaseService.recomputeFor(
+                any(),
+                at: captureAny(named: 'at'),
+              ),
+            ).captured.single
+            as DateTime;
 
-    test('a compliant day is recorded as compliant', () async {
-      // 40 / (2 + 15) = 2.35 — above the 2.0 threshold.
-      final meal = MealEntryFixture.fixture(
-        timestamp: todayAt(12),
-        fatG: 40,
-        netCarbsG: 2,
-        proteinG: 15,
-      );
+    test('every logged meal re-derives the streak', () async {
+      // The service no longer decides compliance — it says which day moved and
+      // when, and the state machine derives the rest. That is what stopped two
+      // copies of the rule existing (#303).
+      final meal = MealEntryFixture.fixture(timestamp: todayAt(9));
       dayHolds([meal]);
 
       await service.logMeal(meal);
 
-      expect(judgedCompliant(), isTrue);
+      verify(
+        () => adaptationPhaseService.recomputeFor(any(), at: any(named: 'at')),
+      ).called(1);
     });
 
-    test('a day under the threshold is recorded as a breach', () async {
-      // 10 / (30 + 20) = 0.2.
-      final meal = MealEntryFixture.fixture(
-        timestamp: todayAt(12),
-        fatG: 10,
-        netCarbsG: 30,
-        proteinG: 20,
-      );
+    test('a past day is re-derived', () async {
+      // The inversion of the old `a past day is not evaluated`. That test
+      // asserted the defect as intended behaviour: the `_isToday` guard threw
+      // the evaluation away, so back-filling a forgotten day repainted the
+      // calendar and left the streak exactly as broken as it was.
+      final lastWeek = todayAt(9).subtract(const Duration(days: 7));
+      final meal = MealEntryFixture.fixture(timestamp: lastWeek);
       dayHolds([meal]);
 
       await service.logMeal(meal);
 
-      expect(judgedCompliant(), isFalse);
+      expect(recomputedDate(), lastWeek);
     });
 
-    // Exactly 2.0 is met, not missed — the same boundary convention
-    // ElectrolyteAdvisor uses for its targets.
-    test('exactly the threshold counts as compliant', () async {
-      // 40 / (5 + 15) = 2.0.
-      final meal = MealEntryFixture.fixture(
-        timestamp: todayAt(12),
-        fatG: 40,
-        netCarbsG: 5,
-        proteinG: 15,
-      );
-      dayHolds([meal]);
-
-      await service.logMeal(meal);
-
-      expect(judgedCompliant(), isTrue);
-    });
-
-    // The regression that design/m3_preflight.md §1.3 exists for. A first
-    // meal of pure fat gives `fat / 0`, which KetoRatioCalculator reports as
-    // 0 by design. Evaluating that would breach a perfectly compliant day —
-    // butter coffee, the most ordinary keto morning there is.
-    test('a day with no carbs and no protein is not evaluated', () async {
+    test('a fat-only day is re-derived, not skipped', () async {
+      // The zero-denominator exemption is gone. Under a carb rule a day with
+      // no net carbs and no protein is the best possible day, not one to leave
+      // unevaluated.
       final meal = MealEntryFixture.fixture(
         timestamp: todayAt(7),
-        fatG: 22,
+        fatG: 40,
         netCarbsG: 0,
         proteinG: 0,
       );
@@ -461,133 +448,88 @@ void main() {
 
       await service.logMeal(meal);
 
-      verifyNotEvaluated();
+      verify(
+        () => adaptationPhaseService.recomputeFor(any(), at: any(named: 'at')),
+      ).called(1);
     });
 
-    test('an empty day is not evaluated', () async {
+    test('emptying a day still re-derives it', () async {
+      // Deleting the last meal of a day can shorten a streak, so the write has
+      // to reach the state machine like any other.
       dayHolds([]);
 
       await service.deleteMeal(1, todayAt(12));
 
-      verifyNotEvaluated();
+      verify(
+        () => adaptationPhaseService.recomputeFor(any(), at: any(named: 'at')),
+      ).called(1);
     });
 
-    // Backdating a diary entry must not rewrite streak history — the state
-    // machine holds one current streak, not a per-day ledger.
-    test('a past day is not evaluated', () async {
-      final meal = MealEntryFixture.fixture(
-        timestamp: DateTime(2026, 1, 2, 12),
-        fatG: 40,
-        netCarbsG: 2,
-        proteinG: 15,
-      );
-      dayHolds([meal]);
-
-      await service.logMeal(meal);
-
-      verifyNotEvaluated();
-    });
-
-    test('deleting a meal re-evaluates the day', () async {
-      dayHolds([
-        MealEntryFixture.fixture(
-          timestamp: todayAt(12),
-          fatG: 10,
-          netCarbsG: 30,
-          proteinG: 20,
-        ),
-      ]);
-
-      await service.deleteMeal(1, todayAt(12));
-
-      expect(judgedCompliant(), isFalse);
-    });
-
-    // The instant matters downstream: handleBreach compares it against the
-    // grace-period expiry, so a midnight-normalised value would judge the
-    // window by its start rather than by when the breach happened.
-    test('the evaluated date keeps its time of day', () async {
+    test('the date handed over is the day the meal was logged on', () async {
       final at = todayAt(21);
-      final meal = MealEntryFixture.fixture(
-        timestamp: at,
-        fatG: 40,
-        netCarbsG: 2,
-        proteinG: 15,
-      );
+      final meal = MealEntryFixture.fixture(timestamp: at);
       dayHolds([meal]);
 
       await service.logMeal(meal);
 
-      final evaluated =
-          verify(
-                () => adaptationPhaseService.evaluateToday(
-                  captureAny(),
-                  compliant: any(named: 'compliant'),
-                ),
-              ).captured.single
-              as DateTime;
-      expect(evaluated, at);
+      expect(recomputedDate(), at);
     });
 
-    // The delete path has no timestamp to read: the entry is gone, and the
-    // caller passes the diary's selected date, which is stripped to midnight.
-    // Handing *that* to the state machine dated the breach to 00:00 — so a
-    // meal deleted at 22:00 opened a grace period expiring two hours later
-    // instead of twenty-four.
-    test('a deletion is evaluated at the wall clock', () async {
-      dayHolds([
-        MealEntryFixture.fixture(
-          timestamp: todayAt(12),
-          fatG: 10,
-          netCarbsG: 30,
-          proteinG: 20,
-        ),
-      ]);
+    test(
+      'logging reasons from the wall clock, not the meal timestamp',
+      () async {
+        // The derivation walks back from the instant it is given. A back-dated
+        // meal carries a timestamp days in the past, and using it would start
+        // the walk there — so today would stop counting toward the streak.
+        final before = DateTime.now();
+        final meal = MealEntryFixture.fixture(
+          timestamp: todayAt(9).subtract(const Duration(days: 3)),
+        );
+        dayHolds([meal]);
+
+        await service.logMeal(meal);
+
+        expect(evaluatedAt().isBefore(before), isFalse);
+      },
+    );
+
+    test('a deletion reasons from the wall clock', () async {
+      // Callers pass a date-only value to `deleteMeal` — the diary holds its
+      // selected date stripped to midnight — and handing that to the state
+      // machine dated the breach to 00:00, buying two hours of grace instead
+      // of twenty-four.
       final before = DateTime.now();
+      dayHolds([]);
 
-      await service.deleteMeal(1, todayAt(0));
+      await service.deleteMeal(
+        1,
+        DateTime(before.year, before.month, before.day),
+      );
 
-      final evaluated =
-          verify(
-                () => adaptationPhaseService.evaluateToday(
-                  captureAny(),
-                  compliant: any(named: 'compliant'),
-                ),
-              ).captured.single
-              as DateTime;
-      expect(evaluated.isBefore(before), isFalse);
-      expect(evaluated.isAfter(DateTime.now()), isFalse);
+      expect(evaluatedAt().isBefore(before), isFalse);
     });
 
-    // §4.1: the issue's snippet rebuilt DailyLog without ketoRatioAvg, which
-    // MacroSummaryCard reads. Evaluation must not have cost the field.
     test('the saved log still carries its keto ratio', () async {
+      // The ratio keeps every other job it has — the ring arc, the macro card,
+      // `DailyLog.ketoRatioAvg`. It simply stopped deciding the streak.
       final meal = MealEntryFixture.fixture(
-        timestamp: todayAt(12),
+        timestamp: todayAt(13),
         fatG: 40,
         netCarbsG: 2,
-        proteinG: 15,
+        proteinG: 18,
       );
       dayHolds([meal]);
 
       await service.logMeal(meal);
 
-      expect(capturedLog().ketoRatioAvg, closeTo(40 / 17, 0.000001));
+      expect(capturedLog().ketoRatioAvg, closeTo(2.0, 0.0001));
     });
 
     test('a failure in the state machine is not swallowed', () async {
-      final meal = MealEntryFixture.fixture(
-        timestamp: todayAt(12),
-        fatG: 40,
-        netCarbsG: 2,
-        proteinG: 15,
-      );
+      final meal = MealEntryFixture.fixture(timestamp: todayAt(10));
       dayHolds([meal]);
       when(
-        () => adaptationPhaseService.evaluateToday(
-          any(),
-          compliant: any(named: 'compliant'),
-        ),
+        () => adaptationPhaseService.recomputeFor(any(), at: any(named: 'at')),
       ).thenThrow(Exception('store gone'));
 
       await expectLater(service.logMeal(meal), throwsA(isA<Exception>()));

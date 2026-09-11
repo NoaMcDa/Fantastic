@@ -509,15 +509,43 @@ not scaled to the serving corrupts all of it at once.
 - Phase 2 (Days 8–27): Fat-Adapted Transition
 - Phase 3 (Days 28+): Deep Ketosis & Long-Term Maintenance
 
-Streak increments on compliant days. Breach triggers a 24-hour grace period. If a compliant day is logged within the grace period, the streak resumes. If not, the streak resets to 0 and phase returns to Phase 1.
+**A compliant day is one with meals logged whose total net carbs are at or below
+`KetoConstants.maxCompliantNetCarbsG` (50 g).** Above it the day is a breach and
+opens a 24-hour grace period; if a compliant day lands inside that window the
+streak resumes, and if not it resets to 0 and the phase returns to Phase 1.
 
-**A skipped day breaks the streak, in all three phases.** Once a whole calendar
-day has passed with nothing banked, the next compliant day starts a new streak
-at 1 — `lastCompliantDate` of today or yesterday is intact (today is winnable
-until midnight), anything older is broken. `AdaptationPhaseService.reconcile`
-is the only thing that applies this, because every other transition is driven
-by a meal being logged; without it `currentStreak` was a lifetime count of
-compliant days, not a streak.
+**`DayCompliance.of` is the only definition of a compliant day**
+(`lib/features/adaptation/domain/models/day_compliance.dart`). It lived in two
+places — the streak evaluation and `StreakCalendarWidget._statusFor` — so the
+ring and the month grid could disagree about the same day. Never restate it.
+
+**The keto ratio does not decide compliance.** Until #303 it did (`ketoRatioAvg
+>= 2.0`), and because the ratio is `fat / (netCarbs + protein)` protein sat in
+the denominator beside carbs: a disciplined 8 g-carb day with 90 g of protein
+scored 0.31 and broke the streak, while 100 g of fat with 50 g of carbs and no
+protein scored exactly 2.0 and passed. The ratio keeps every other job it has —
+the ring arc, the macro card, `DailyLog.ketoRatioAvg`.
+
+**The counter is derived, not accumulated.** `AdaptationPhaseService.recomputeFor`
+re-derives the streak on every write by walking back over `DailyLog` from today
+(`StreakCalculator.derive`, bounded at 365 days). That is what makes a
+retroactive edit correct by construction: **back-filling a forgotten day repairs
+the streak across the gap, and pushing a past day's net carbs over the limit
+breaks it.** `StreakState` keeps one counter and gains no field — the per-day
+record is `DailyLog`, which already exists.
+
+**A skipped day breaks the streak, in all three phases.** The walk stops at an
+unlogged day, so the next compliant day starts a new streak at 1 — except today,
+which is winnable until midnight and is stepped over without breaking.
+
+**A day whose three macro totals are all zero reads as unlogged**, because
+`DailyLog` carries no meal count and the row survives a deleted last meal so
+water and electrolytes are not lost. A fat-only day is *not* that: it has zero
+net carbs, which is the best possible day.
+
+**The evaluation instant is always the wall clock**, never the meal's timestamp.
+The walk counts back from the instant it is given, so a back-dated meal would
+otherwise start the walk in the past and today would stop counting.
 
 **A breached day is not a skipped day.** An unexpired grace window survives the
 calendar gap it creates — that window is precisely what a breach buys, and the
@@ -526,7 +554,7 @@ resume promise above depends on it.
 **Phase 3 shares the rule for now and is expected to change**, to something
 that depends on what was eaten rather than on whether anything was logged.
 
-Reconciliation runs **on write, not on read**: nothing persists it until the
+Re-derivation runs **on write, not on read**: nothing persists it until the
 user's next logged meal, so the ring can show a stale streak until then (the
 "streak resets lazily" gap in `design/m3_handoff.md`). Applying it on read
 would put `DateTime.now()` inside a provider and make every widget test that
