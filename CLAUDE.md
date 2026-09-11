@@ -24,12 +24,13 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/m2_handoff.md` | **M2 handoff** — M2 shipped and the app became usable; the five conventions M3 inherits (the `pump_app` widget-test harness, date-only family keys held in state, parameters over un-overridable providers); **the RTL traps that cost the most time** (a horizontal `ListView` already starts right; `endToStart` drags *rightward*); Flutter/riverpod gotchas (`Dismissible` vs async delete, `AnimatedCrossFade` keeping both children, `Override` unexported by `flutter_riverpod`); coverage at closure; the gaps M3/M4/M5 inherit. **Read before picking up M3** |
 | `design/m3_preflight.md` | **M3 pre-flight corrections** — all twelve M3 issues audited. Four defects that compile and ship wrong behaviour: `copyWith(gracePeriodEnd: null)` silently does not clear, the streak increments per *meal* not per day, a fat-only first meal registers as a breach, and the phase boundary is off by one. Plus the canonical phase thresholds (8 and 28), two routes that do not exist, and the two places the issue text would regress M2. **Read before picking up any M3 issue** |
 | `design/m3_handoff.md` | **M3 handoff** — M3 is code-complete and was driven end-to-end in a browser; **the riverpod-3 async-error fact that cost three issues** (a provider that fails before producing a value is `AsyncLoading` *with* an error, so `isLoading`-first checks hang forever); the eight conventions M4 inherits (phase thresholds 8/28, never `null` to clear a `StreakState` field, Sunday-first weeks, `TextDirection.ltr` on digit runs); why every notification call is a no-op on web; and the gaps M4/M5/M7 inherit. **Read before picking up M4** |
-| `design/m5_handoff.md` | **M5 handoff** — M5 is code-complete and was driven end-to-end in a browser, including a page reload and a past-date check. What the audit found (a field the model does not have, whose label the compiler cannot catch; a save that erased the user's note). The eight conventions M6/M7 inherit (one enum owns the five scales; `hasError` before `isLoading`; a failed read and an empty day must not look alike; assert against what is *painted*). Gotchas: `AsyncValue.when` is loading-first, a sliver child below the fold has no element at all, Flutter web's RTL semantics rects are offset from the viewport. **Epic #9's DoD is fully met and the Epic is closed.** Known gaps M7 and v1.1 inherit. **Read before picking up M7** |
 | `design/m4_preflight.md` | **M4 pre-flight corrections** — all six M4 issues audited. Three defects that compile and ship broken behaviour: the flow's last screen bounces straight back into onboarding forever, an `await ...future` inside a go_router redirect can hang the app on a blank screen, and seeding `StreakState.initial()` destroys the null first-launch sentinel. Plus **why `shared_preferences` is not added** (a `user_profile` sembast store replaces it), the seven symbols no issue defines, the corrected build order (#73 first), and the two Epic #8 DoD items no child issue covers. **Read before picking up any M4 issue** |
 | `design/m4_handoff.md` | **M4 handoff** — M4 is code-complete and the app has a first launch. What the audit found (the flow's own last screen bounced the user back into onboarding forever; `await provider.future` inside a go_router redirect can hang the app on a blank screen; why `shared_preferences` was refused). The eight conventions M5–M7 inherit (record-existence as the first-launch flag, a synchronous gate seeded in `main`, one numeric parse for the whole flow, whole-day arithmetic through UTC midnights). Gotchas that cost the most: **a conflicted PR gets no CI run at all**, and **sembast futures never complete inside `testWidgets`**. Epic #8's DoD, two of whose six items had no child issue. **Read before picking up M7** |
 | `design/m5_preflight.md` | **M5 pre-flight corrections** — all four M5 issues audited. The fifth symptom scale is **`moodScore` / מצב רוח**, not the brain fog every issue names — a rename alone ships a mood score under a brain-fog label. Also: `.when(loading:)` hides a failed read forever, the save sheet silently erases the user's note, `#75`'s two failure tests cannot be written as specified, the feature directory is `diary/` not `symptom_diary/`, and the build order is #75 → #77 → #76 → #78. **Read before picking up any M5 issue** |
+| `design/m5_handoff.md` | **M5 handoff** — M5 is code-complete and was driven end-to-end in a browser, including a page reload and a past-date check. What the audit found (a field the model does not have, whose label the compiler cannot catch; a save that erased the user's note). The eight conventions M6/M7 inherit (one enum owns the five scales; `hasError` before `isLoading`; a failed read and an empty day must not look alike; assert against what is *painted*). Gotchas: `AsyncValue.when` is loading-first, a sliver child below the fold has no element at all, Flutter web's RTL semantics rects are offset from the viewport. **Epic #9's DoD is fully met and the Epic is closed.** Known gaps M7 and v1.1 inherit. **Read before picking up M7** |
 | `design/m6_preflight.md` | **M6 pre-flight corrections** — all nine M6 issues audited. **Part 0 settles the ML Kit / web-build question empirically**: `dart:io` compiles for dart2js as throwing stubs, so the naive import does *not* break CI — the hazard is a runtime `MissingPluginException`, and the conditional-export firewall is built anyway (and why). Five defects that compile and ship wrong behaviour, the worst being a failed scan reported as **Clean Keto**; the five reasons #81's Hebrew regexes never match a real Israeli label; `permission_handler` and `image` decisions; a circular dependency graph. **Read before picking up any M6 issue** |
 | `design/m6_handoff.md` | **M6 handoff** — Keto Lens shipped; **why the ML Kit / web risk was real but mis-located** (`dart:io` compiles for dart2js as throwing stubs; the hazard is a runtime `MissingPluginException`) and the product decision that follows: **the lens tab cannot scan in a browser and says so**. The nine conventions M7 inherits (one plugin per adapter behind an interface, failure as a sealed value, a clean badge is not evidence); the gotchas that cost the most (**an indeterminate spinner on a tab screen hangs `widget_test.dart`**, clearing a busy flag after awaiting a modal, a stale `build_runner` cache skipping a file silently); and an explicit list of **what is unverified** — there is no camera, device or browser here, so no accuracy claim has been measured. **Read before picking up M7** |
+| `design/mvp_handoff.md` | **MVP handoff** — the cross-milestone view. **All five MVP features ship (M0–M6 complete).** The audit pattern that defined the project (the issue text was never right, once, in seven milestones) and the worst defect each audit caught; **the riverpod-3 async-error fact that cost four milestones in four disguises**; the consolidated open-defect list (#257 is the highest-value fix); what has never been verified — no device, no camera, and **nothing has ever read a real Hebrew label**; and the four M7 issues that are already done or obsolete. **Read before M7 or M8** |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
 | `design/architecture.md` | Layer model, persistence schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
 | `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, and the **Error Handling Contract** (repositories throw typed exceptions; §"Why not `Result<T>`" records why that pattern was dropped before M1 — do not reintroduce it) |
@@ -186,12 +187,21 @@ Shared code (constants, utilities, theming) lives in `lib/core/`.
 - No widget reads the database directly — always through a repository interface
 - No new provider calls the database directly — always through a service
 - **No storage error escapes `data/`** — every repository method wraps its storage call in `guardPersistence`, so failures leave as `PersistenceException`. A layer above catching a `DatabaseException` is the same leak as importing one
-- **No `dart:io` and no `path_provider` outside `lib/core/database/database_factory_io.dart`** — that file is the web build's only firewall against them, and `flutter analyze` cannot catch a breach. CI's `flutter build web` step is what does
+- **Native-only code stays behind a conditional-export firewall.** There are two, and
+  nothing outside them may import what they wrap: `lib/core/database/database_factory.dart`
+  (`path_provider`, the io/web sembast factories) and
+  `lib/features/keto_lens/data/adapters/text_recognizer_factory.dart` (ML Kit).
+  Each exports an `_io` and a `_web` implementation on `dart.library.io`.
+  **`dart:io` itself is not the hazard** — M6 established empirically that dart2js
+  compiles it as a library of throwing stubs, so a naive import builds cleanly and
+  then throws `MissingPluginException` in the browser at run time. `flutter analyze`
+  catches neither. See `design/m6_preflight.md` Part 0
 
 ### Features
 | Feature | Directory |
 |---|---|
 | Dashboard & macro tracking | `lib/features/dashboard/` |
+| Onboarding & user profile | `lib/features/onboarding/` |
 | Keto Lens (Hebrew OCR scanner) | `lib/features/keto_lens/` |
 | Diary (meals, symptoms, biomarkers) | `lib/features/diary/` |
 | Adaptation phase & streak | `lib/features/adaptation/` |
@@ -199,7 +209,14 @@ Shared code (constants, utilities, theming) lives in `lib/core/`.
 | Recipe converter | `lib/features/recipe/` |
 | Israeli keto directory | `lib/features/directory/` |
 
+`lib/features/profile/` is still a placeholder — the Profile tab has no screen yet.
+
 ## MVP Scope
+
+**All five MVP features are shipped (M0–M6 complete).** Only M7 (polish) and
+M8 (CI & integration) remain inside the MVP boundary — see
+`design/mvp_handoff.md` for the consolidated state, the open defects and what
+has never been verified.
 
 The MVP (see `design/mvp.md`) ships exactly these 5 features:
 1. **Keto Lens** — Hebrew OCR label scanner with Clean/Caution/Non-Keto badge
@@ -240,6 +257,7 @@ in a named store, addressed by an `int` key.
 | `DailyLog` — net carbs, fats, protein, water, electrolytes (Na/K/Mg) | `daily_logs` | `dateIndex(date)` |
 | `SymptomLog` — energy, clarity, hunger, physical, mood (1–5 scales) | `symptom_logs` | `dateIndex(date)` |
 | `StreakState` — current/highest streak, phase, grace-period state | `streak_state` | `StreakStateMapper.singletonId` (0) |
+| `UserProfile` — sex, age, weight, height, goal, macro targets, keto start date | `user_profile` | `UserProfileMapper.singletonId` |
 
 **Keying a one-record-per-day collection on its own date is what makes `save` an
 upsert.** Isar needed `@Index(unique: true)` plus the generated `putByDateIndex`
@@ -293,18 +311,46 @@ The guard catches `Object`, not `Exception`. sembast's own `DatabaseException` d
 
 ## OCR & ML
 
-Uses `google_mlkit_text_recognition` for on-device Hebrew text recognition — no network call is made for OCR. Pipeline:
+**Shipped in M6.** On-device Hebrew text recognition via
+`google_mlkit_text_recognition` — no network call is made during a scan, and
+Epic #10's first architectural invariant forbids adding one.
 
 ```
-Camera capture → MlKitTextRecognizer → HebrewLabelParser → IngredientClassifier → IngredientVerdict
+CameraScreen / gallery import
+  → TextRecognitionService   (domain interface)
+      MlKitTextRecognizer    (native)  |  UnavailableTextRecognizer (web)
+  → LabelParser              → HebrewLabelParser + HebrewTextNormaliser
+  → IngredientClassifier     → IngredientClassifierImpl
+  → ScanResult               (sealed: ScanSucceeded | ScanFailed)
+  → ScanResultSheet          → prefills AddMealBottomSheet
 ```
 
-Ingredient classification rules:
+`ScanOrchestrator` (`application/`) composes the three interfaces and never sees
+a plugin type — which is what makes it testable in pure Dart.
+
+**A failed scan is `ScanFailed`, never a verdict.** Issue #83 originally
+specified reporting a failed scan as `Clean Keto`; a user in a shop would have
+been told a product was keto-safe because the app could not read the label. The
+sealed result exists so that cannot be expressed.
+
+**The lens does not scan in a browser, and says so.** There is no on-device
+Hebrew OCR for Flutter web, and the alternative is a network call the invariant
+forbids. `UnavailableTextRecognizer` is the web half of the firewall.
+
+Ingredient rules live in `lib/core/constants/ingredient_rules.dart` in both
+Hebrew and English — **never redeclared in a classifier**:
 - **Forbidden seed oils:** canola, soybean, corn, sunflower, cottonseed, safflower
 - **Insulin-spiking sweeteners:** maltitol, sorbitol, dextrose, maltodextrin, HFCS
 - **Clean approvals:** olive oil, avocado oil, coconut oil, butter, ghee, tallow, monk fruit, stevia, allulose, erythritol
 
 Output badges: `Clean Keto` / `Caution / Quantity Dependent` / `Non-Keto`.
+Worst badge wins. An unrecognised token is *not* flagged, so
+`IngredientVerdict.recognisedNothing` distinguishes "nothing here is bad" from
+"nothing here was readable" — without it the UI would put a green tick on an
+unreadable label.
+
+**Nothing has ever been tested against a real label** — no camera exists in the
+development environment. See `design/m6_handoff.md` and issue #256.
 
 ## Keto Business Logic
 
@@ -372,6 +418,7 @@ All 115 atomic issues are created, labelled, milestoned, and added to project bo
 | M7 — Polish | `epic:m7-polish` | #88–#94 | 7 |
 | M8 — CI & Integration | `epic:m8-ci-integration` | #95–#102 | 8 |
 | v1.1 — Post-MVP | `epic:post-mvp` | #103–#128 | 26 |
+| Login — accounts & identity | `epic:login` | #206–#226 | 16 |
 
 ### Epic tracking issues
 
@@ -387,6 +434,7 @@ All 115 atomic issues are created, labelled, milestoned, and added to project bo
 | M7 Polish | #11 |
 | M8 CI & Integration | #12 |
 | v1.1 Post-MVP | #13 |
+| Login (unscheduled) | #226 |
 
 ### Label taxonomy
 
@@ -396,7 +444,13 @@ All 115 atomic issues are created, labelled, milestoned, and added to project bo
 **Layer labels** (7) — prefix `layer:`:
 `layer:core` · `layer:domain` · `layer:data` · `layer:application` · `layer:presentation` · `layer:infra` · `layer:test`
 
-**Epic labels** (10) — prefix `epic:` — see milestone table above.
+**Epic labels** (11) — prefix `epic:` — see milestone table above.
+
+**The Login milestone (#206–#226) sits outside the M0–M8 MVP boundary** and is
+unscheduled: no MVP issue depends on it, and the MVP can ship without it. Its
+issue text was authored before M4 merged and has since been reconciled against
+the shipped `UserProfile` — read `#226`'s Interaction-with-M4 section before
+picking up anything in it.
 
 Every issue carries exactly **3 labels**: one `type:*`, one `layer:*`, one `epic:*`.
 
