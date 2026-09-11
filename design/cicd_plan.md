@@ -156,6 +156,7 @@ macOS, no external service.
 | Workflow | Trigger | Runner | Blocking? |
 |---|---|---|---|
 | `ci.yml` | `pull_request` → `main`, `push` → `main`, `workflow_dispatch` | `ubuntu-latest` | **Yes** — required check |
+| `build-ios.yml` | `pull_request` → `main` **filtered to `ios/**`, `lib/**`, `assets/**`, `pubspec.*` and itself**, `workflow_dispatch` | `macos-latest` | Not yet — enable with branch protection |
 
 ### Parked scope
 
@@ -164,11 +165,27 @@ designed in §6 but **not being built** — see §7.1 for the decision and the
 conditions that unpark them. Everything they need (macOS runners, an Apple
 Developer account, signing secrets) is exactly what the active scope avoids.
 
-Why iOS builds are absent from `ci.yml` even later: `flutter build ios` requires
-a macOS runner, billed at **10× the minute rate** of Linux. A compile break that
-is iOS-specific — and not caught by `flutter analyze`, which is
-platform-independent — is rare enough to catch on merge rather than on every
-push.
+**iOS now has an unsigned compile job, and it is still not in `ci.yml`.**
+`flutter build ios` requires a macOS runner, billed at **10× the minute rate**
+of Linux, so it lives in its own `build-ios.yml` with a path filter: only a
+change to `ios/**`, `lib/**`, `assets/**` or the dependency set can trigger it,
+and a docs PR spends nothing. That keeps the 10× rate off the majority of runs
+while closing the gap this paragraph used to accept — the iOS target had never
+been built at all, the repository had never had a `Podfile`, and CocoaPods had
+never resolved a single native dependency. `flutter analyze` is
+platform-independent and could not have told anyone.
+
+**A `paths` filter on `pull_request` matches the whole PR diff, not the latest
+push.** Once a PR has touched `ios/**`, every later push to it re-runs the macOS
+job even if that push is documentation only — observed on this very PR. The
+filter is therefore a per-PR switch, not a per-commit one, and the way to keep
+the 10× rate down inside one PR is `concurrency` (which cancels the superseded
+run) rather than the filter.
+
+This does **not** unpark anything in §7.1. `--no-codesign` needs no Apple
+Developer account, no signing secret, no `match`, no fastlane and no simulator;
+it compiles and assembles `Runner.app` and stops there. A compile is not a
+runtime proof, and the workflow claims nothing more.
 
 ---
 

@@ -1,8 +1,9 @@
 # M6 platform handoff — Keto Lens on six targets
 
 **Status:** code-complete on all six Flutter targets. **Verified end to end on
-two of them** (web and Linux); the other four are compiled and configured but
-have never been built, because this repository has no Android SDK, no macOS
+two of them** (web and Linux). **iOS compiles** — unsigned, on a macOS CI
+runner — but has never been run. Android, macOS and Windows are configured and
+analysed and nothing more, because this repository has no Android SDK, no macOS
 host and no Windows machine. §"What is verified" is the honest line, and it is
 the first thing to read.
 
@@ -28,7 +29,7 @@ unchanged `TextRecognitionService` interface.
 | **macOS** | same FFI adapter | gallery (`image_picker_macos`) | ✗ no macOS host |
 | **Windows** | same FFI adapter | gallery (`image_picker_windows`) | ✗ no Windows host |
 | **Android** | `flutter_tesseract_ocr` (ships prebuilt libs) | `camera`, `image_picker` | ✗ no Android SDK |
-| **iOS** | `flutter_tesseract_ocr` | `camera`, `image_picker` | ✗ no macOS host |
+| **iOS** | `flutter_tesseract_ocr` | `camera`, `image_picker` | ⚠️ **compiled** on a macOS CI runner (`build-ios.yml`, unsigned) — never run |
 
 **The lens tab scans in a browser.** That reverses M6's central product
 decision — *"Keto Lens cannot scan in a browser, and the tab says so"* — which
@@ -191,12 +192,34 @@ section.
 
 **Not verified, and nobody should read this document as claiming otherwise:**
 
-- **Android, iOS, macOS and Windows have never been built.** No SDK, no host.
-  They are compiled by the analyzer and configured by hand. `flutter_tesseract_ocr`
-  in particular has never executed — it is the one dependency here chosen for a
-  capability this repo cannot exercise.
-- **iOS still has no `Podfile` and CocoaPods has still never run**, so even the
-  pre-existing iOS target has never resolved a native dependency.
+- **Android, macOS and Windows have never been built.** No SDK, no host. They
+  are compiled by the analyzer and configured by hand. `flutter_tesseract_ocr`
+  has still never *executed* anywhere — it is the one dependency here chosen
+  for a capability this repo cannot exercise.
+- **iOS now compiles, and only compiles.** `.github/workflows/build-ios.yml`
+  builds it unsigned on a macOS runner, which is where the `Podfile` this
+  repository never had now lives and where CocoaPods now runs. Measured on
+  Xcode 26.6 / CocoaPods 1.17.0: pods resolve in 10 s, the Xcode build takes
+  109 s, and `Runner.app` comes out at 27.7 MB with `heb.traineddata` in it.
+  **No simulator ran, no device ran, no camera opened, no scan happened** —
+  everything this section says about OCR accuracy is untouched by a compile.
+  Three things that build settled, all of which were guesses before:
+  - **SwiftyTesseract 3.1.3 — a 2019 pod — still builds under Xcode 26.6.**
+    It is what `flutter_tesseract_ocr` depends on, by an *unversioned*
+    `s.dependency`, and 3.1.3 is the newest published version, so the
+    unconstrained dependency is currently harmless.
+  - **`assets/tessdata` had to be added to `Runner.xcodeproj` as a folder
+    reference.** The iOS plugin reads `Bundle.main.bundleURL/tessdata`, not
+    the Flutter asset bundle, so the model being declared in `pubspec.yaml`
+    was never going to be enough. The workflow asserts both copies are in
+    the `.app` — nothing else in the repo could have caught this.
+  - **`flutter_tesseract_ocr` is the only plugin here still on CocoaPods.**
+    Every other iOS plugin resolves through Swift Package Manager, and the
+    build prints *"The following plugins do not support Swift Package Manager
+    for ios: flutter_tesseract_ocr. This will become an error in a future
+    version of Flutter."* A warning today, a broken iOS build on some future
+    Flutter. It is one adapter file behind `TextRecognitionService`
+    (M6 convention 1), which is what makes that survivable.
 - **Nothing has read a *photograph* of a real Israeli product.** The corpus is
   rendered from the app's own font, which closes the gap between "a human
   imagined this OCR output" and "an engine produced it" — the gap that has
