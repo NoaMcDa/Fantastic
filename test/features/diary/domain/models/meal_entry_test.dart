@@ -1,3 +1,4 @@
+import 'package:fantastic/features/diary/domain/models/macro_source.dart';
 import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -12,6 +13,7 @@ MealEntry _entry({
   String mealName = 'Test Meal',
   List<String> ingredients = const [],
   String? imageRef,
+  MacroSource source = MacroSource.manual,
 }) => MealEntry(
   id: id,
   timestamp: _timestamp,
@@ -21,6 +23,7 @@ MealEntry _entry({
   mealName: mealName,
   ingredients: ingredients,
   imageRef: imageRef,
+  source: source,
 );
 
 void main() {
@@ -140,6 +143,38 @@ void main() {
 
     test('ingredients defaults to an empty list, never null', () {
       expect(_entry().ingredients, isEmpty);
+    });
+  });
+
+  group('MealEntry.source', () {
+    test(
+      'defaults to manual, so every existing call site keeps its meaning',
+      () {
+        expect(_entry().source, MacroSource.manual);
+      },
+    );
+
+    test('copyWith replaces it', () {
+      final entry = _entry();
+
+      expect(
+        entry.copyWith(source: MacroSource.estimatedFromPhoto).source,
+        MacroSource.estimatedFromPhoto,
+      );
+    });
+
+    test('copyWith with no argument preserves it', () {
+      final entry = _entry(source: MacroSource.estimatedFromText);
+
+      expect(entry.copyWith().source, MacroSource.estimatedFromText);
+    });
+
+    test('two entries differing only in source are not equal', () {
+      final typed = _entry();
+      final guessed = typed.copyWith(source: MacroSource.estimatedFromText);
+
+      expect(typed, isNot(guessed));
+      expect(typed.hashCode, isNot(guessed.hashCode));
     });
   });
 }

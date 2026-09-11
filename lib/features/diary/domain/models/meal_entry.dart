@@ -1,4 +1,5 @@
 import 'package:fantastic/core/utils/list_equality.dart';
+import 'package:fantastic/features/diary/domain/models/macro_source.dart';
 import 'package:meta/meta.dart';
 
 /// A single logged meal — the macros, timestamp and optional ingredient list
@@ -17,6 +18,7 @@ class MealEntry {
     this.id,
     this.ingredients = const [],
     this.imageRef,
+    this.source = MacroSource.manual,
   });
 
   /// Null until first persisted, then the store's record key. `int?` rather
@@ -36,6 +38,13 @@ class MealEntry {
   /// Optional reference to a captured label image.
   final String? imageRef;
 
+  /// Where these macros came from.
+  ///
+  /// Defaults to [MacroSource.manual] so every existing construction — every
+  /// fixture, every call site — keeps the meaning it had, and so a record
+  /// written before this field existed reads back as what it in fact was.
+  final MacroSource source;
+
   /// Fat / (net carbs + protein), per `CLAUDE.md`'s keto ratio formula.
   ///
   /// Computed rather than stored: a persisted copy can go stale against the
@@ -53,6 +62,7 @@ class MealEntry {
     String? mealName,
     List<String>? ingredients,
     String? imageRef,
+    MacroSource? source,
   }) => MealEntry(
     id: id ?? this.id,
     timestamp: timestamp ?? this.timestamp,
@@ -62,6 +72,10 @@ class MealEntry {
     mealName: mealName ?? this.mealName,
     ingredients: ingredients ?? this.ingredients,
     imageRef: imageRef ?? this.imageRef,
+    // `null` cannot *clear* this, which is correct: there is no "no source".
+    // Unlike `StreakState`, where `design/m3_handoff.md` records the opposite
+    // trap, every meal has a provenance.
+    source: source ?? this.source,
   );
 
   @override
@@ -75,6 +89,7 @@ class MealEntry {
           other.proteinG == proteinG &&
           other.mealName == mealName &&
           other.imageRef == imageRef &&
+          other.source == source &&
           // Element-wise: two entries with equal-but-not-identical ingredient
           // lists are equal. A plain `==` on List compares identity.
           listEquals(other.ingredients, ingredients);
@@ -89,5 +104,6 @@ class MealEntry {
     mealName,
     imageRef,
     listHash(ingredients),
+    source,
   );
 }

@@ -1,4 +1,5 @@
 import 'package:fantastic/features/diary/data/mappers/meal_entry_mapper.dart';
+import 'package:fantastic/features/diary/domain/models/macro_source.dart';
 import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -125,4 +126,79 @@ void main() {
       );
     });
   });
+
+  group('source', () {
+    /// A minimal stored record, as `toRecord` writes one.
+    Map<String, Object?> record({Object? source = 'manual'}) => {
+      'mealName': 'Test Meal',
+      'fatG': 20,
+      'netCarbsG': 5,
+      'proteinG': 15,
+      'timestamp': DateTime(2026, 9, 9, 12).millisecondsSinceEpoch,
+      'ingredients': <String>[],
+      'imageRef': null,
+      'dateIndex': 20260909,
+      if (source != _absent) 'source': source,
+    };
+
+    test('is written by name, never as an enum or an ordinal', () {
+      final emitted = MealEntryMapper.toRecord(
+        MealEntryFixture.fixture(source: MacroSource.estimatedFromPhoto),
+      );
+
+      expect(emitted['source'], 'estimatedFromPhoto');
+      expect(emitted['source'], isA<String>());
+    });
+
+    test('round-trips for every value', () {
+      for (final value in MacroSource.values) {
+        final emitted = MealEntryMapper.toRecord(
+          MealEntryFixture.fixture(source: value),
+        );
+
+        expect(
+          MealEntryMapper.fromRecord(1, emitted).source,
+          value,
+          reason: value.name,
+        );
+      }
+    });
+
+    // The record shape that exists in every install predating M15. sembast is
+    // schemaless, so a throw here would surface on *read*, in a user's own
+    // data, and never in CI.
+    test('a record with no source key decodes as manual', () {
+      final stored = record(source: _absent);
+
+      expect(stored.containsKey('source'), isFalse);
+      expect(MealEntryMapper.fromRecord(1, stored).source, MacroSource.manual);
+    });
+
+    test('a null source decodes as manual', () {
+      expect(
+        MealEntryMapper.fromRecord(1, record(source: null)).source,
+        MacroSource.manual,
+      );
+    });
+
+    // What a downgrade, or a backup restored from a newer build, looks like.
+    // The macros are still valid; only the label is unrecognised.
+    test('an unrecognised name decodes as manual and does not throw', () {
+      expect(
+        MealEntryMapper.fromRecord(1, record(source: 'fromTheFuture')).source,
+        MacroSource.manual,
+      );
+    });
+
+    test('a non-String source decodes as manual and does not throw', () {
+      expect(
+        MealEntryMapper.fromRecord(1, record(source: 7)).source,
+        MacroSource.manual,
+      );
+    });
+  });
 }
+
+/// Sentinel meaning "omit the key entirely", which `null` cannot express here
+/// because a stored `null` is its own case.
+const Object _absent = Object();

@@ -1,3 +1,4 @@
+import 'package:fantastic/features/diary/domain/models/macro_source.dart';
 import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
 
 /// Test data for [MealEntry].
@@ -19,6 +20,7 @@ abstract final class MealEntryFixture {
     String mealName = 'Test Meal',
     List<String> ingredients = const [],
     String? imageRef,
+    MacroSource source = MacroSource.manual,
   }) => MealEntry(
     id: id,
     timestamp: timestamp ?? defaultTimestamp,
@@ -28,6 +30,7 @@ abstract final class MealEntryFixture {
     mealName: mealName,
     ingredients: ingredients,
     imageRef: imageRef,
+    source: source,
   );
 
   /// A meal carrying every optional field, for round-trip tests that need to
@@ -36,5 +39,17 @@ abstract final class MealEntryFixture {
     id: id,
     ingredients: const ['olive oil', 'butter'],
     imageRef: 'labels/test.png',
+    // Distinct from the default, so a round-trip test that drops `source`
+    // fails instead of passing on a coincidence.
+    source: MacroSource.scannedLabel,
   );
+
+  /// A meal whose macros a model guessed rather than a human typed.
+  ///
+  /// Named rather than left to callers so the provenance issue's tests do not
+  /// construct one inline.
+  static MealEntry estimated({
+    int? id,
+    MacroSource source = MacroSource.estimatedFromText,
+  }) => fixture(id: id, mealName: 'שקשוקה', source: source);
 }
