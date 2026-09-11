@@ -50,6 +50,10 @@ class TesseractFfiRecognizer implements TextRecognitionService {
   static List<String> get _candidates {
     if (Platform.isWindows) {
       return const [
+        // Verified on a windows-latest runner against the chocolatey
+        // `tesseract` package (5.5.3, an MSYS2 build): this is the name it
+        // installs into C:\Program Files\Tesseract-OCR, which the installer
+        // puts on PATH — and a bare name is what LoadLibrary resolves there.
         'libtesseract-5.dll',
         'tesseract55.dll',
         'libtesseract.dll',
@@ -70,7 +74,20 @@ class TesseractFfiRecognizer implements TextRecognitionService {
   /// `Pix*`, so reading a PNG or JPEG means calling `pixRead` here first.
   static List<String> get _leptCandidates {
     if (Platform.isWindows) {
-      return const ['liblept-5.dll', 'leptonica-1.84.1.dll', 'liblept.dll'];
+      return const [
+        // Verified on a windows-latest runner, and the reason this list is not
+        // a guess any more. The tesseract name above happened to be right;
+        // every Leptonica name here was wrong — the chocolatey package ships
+        // `libleptonica-6.dll`, matching the `.so.6` soname the Linux branch
+        // below already knew about, not the `liblept-5` shape this list had.
+        // Nothing in the app would have crashed: the probe simply returns
+        // false and the lens tab says "install Tesseract" on a machine where
+        // it *is* installed.
+        'libleptonica-6.dll',
+        'liblept-5.dll',
+        'libleptonica.dll',
+        'liblept.dll',
+      ];
     }
     if (Platform.isMacOS) {
       return const [
