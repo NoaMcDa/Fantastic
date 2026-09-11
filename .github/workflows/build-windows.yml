@@ -85,20 +85,49 @@ jobs:
         # would.
         run: flutter build windows --release --no-pub
 
-      # Diagnostic, never a gate. `_tryOpenAny` swallows the reason a candidate
-      # did not open, which is right in the app and useless in CI: "isAvailable
-      # was false" does not say whether the name was wrong, a dependency was
-      # missing, or PATH never reached the process. This prints one line per
-      # candidate. Kept out of the repository tree on purpose — it imports only
-      # `dart:` libraries, so it needs no package and `flutter analyze` never
-      # sees it.
-      - name: Report which library names open, and why the others do not
+      # The names in TesseractFfiRecognizer were written from documentation and
+      # had never been exercised. This step exercises them, and it separates the
+      # two very different failures that "isAvailable was false" collapses into
+      # one:
+      #
+      #   error 126, module not found    -> THE NAME IS WRONG. That is our bug,
+      #                                     and it fails this job.
+      #   error 127, procedure not found -> the file was found and loaded, and
+      #                                     one of *its own* imports resolved to
+      #                                     some other DLL earlier in this
+      #                                     runner's very crowded PATH. That is
+      #                                     the runner's environment and not our
+      #                                     name, so it is reported loudly and
+      #                                     the job still stands.
+      #
+      # Candidate names are read out of the adapter rather than retyped here, so
+      # this check cannot drift from the code it checks. The probe is written to
+      # RUNNER_TEMP and imports only `dart:` libraries, so it needs no package
+      # and `flutter analyze` never sees it.
+      #
+      # `tesseract_ffi_recognizer_test.dart` is deliberately NOT the gate. It
+      # skips when nothing opens — right on a contributor's laptop, useless here,
+      # and it cannot tell 126 from 127 either.
+      - name: The Windows library names match what a real Tesseract install ships
         shell: bash
         run: |
+          adapter=lib/features/keto_lens/data/adapters/tesseract_ffi_recognizer.dart
+          mapfile -t names < <(grep -o "'[A-Za-z0-9_.+-]*\.dll'" "$adapter" | tr -d "'" | sort -u)
+          if [ "${#names[@]}" -eq 0 ]; then
+            echo "::error file=$adapter::no .dll candidate names found - this check has stopped reading the adapter."
+            exit 1
+          fi
+          printf 'candidates read from the adapter: %s\n' "${names[*]}"
+
           cat > "$RUNNER_TEMP/probe_dll.dart" <<'DART'
           import 'dart:ffi';
           import 'dart:io';
 
+          /// Opens every candidate name and reports what Windows said about it.
+          ///
+          /// Exits non-zero only when a whole family - tesseract or leptonica -
+          /// has no candidate naming a file that exists. That, and only that,
+          /// means the shipped list is wrong.
           void main(List<String> names) {
             stdout.writeln('--- PATH entries mentioning tesseract ---');
             for (final entry in (Platform.environment['PATH'] ?? '').split(';')) {
@@ -106,37 +135,42 @@ jobs:
                 stdout.writeln('  $entry');
               }
             }
+
+            final present = <String>{};
             stdout.writeln('--- DynamicLibrary.open, one line per candidate ---');
             for (final name in names) {
+              final family =
+                  name.toLowerCase().contains('tesseract') ? 'tesseract' : 'leptonica';
               try {
                 DynamicLibrary.open(name);
-                stdout.writeln('OPEN  $name');
+                present.add(family);
+                stdout.writeln('OPEN         $name');
               } on Object catch (error) {
-                stdout.writeln('FAIL  $name -> $error');
+                final text = '$error';
+                if (text.contains('error code: 127')) {
+                  // The file exists and loaded; one of its own imports did not
+                  // resolve. The name is right; this machine's PATH is not.
+                  present.add(family);
+                  stdout.writeln('DEPS UNMET   $name -> $text');
+                } else if (text.contains('error code: 126')) {
+                  stdout.writeln('NOT FOUND    $name');
+                } else {
+                  stdout.writeln('FAILED       $name -> $text');
+                }
               }
             }
+
+            var ok = true;
+            for (final family in ['tesseract', 'leptonica']) {
+              if (!present.contains(family)) {
+                ok = false;
+                stdout.writeln(
+                  '::error::no $family candidate names a file that exists on a '
+                  'machine with Tesseract installed - the shipped list is wrong.',
+                );
+              }
+            }
+            exit(ok ? 0 : 1);
           }
           DART
-          dart run "$RUNNER_TEMP/probe_dll.dart" \
-            libtesseract-5.dll \
-            'C:\Program Files\Tesseract-OCR\libtesseract-5.dll' \
-            libleptonica-6.dll \
-            'C:\Program Files\Tesseract-OCR\libleptonica-6.dll'
-
-      - name: The desktop OCR adapter opens the system Tesseract
-        shell: bash
-        # `tesseract_ffi_recognizer_test.dart` calls DynamicLibrary.open through
-        # the shipped candidate list and **skips** when nothing opens — right
-        # for a contributor's laptop, useless as a gate: a wrong DLL name would
-        # pass silently. Here a skip is the failure, because this runner is
-        # known to have Tesseract installed. Asserting through the real test
-        # rather than re-listing the names in YAML keeps one source of truth.
-        run: |
-          set -o pipefail
-          flutter test --no-pub --machine \
-            test/features/keto_lens/data/adapters/tesseract_ffi_recognizer_test.dart \
-            | tee ffi-test.json
-          if grep -q '"skipped":true' ffi-test.json; then
-            echo "::error file=lib/features/keto_lens/data/adapters/tesseract_ffi_recognizer.dart::TesseractFfiRecognizer.isAvailable was false on a runner with Tesseract installed - the Windows DLL candidate names do not match what ships. The inventory step above lists the real names."
-            exit 1
-          fi
+          dart run "$RUNNER_TEMP/probe_dll.dart" "${names[@]}"

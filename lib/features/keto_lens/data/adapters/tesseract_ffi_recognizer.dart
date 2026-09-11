@@ -54,6 +54,17 @@ class TesseractFfiRecognizer implements TextRecognitionService {
         // `tesseract` package (5.5.3, an MSYS2 build): this is the name it
         // installs into C:\Program Files\Tesseract-OCR, which the installer
         // puts on PATH — and a bare name is what LoadLibrary resolves there.
+        //
+        // The name is right; loading it on that runner is not. It comes back
+        // `error code: 127`, ERROR_PROC_NOT_FOUND — the file was found and
+        // loaded and one of *its own* imports resolved to a different copy
+        // earlier on PATH, which on a CI image carrying several MinGW-ish
+        // toolchains is unsurprising. An absolute path does not help: Dart
+        // calls plain `LoadLibraryW`, so a library's own directory gets no
+        // priority when its dependencies are resolved. Leptonica, next door
+        // and built the same way, opens fine. So Windows OCR is still
+        // unproven on a machine where Tesseract is the only MinGW runtime,
+        // and there is no such machine in this project.
         'libtesseract-5.dll',
         'tesseract55.dll',
         'libtesseract.dll',
