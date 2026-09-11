@@ -48,30 +48,23 @@ jobs:
     # pub or CMake cache at all. 45 is generous rather than optimistic.
     timeout-minutes: 45
 
+    # **Roughly half this job is untarring, and Defender is not why.** Restoring
+    # the 1.8 GB Flutter SDK cache takes ~52 s and the 77 MB pub cache ~50 s —
+    # the small archive as slow as the large one, which is per-file overhead
+    # and not throughput. The obvious suspect was Windows Defender scanning
+    # every file a tarball unpacks, so a step exempting the tool cache, the pub
+    # cache and the workspace via `Add-MpPreference` was tried here and
+    # **measured against the run before it: 55.7 s → 52.3 s and 58.3 s → 50.5 s.**
+    # About 11 s of movement, against 8 s spent adding the exclusions, so ~3 s
+    # net — noise on a hosted runner. The step was removed rather than kept on
+    # the strength of a number that did not appear.
+    #
+    # It is written down because the idea is an obvious one to have again, and
+    # the next person deserves the measurement rather than the intuition. If
+    # this is ever revisited, the remaining suspects are `tar.exe` from Git for
+    # Windows (used with `--force-local` over a D: path) and NTFS small-file
+    # creation itself, neither of which an antivirus exclusion touches.
     steps:
-      # Before checkout, because the workspace is one of the directories being
-      # exempted. **Two thirds of this job used to be untarring.** Restoring
-      # the 1.8 GB Flutter SDK cache took 56 s and the 77 MB pub cache took
-      # 58 s — the small one as long as the large one, which is the signature
-      # of per-file overhead rather than I/O throughput. That overhead is
-      # Defender opening every one of the tens of thousands of files an SDK
-      # tarball contains. None of these paths holds anything a scan protects:
-      # the tool cache and pub cache are archives GitHub just fetched, and the
-      # workspace is this repository's own checkout and build output.
-      #
-      # continue-on-error because this is an optimisation, not a requirement:
-      # if a future runner image runs the job without the privileges
-      # Add-MpPreference needs, the build should still happen, slowly.
-      - name: Exempt the toolchain directories from Defender
-        continue-on-error: true
-        shell: pwsh
-        run: |
-          Add-MpPreference -ExclusionPath `
-            "$env:RUNNER_TOOL_CACHE", `
-            "$env:LOCALAPPDATA\Pub\Cache", `
-            "$env:GITHUB_WORKSPACE"
-          Write-Host 'Defender exclusions added for the tool cache, the pub cache and the workspace.'
-
       - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2

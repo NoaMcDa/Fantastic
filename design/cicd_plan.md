@@ -622,13 +622,30 @@ cannot be checked against a number later is a change nobody can undo safely.
    critical path drops from ~3m52 to ~3m10. It also names itself in the checks
    list, where before a browser-only break reported as a failure of a check
    called "analyze · format · test".
-5. **Windows exempts the toolchain directories from Defender.** Restoring the
-   77 MB pub cache took 58s and the 1.8 GB SDK took 56s — **the small archive
-   as slow as the large one**, which is per-file overhead, not throughput.
-   `continue-on-error`, because it is an optimisation and a runner image that
-   refuses `Add-MpPreference` should still build. **This one is a hypothesis
-   with a measurement attached, not a known quantity** — compare the untar
-   times on the next Windows run and delete the step if they have not moved.
+5. **Windows: a hypothesis that was tried, measured and removed.** Roughly half
+   that job is untarring — the 1.8 GB SDK cache took 56s to extract and the
+   77 MB pub cache took 58s, **the small archive as slow as the large one**,
+   which is per-file overhead rather than throughput. The obvious suspect was
+   Defender scanning every file a tarball unpacks, so a step exempting the tool
+   cache, the pub cache and the workspace via `Add-MpPreference` went in with
+   this note attached: *compare the untar times on the next Windows run and
+   delete the step if they have not moved.*
+
+   They did not move. Measured on the run that introduced it, against the run
+   immediately before:
+
+   | Untar | Before | After |
+   |---|---|---|
+   | Flutter SDK, 1.8 GB | 55.7s | 52.3s |
+   | pub cache, 77 MB | 58.3s | 50.5s |
+
+   About 11s of movement against 8s spent adding the exclusions — **~3s net,
+   which is noise** — so the step was removed in the same PR that added it.
+   The remaining suspects are `tar.exe` from Git for Windows (invoked with
+   `--force-local` over a `D:` path) and NTFS small-file creation, neither of
+   which an antivirus exclusion touches. Recorded rather than quietly dropped,
+   because it is an obvious idea to have again and the next person deserves the
+   measurement instead of the intuition.
 
 Two things were considered and **not** done:
 
@@ -643,6 +660,31 @@ Two things were considered and **not** done:
 
 Also bumped: `actions/checkout`, `actions/cache` and `actions/setup-java` to
 v5. Every run was warning that the v4 pins target the deprecated Node 20.
+
+#### What it actually did
+
+Measured on the PR that made the change, against the runs in the table above.
+**Two of the six moved for the reason predicted, one did not move at all, and
+the macOS pair cannot be judged from a PR run:**
+
+| Workflow | Before | After | Read |
+|---|---|---|---|
+| Build Android | 5m15 | **3m56** | The predicted win. `Save Gradle cache` correctly reports `skipped`, and post-job cleanup is now 1-2s instead of 33s |
+| CI (the gate) | 3m52 | **3m33** | Structurally correct — `build web` finished 1m34 in, rather than 40s after the suite — but smaller than the ~3m10 predicted, because the suite itself ran 2m33 against 2m03 the run before |
+| Build Windows | 5m06 | 5m07 | No movement; the Defender step was removed, see 5 above |
+| Build iOS | 5m50 | 4m53 | **Still a cold cache**, as expected on a PR |
+| Build macOS | 3m50 | 5m39 | Also still cold. The 3m50 was a run that happened to hit a cache *it* had written on *its own* branch — the scoping rule making the point again |
+
+Two things to take from this rather than from the predictions:
+
+- **The gate's floor is the test suite, and the suite is noisy.** It varied by
+  30s between two consecutive green runs of an unchanged suite. Any future
+  claim about gate time has to be read against that; the parallel split removed
+  a *structural* 40s, which is the part that does not vary.
+- **The macOS number is unverifiable until this merges.** Both macOS jobs will
+  stay cold on every PR until `warm-macos-cache.yml` has run on `main` at least
+  once. The first push to `main` is the test; if the run after it still logs
+  `Cache not found`, the key derivation is wrong and the warm job is decorative.
 
 ---
 
