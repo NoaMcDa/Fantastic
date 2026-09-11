@@ -14,8 +14,78 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Is there anything here that CI can actually have an opinion about?
+  #
+  # Editing a design document cannot change what `flutter test` returns, what
+  # the coverage gate measures, or whether the web bundle links — nothing under
+  # `design/` is compiled, imported or read by any step below. Running the full
+  # gate on a docs PR spends four minutes and a reviewer's attention to prove
+  # something that was never in question.
+  #
+  # This is a job with an `if` on its dependents rather than a `paths-ignore`
+  # on the workflow, and the difference is load-bearing: a workflow skipped by
+  # a path filter never reports a conclusion at all, so a required check that
+  # is filtered out leaves the PR waiting on a status that will never arrive
+  # (§5.5 of design/cicd_plan.md makes `verify` and `e2e flows` required). A
+  # *skipped job* does report, and GitHub counts it as a pass. The platform
+  # build workflows can and do use `paths` filters because none of them is a
+  # required check.
+  #
+  # The classification itself lives in tool/docs_only.sh — one definition, run
+  # locally the same way, and it decides every uncertain case as "code".
+  changes:
+    name: docs-only?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The classifier diffs two commits; the default shallow clone has
+          # neither of them, and a failed diff means "run everything".
+          fetch-depth: 0
+
+      - name: Classify the diff
+        id: classify
+        env:
+          # Read through env rather than interpolated into the script body —
+          # these are GitHub's values, not this workflow's, and a `run:` block
+          # that pastes them inline is a shell-injection shape regardless of
+          # how well-formed today's values happen to be.
+          EVENT_NAME: ${{ github.event_name }}
+          # On `pull_request` the pair is the PR's base and head; on `push` it
+          # is the range the push advanced. `github.event.before` is all zeros
+          # for a branch's first push, which the script treats as undecidable
+          # and therefore as code.
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ "$EVENT_NAME" != 'pull_request' ] && [ "$EVENT_NAME" != 'push' ]; then
+            # workflow_dispatch is somebody asking for this run by hand. Give
+            # them the whole thing.
+            echo 'docs_only=false' >> "$GITHUB_OUTPUT"
+            echo "::notice::$EVENT_NAME — running the full gate."
+            exit 0
+          fi
+
+          docs_only=$(tool/docs_only.sh "$BASE_SHA" "$HEAD_SHA")
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+
+          if [ "$docs_only" = 'true' ]; then
+            echo "::notice::Documentation-only change — skipping tests, coverage, web build and e2e flows."
+            git diff --name-only --no-renames "$BASE_SHA...$HEAD_SHA" | sed 's/^/  /'
+          else
+            echo "::notice::Code changed — running the full gate."
+          fi
+
   verify:
     name: analyze · format · test · coverage · build web
+    needs: changes
+    # A skipped job reports success, which is what keeps this usable as a
+    # required check on a docs-only PR.
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     # A cold release web build adds a few minutes on top of the gates above.
     timeout-minutes: 30
@@ -103,6 +173,10 @@ jobs:
 
   e2e:
     name: e2e flows
+    needs: changes
+    # Same gate as `verify`. The flows drive the real app; a Markdown edit
+    # cannot change what they see.
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     # The suite itself runs in ~35s; the budget is for SDK setup and the
     # first compile of the app under test.
