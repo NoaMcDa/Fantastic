@@ -9,8 +9,15 @@ abstract final class StreakStateFixture {
   /// The fixed last-compliant date every fixture uses unless overridden.
   static final DateTime defaultCompliantDate = DateTime(2026, 9, 9);
 
-  /// The fixed grace-period expiry — 24 hours after [defaultCompliantDate],
-  /// matching the window `CLAUDE.md` describes.
+  /// The fixed grace-period expiry.
+  ///
+  /// **A window, not necessarily an *open* one.** Whether it has closed
+  /// depends entirely on the instant a suite evaluates against, and the
+  /// service suite's is later in the same day — so
+  /// `inGracePeriod()` with no argument reads there as an *expired* window,
+  /// which is how a test named "resuming inside a grace period" came to
+  /// exercise the opposite case. Any test that cares about the distinction
+  /// must pass `gracePeriodEnd` explicitly.
   static final DateTime defaultGracePeriodEnd = DateTime(2026, 9, 10, 12);
 
   /// A first-launch user: zero streak, induction phase, no grace period.
@@ -30,7 +37,10 @@ abstract final class StreakStateFixture {
     lastCompliantDate: lastCompliantDate ?? defaultCompliantDate,
   );
 
-  /// A user who breached and is inside the 24-hour grace window.
+  /// A user who breached and has a grace window on the record.
+  ///
+  /// Pass [gracePeriodEnd] whenever open-versus-closed is what the test is
+  /// about — see [defaultGracePeriodEnd].
   static StreakState inGracePeriod({int days = 5, DateTime? gracePeriodEnd}) =>
       withStreak(days).copyWith(
         inGracePeriod: true,

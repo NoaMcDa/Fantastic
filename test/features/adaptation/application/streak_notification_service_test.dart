@@ -171,6 +171,25 @@ void main() {
       ).called(1);
     });
 
+    // An exact alarm needs a permission the app neither declares nor asks
+    // for, and without one the plugin schedules nothing at all — a reminder
+    // re-armed on every launch and delivered never.
+    test('schedules inexactly, needing no exact-alarm grant', () async {
+      await service.scheduleDailyReminder();
+
+      verify(
+        () => plugin.zonedSchedule(
+          id: any(named: 'id'),
+          title: any(named: 'title'),
+          body: any(named: 'body'),
+          scheduledDate: any(named: 'scheduledDate'),
+          notificationDetails: any(named: 'notificationDetails'),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          matchDateTimeComponents: any(named: 'matchDateTimeComponents'),
+        ),
+      ).called(1);
+    });
+
     test('the copy is Hebrew', () {
       // Any Hebrew letter. Copy that silently reverted to English would
       // otherwise ship unnoticed.

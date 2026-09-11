@@ -44,6 +44,15 @@ class AdaptationPhaseService {
   /// without this guard three meals would leave a three-day streak. A day
   /// already banked returns the stored state untouched, with no write.
   ///
+  /// **A grace period that closed before [date] has already cost the streak.**
+  /// The window is what the user was given to get back on plan; a compliant
+  /// day logged after it closed starts a new streak at 1 rather than resuming
+  /// the old one. Checking it here and not only in [handleBreach] is what
+  /// makes that true: the reset is lazy — nothing evaluates the state machine
+  /// while the user logs nothing — so the *next* evaluation is where an
+  /// expired window has to be noticed, and it is at least as likely to be a
+  /// compliant meal as a breach.
+  ///
   /// Known limitation: a day banked early cannot be un-banked by a later
   /// breach on the same day. Reversing it would need the previous
   /// `lastCompliantDate` to restore, which the singleton record does not keep.
@@ -55,11 +64,19 @@ class AdaptationPhaseService {
       return current;
     }
 
-    final streak = current.currentStreak + 1;
+    // Rebuilt rather than copied, for the same reason [handleBreach] does it:
+    // every field but the personal best returns to its initial value, and a
+    // field added to StreakState later resets correctly without anyone
+    // remembering to clear it.
+    final base = _hasExpired(current, date)
+        ? StreakState(highestStreak: current.highestStreak)
+        : current;
+
+    final streak = base.currentStreak + 1;
     return _repository.save(
-      current.copyWith(
+      base.copyWith(
         currentStreak: streak,
-        highestStreak: math.max(current.highestStreak, streak),
+        highestStreak: math.max(base.highestStreak, streak),
         phase: _phaseFor(streak),
         lastCompliantDate: day,
         inGracePeriod: false,
@@ -92,8 +109,7 @@ class AdaptationPhaseService {
     }
 
     if (current.inGracePeriod) {
-      final end = current.gracePeriodEnd;
-      if (end == null || !now.isAfter(end)) {
+      if (!_hasExpired(current, now)) {
         return current;
       }
       // Rebuilt rather than copied: every field but the personal best returns
@@ -114,9 +130,11 @@ class AdaptationPhaseService {
 
   /// Routes [date] to [recordCompliantDay] or [handleBreach].
   ///
-  /// [date] carries the time of day, which [handleBreach] compares against the
-  /// grace-period expiry — a midnight-normalised value would judge the window
-  /// by its start rather than by when the breach happened.
+  /// [date] carries the time of day, which **both** branches compare against
+  /// the grace-period expiry — a midnight-normalised value would judge the
+  /// window by its start rather than by when the evaluation happened. That is
+  /// why `MealLoggingService` passes the wall clock on the delete path, where
+  /// the only date it holds has been stripped to midnight.
   Future<StreakState> evaluateToday(DateTime date, {required bool compliant}) =>
       compliant ? recordCompliantDay(date) : handleBreach(date);
 
@@ -135,6 +153,20 @@ class AdaptationPhaseService {
       return AdaptationPhase.fatAdapted;
     }
     return AdaptationPhase.induction;
+  }
+
+  /// Whether [state]'s grace period was open and had already closed by [at].
+  ///
+  /// Strictly after, so an evaluation landing on the exact expiry instant is
+  /// still inside the window — the user is given the boundary, not denied it.
+  ///
+  /// An `inGracePeriod` with no [StreakState.gracePeriodEnd] cannot be judged
+  /// expired: there is no instant to compare against, and guessing would
+  /// reset a streak on a malformed record. Both callers leave such a state
+  /// alone, which is what they did before this was factored out.
+  static bool _hasExpired(StreakState state, DateTime at) {
+    final end = state.gracePeriodEnd;
+    return state.inGracePeriod && end != null && at.isAfter(end);
   }
 
   static DateTime _dateOnly(DateTime value) =>

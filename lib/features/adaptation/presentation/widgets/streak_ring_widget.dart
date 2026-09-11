@@ -43,7 +43,14 @@ class StreakRingWidget extends ConsumerWidget {
     if (streakAsync.hasError || logAsync.hasError) {
       return const _RingSpace();
     }
-    if (streakAsync.isLoading || logAsync.isLoading) {
+    // `!hasValue`, not `isLoading` alone. A refresh — which is what
+    // `invalidate(todaysDailyLogProvider)` after every meal write produces —
+    // is `isLoading` *with the previous value still attached*, so the plain
+    // check swapped the ring for a spinner on every save and then replayed
+    // the 600 ms sweep from zero. Keep painting what is already known and let
+    // the arc animate to the new value.
+    if ((streakAsync.isLoading && !streakAsync.hasValue) ||
+        (logAsync.isLoading && !logAsync.hasValue)) {
       return const _RingSpace(child: CircularProgressIndicator());
     }
 
