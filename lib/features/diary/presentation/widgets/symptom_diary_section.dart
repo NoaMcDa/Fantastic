@@ -4,6 +4,7 @@ import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
 import 'package:fantastic/features/diary/presentation/physical_symptom_copy.dart';
 import 'package:fantastic/features/diary/presentation/symptom_scale.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_log_sheet.dart';
+import 'package:fantastic/core/widgets/empty_state_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -58,35 +59,30 @@ class SymptomDiarySection extends ConsumerWidget {
 }
 
 /// A day with nothing logged.
+///
+/// Keeps its call-to-action, unlike [EmptyMealsState]: there is no symptom FAB
+/// for it to compete with, and the shared widget's optional `action` is how
+/// that asymmetry is expressed rather than a second empty-state widget (#91).
 class _Empty extends StatelessWidget {
   const _Empty({required this.date});
 
   final DateTime date;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // `ui_ux_design.md`'s empty-state line, minus its "today": this
-        // screen renders any past day.
-        Text(
-          'לא הוקלטו תסמינים',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        TextButton.icon(
-          key: const Key('log_symptoms_button'),
-          onPressed: () => SymptomLogSheet.show(context, date: date),
-          icon: const Icon(Icons.add),
-          label: const Text('רשום תסמינים'),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => EmptyStateWidget(
+    // Already this feature's symptom iconography — see
+    // `symptom_check_in_strip.dart`.
+    icon: Icons.healing_outlined,
+    // `ui_ux_design.md`'s empty-state line, minus its "today": this screen
+    // renders any past day.
+    headline: 'לא הוקלטו תסמינים',
+    action: TextButton.icon(
+      key: const Key('log_symptoms_button'),
+      onPressed: () => SymptomLogSheet.show(context, date: date),
+      icon: const Icon(Icons.add),
+      label: const Text('רשום תסמינים'),
+    ),
+  );
 }
 
 /// A logged day: the four scale scores, the physical symptom chips, the note,
