@@ -61,7 +61,10 @@ class VerdictBadgeWidget extends StatelessWidget {
   /// Definition of Done asks for named constants — and following M3's
   /// `PhaseBadgeWidget`, which takes the palette "so the badge tracks the
   /// palette every other widget uses".
-  @visibleForTesting
+  ///
+  /// Public rather than `@visibleForTesting`: `ScanResultSheet` tints its
+  /// flagged-ingredient heading with it, and a second hand-written mapping
+  /// there is how the chip and the list come to disagree.
   static Color colourFor(VerdictBadge badge) => switch (badge) {
     VerdictBadge.cleanKeto => AppTheme.success,
     VerdictBadge.cautionQuantityDependent => AppTheme.caution,
