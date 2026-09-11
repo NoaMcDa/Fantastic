@@ -85,6 +85,44 @@ jobs:
         # would.
         run: flutter build windows --release --no-pub
 
+      # Diagnostic, never a gate. `_tryOpenAny` swallows the reason a candidate
+      # did not open, which is right in the app and useless in CI: "isAvailable
+      # was false" does not say whether the name was wrong, a dependency was
+      # missing, or PATH never reached the process. This prints one line per
+      # candidate. Kept out of the repository tree on purpose — it imports only
+      # `dart:` libraries, so it needs no package and `flutter analyze` never
+      # sees it.
+      - name: Report which library names open, and why the others do not
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/probe_dll.dart" <<'DART'
+          import 'dart:ffi';
+          import 'dart:io';
+
+          void main(List<String> names) {
+            stdout.writeln('--- PATH entries mentioning tesseract ---');
+            for (final entry in (Platform.environment['PATH'] ?? '').split(';')) {
+              if (entry.toLowerCase().contains('tesseract')) {
+                stdout.writeln('  $entry');
+              }
+            }
+            stdout.writeln('--- DynamicLibrary.open, one line per candidate ---');
+            for (final name in names) {
+              try {
+                DynamicLibrary.open(name);
+                stdout.writeln('OPEN  $name');
+              } on Object catch (error) {
+                stdout.writeln('FAIL  $name -> $error');
+              }
+            }
+          }
+          DART
+          dart run "$RUNNER_TEMP/probe_dll.dart" \
+            libtesseract-5.dll \
+            'C:\Program Files\Tesseract-OCR\libtesseract-5.dll' \
+            libleptonica-6.dll \
+            'C:\Program Files\Tesseract-OCR\libleptonica-6.dll'
+
       - name: The desktop OCR adapter opens the system Tesseract
         shell: bash
         # `tesseract_ffi_recognizer_test.dart` calls DynamicLibrary.open through
