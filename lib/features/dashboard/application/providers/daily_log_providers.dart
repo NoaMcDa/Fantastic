@@ -27,3 +27,27 @@ Future<DailyLog?> todaysDailyLog(Ref ref, DateTime date) {
   final repository = ref.watch(dailyLogRepositoryProvider);
   return repository.findByDate(DateTime(date.year, date.month, date.day));
 }
+
+/// Every [DailyLog] in [month]'s calendar month, keyed by day of month.
+///
+/// One read and one loading state for the whole month, rather than the
+/// thirty-one family instances a per-day provider would allocate — the grid
+/// #67 draws would otherwise flicker in cell by cell and hit the store
+/// thirty-one times to draw one screen.
+///
+/// A day with no entry is simply absent from the map; callers render it as
+/// unlogged. Filters [DailyLogRepository.findAll] rather than adding a range
+/// query, because the collection is one record per day and a year of use is
+/// three hundred and sixty-five rows.
+///
+/// **Pass a date-only value**, for the same cache-key reason
+/// [todaysDailyLog] documents. Only the year and month are read.
+@riverpod
+Future<Map<int, DailyLog>> monthlyDailyLogs(Ref ref, DateTime month) async {
+  final logs = await ref.watch(dailyLogRepositoryProvider).findAll();
+  return {
+    for (final log in logs)
+      if (log.date.year == month.year && log.date.month == month.month)
+        log.date.day: log,
+  };
+}
