@@ -188,6 +188,14 @@ now closed:
 - The dashboard `+` renders on Linux and web — observed, not inferred.
 - The diary `+` is covered by widget tests on an empty day, against today and
   against a selected past day, and asserted not to reuse the dashboard key.
+- **The fixed diary tab was driven in a browser**, not just unit-tested: a web
+  release build of `main` was run through a genuine first launch (empty
+  IndexedDB, full onboarding) in headless Chromium, and the `+` renders
+  bottom-left above the nav bar — the correct corner under RTL — and opens the
+  `הוספת ארוחה` sheet when tapped. This closes the gap this document originally
+  recorded as open: the screenshots that established the *root cause* were
+  taken on `origin/main` before any edit, and for a while nothing had confirmed
+  the fix in a running app.
 - The `MealListSection` fix was proven to fail without the change by reverting
   the file, re-running, and restoring it.
 - The scan reads the user's actual label correctly on Tesseract **5.3.4**
@@ -198,8 +206,6 @@ now closed:
 - **No camera has ever been used.** The committed label is screenshot quality —
   a flat crop, not a photograph off a curved bag under shop lighting. No
   accuracy figure is claimed; **#256 and Epic #10 stay open.**
-- **No screenshot of the *fixed* diary tab.** The screenshots that established
-  the root cause were taken on `origin/main` before any edit.
 - **The browser OCR path has never executed.** Web canvas greyscaling is
   reasoned from the native measurement; `flutter build web` proves it compiles.
 - **Mobile has never executed at all.** Whether `flutter_tesseract_ocr`
