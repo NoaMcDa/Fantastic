@@ -5,6 +5,7 @@ import 'package:fantastic/features/keto_lens/domain/models/serving_basis.dart';
 import 'package:fantastic/features/keto_lens/domain/models/verdict_badge.dart';
 import 'package:fantastic/features/keto_lens/presentation/widgets/scan_result_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:fantastic/features/keto_lens/domain/models/macro_verdict.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../../helpers/pump_app.dart';
@@ -26,6 +27,9 @@ void main() {
     tester,
     ScanResultSheet(
       result: ScanSucceeded(
+        macroVerdict: const MacroVerdict.indeterminate(
+          MacroIndeterminacy.noCarbRow,
+        ),
         label: label,
         verdict: const IngredientVerdict(badge: VerdictBadge.cleanKeto),
       ),

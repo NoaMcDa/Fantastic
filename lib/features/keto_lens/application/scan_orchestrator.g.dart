@@ -53,4 +53,4 @@ final class ScanOrchestratorProvider
   }
 }
 
-String _$scanOrchestratorHash() => r'e100e28ee6b4e0bd5b035f15e20771e11530b3d2';
+String _$scanOrchestratorHash() => r'2c7a61b372368e8bc3be81cccfa2e5df98a472c8';

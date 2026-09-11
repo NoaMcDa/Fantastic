@@ -415,6 +415,38 @@ specified reporting a failed scan as `Clean Keto`; a user in a shop would have
 been told a product was keto-safe because the app could not read the label. The
 sealed result exists so that cannot be expressed.
 
+**The badge reads the panel, not only the ingredient list.** A scan produces
+*two* verdicts — `IngredientVerdict` from the tokens and `MacroVerdict` from the
+numbers — and `LabelVerdict.combine` reduces them to the one badge shown. Until
+#306 the badge was `classifier.classify(label.ingredients)` and nothing else, so
+a whole-wheat bread at **34.2 g of net carbs per 100 g rendered a green tick**:
+`label.netCarbsG` was in scope on the line above and never reached the verdict.
+
+- **Band edges are computed, never typed.** `ProductVerdictConstants` holds
+  portions and a carb budget; `5 g / 100 g` and `5 g / 20 g` *are* the green and
+  red solid edges. "Why 25 g per 100 g?" has an answer.
+- **The panel checks itself first.** When energy, fat, protein and total carbs
+  all parsed, `9·fat + 4·protein + 4·carbs` must land within 25% of the declared
+  calories, or the verdict is `indeterminate(energyMismatch)` — a confident band
+  computed from a mis-read digit is the deepest risk the feature carries. The
+  check is **skipped** when the energy row did not parse.
+- **Green is withheld under an assumed basis, and only green.** If figures that
+  are really per-serving are read as per-100 g, the error is always *optimistic*
+  — a serving is never more than 100 g. Amber and red stay right either way. A
+  printed zero is the one exception: zero is zero on every basis.
+- **Polyols are subtracted only when they can be attributed** — a declared row,
+  a clean sweetener named, no insulin-spiking sweetener named, a non-empty
+  ingredient list, and grams that fit the carbohydrate residual. An
+  unattributed subtraction is a green tick bought with no evidence.
+- **An amber ingredient badge escalates to red** when a flagged *insulin-spiking
+  sweetener* meets `moderation` or worse macros. `ui_ux_design.md` defines that
+  badge as "sweeteners **in small amount**" — a quantity claim nothing could
+  test until the panel could. An unspecified vegetable oil never escalates: that
+  caution is about identity, and carbs say nothing about which oil it is.
+- **`recognisedNothing` is not evidence**, so it is excluded from the reduction.
+  With nothing on either side the sheet shows a neutral chip rather than
+  "no problematic ingredients found".
+
 **The lens scans in a browser.** This reverses M6's original decision, which
 was correct while the only on-device option was a native-only plugin. Tesseract
 compiled to WebAssembly runs in a Web Worker on the user's machine, so the

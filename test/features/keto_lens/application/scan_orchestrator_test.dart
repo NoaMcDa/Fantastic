@@ -6,6 +6,7 @@ import 'package:fantastic/features/keto_lens/domain/models/verdict_badge.dart';
 import 'package:fantastic/features/keto_lens/domain/services/ingredient_classifier.dart';
 import 'package:fantastic/features/keto_lens/domain/services/label_parser.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
+import 'package:fantastic/features/keto_lens/data/classifiers/macro_classifier_impl.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -34,6 +35,7 @@ void main() {
     parser = _MockParser();
     classifier = _MockClassifier();
     orchestrator = ScanOrchestrator(
+      macroClassifier: const MacroClassifierImpl(),
       recognizer: recognizer,
       parser: parser,
       classifier: classifier,
@@ -188,6 +190,7 @@ void main() {
       when(() => r.isAvailable).thenReturn(true);
       stub(r, p);
       return ScanOrchestrator(
+        macroClassifier: const MacroClassifierImpl(),
         recognizer: r,
         parser: p,
         classifier: _MockClassifier(),

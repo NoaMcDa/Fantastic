@@ -31,7 +31,10 @@ class VerdictBadgeWidget extends StatelessWidget {
   });
 
   /// The verdict to render.
-  final VerdictBadge badge;
+  /// The badge to show, or null when neither the ingredients nor the panel
+  /// carried evidence — a fourth, neutral appearance rather than a guess
+  /// (#306).
+  final VerdictBadge? badge;
 
   /// Whether the classifier matched no rule at all, in either direction.
   ///
@@ -44,7 +47,13 @@ class VerdictBadgeWidget extends StatelessWidget {
   /// Exposed for the widget test and for `ScanResultSheet`'s semantics
   /// label, so neither has to re-derive the copy and drift from it.
   @visibleForTesting
-  static String labelFor(VerdictBadge badge, {bool recognisedNothing = false}) {
+  static String labelFor(
+    VerdictBadge? badge, {
+    bool recognisedNothing = false,
+  }) {
+    if (badge == null) {
+      return 'לא ניתן לקבוע — בדקו את התווית';
+    }
     if (badge == VerdictBadge.cleanKeto && recognisedNothing) {
       return 'לא נמצאו רכיבים בעייתיים';
     }
@@ -65,7 +74,8 @@ class VerdictBadgeWidget extends StatelessWidget {
   /// Public rather than `@visibleForTesting`: `ScanResultSheet` tints its
   /// flagged-ingredient heading with it, and a second hand-written mapping
   /// there is how the chip and the list come to disagree.
-  static Color colourFor(VerdictBadge badge) => switch (badge) {
+  static Color colourFor(VerdictBadge? badge) => switch (badge) {
+    null => AppTheme.surface,
     VerdictBadge.cleanKeto => AppTheme.success,
     VerdictBadge.cautionQuantityDependent => AppTheme.caution,
     VerdictBadge.nonKeto => AppTheme.danger,
@@ -75,9 +85,11 @@ class VerdictBadgeWidget extends StatelessWidget {
   ///
   /// The caution token is `#FFD60A`, a bright yellow: white on it is close
   /// to unreadable. Dark ink on the two light-ish fills and white on the
-  /// red is what keeps all three legible.
+  /// red — and on the dark neutral surface — is what keeps all four legible.
   @visibleForTesting
-  static Color inkFor(VerdictBadge badge) => switch (badge) {
+  static Color inkFor(VerdictBadge? badge) => switch (badge) {
+    // `surface` is the dark palette's card colour, so it takes light ink.
+    null => Colors.white,
     VerdictBadge.cleanKeto ||
     VerdictBadge.cautionQuantityDependent => AppTheme.primary,
     VerdictBadge.nonKeto => Colors.white,
@@ -88,7 +100,8 @@ class VerdictBadgeWidget extends StatelessWidget {
   /// Deliberately not a directional glyph, so nothing needs mirroring in
   /// the RTL layout.
   @visibleForTesting
-  static IconData iconFor(VerdictBadge badge) => switch (badge) {
+  static IconData iconFor(VerdictBadge? badge) => switch (badge) {
+    null => Icons.help_outline,
     VerdictBadge.cleanKeto => Icons.check_circle,
     VerdictBadge.cautionQuantityDependent => Icons.warning_amber_rounded,
     VerdictBadge.nonKeto => Icons.cancel,

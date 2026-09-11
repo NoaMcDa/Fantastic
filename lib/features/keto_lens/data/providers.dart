@@ -9,8 +9,10 @@ library;
 
 import 'package:fantastic/features/keto_lens/data/adapters/text_recognizer_factory.dart';
 import 'package:fantastic/features/keto_lens/data/classifiers/ingredient_classifier_impl.dart';
+import 'package:fantastic/features/keto_lens/data/classifiers/macro_classifier_impl.dart';
 import 'package:fantastic/features/keto_lens/data/parsers/hebrew_label_parser.dart';
 import 'package:fantastic/features/keto_lens/domain/services/ingredient_classifier.dart';
+import 'package:fantastic/features/keto_lens/domain/services/macro_classifier.dart';
 import 'package:fantastic/features/keto_lens/domain/services/label_parser.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -31,6 +33,13 @@ LabelParser labelParser(Ref ref) => const HebrewLabelParser();
 @Riverpod(keepAlive: true)
 IngredientClassifier ingredientClassifier(Ref ref) =>
     const IngredientClassifierImpl();
+
+/// The product-level verdict rule.
+///
+/// `keepAlive` for the same reason as [ingredientClassifier]: it is stateless,
+/// and every threshold it reads is a compile-time constant.
+@Riverpod(keepAlive: true)
+MacroClassifier macroClassifier(Ref ref) => const MacroClassifierImpl();
 
 /// On-device OCR, or the stub that says it is unavailable.
 ///

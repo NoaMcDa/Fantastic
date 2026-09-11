@@ -1,6 +1,7 @@
 import 'package:fantastic/features/keto_lens/data/providers.dart';
 import 'package:fantastic/features/keto_lens/domain/models/scan_result.dart';
 import 'package:fantastic/features/keto_lens/domain/services/ingredient_classifier.dart';
+import 'package:fantastic/features/keto_lens/domain/services/macro_classifier.dart';
 import 'package:fantastic/features/keto_lens/domain/services/label_parser.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -31,6 +32,7 @@ class ScanOrchestrator {
     required this.recognizer,
     required this.parser,
     required this.classifier,
+    required this.macroClassifier,
   });
 
   // Public rather than private, for the reason `MealLoggingService` records:
@@ -40,6 +42,7 @@ class ScanOrchestrator {
   final TextRecognitionService recognizer;
   final LabelParser parser;
   final IngredientClassifier classifier;
+  final MacroClassifier macroClassifier;
 
   /// Scans the image at [imagePath].
   ///
@@ -83,6 +86,7 @@ class ScanOrchestrator {
     return ScanSucceeded(
       label: label,
       verdict: classifier.classify(label.ingredients),
+      macroVerdict: macroClassifier.classify(label),
     );
   }
 }
@@ -92,4 +96,5 @@ ScanOrchestrator scanOrchestrator(Ref ref) => ScanOrchestrator(
   recognizer: ref.watch(textRecognitionServiceProvider),
   parser: ref.watch(labelParserProvider),
   classifier: ref.watch(ingredientClassifierProvider),
+  macroClassifier: ref.watch(macroClassifierProvider),
 );

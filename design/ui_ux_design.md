@@ -148,6 +148,19 @@ Tap any → opens a modal log sheet for that symptom
 │  ⚠️  זהירות / כמות       │  Yellow — insulin-spiking sweeteners in small amount
 └─────────────────────────┘
 
+> **"In small amount" is now tested rather than asserted (#306).** Until the
+> scan read the nutrition panel, nothing in the app could check that claim —
+> the classifier sees tokens, not grams. `LabelVerdict.combine` escalates this
+> amber badge to red when a flagged insulin-spiking sweetener meets a
+> `moderation`-or-worse macro verdict, because the panel has falsified the
+> premise of the caution. It does **not** escalate the other source of an amber
+> badge, an unspecified vegetable oil: that caution is about *identity* — the
+> oil may be palm or coconut — and carbohydrate says nothing about which it is.
+>
+> A fourth, neutral chip exists for a scan where neither the ingredients nor the
+> panel carried evidence: `לא ניתן לקבוע — בדקו את התווית`, on `AppTheme.surface`
+> with no new colour token.
+
 ┌─────────────────────────┐
 │  ❌  לא קטו              │  Red — seed oils or high-carb sweeteners present
 └─────────────────────────┘

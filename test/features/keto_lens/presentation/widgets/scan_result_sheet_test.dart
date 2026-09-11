@@ -9,9 +9,12 @@ import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fantastic/features/keto_lens/domain/models/macro_verdict.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../../helpers/pump_app.dart';
+
+import '../../../../fixtures/fixtures.dart';
 
 void main() {
   final date = DateTime(2026, 9, 11);
@@ -32,6 +35,9 @@ void main() {
       await pumpSheet(
         tester,
         const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
           label: ParsedLabel(
             fatG: 24,
             netCarbsG: 60,
@@ -57,6 +63,9 @@ void main() {
       await pumpSheet(
         tester,
         const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
           label: ParsedLabel(fatG: 53.8, netCarbsG: 1.2, proteinG: 26),
           verdict: IngredientVerdict(badge: VerdictBadge.cleanKeto),
         ),
@@ -77,6 +86,9 @@ void main() {
       await pumpSheet(
         tester,
         const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
           label: ParsedLabel(fatG: 12.5),
           verdict: IngredientVerdict(badge: VerdictBadge.cleanKeto),
         ),
@@ -94,6 +106,9 @@ void main() {
       await pumpSheet(
         tester,
         const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
           label: ParsedLabel(fatG: 10),
           verdict: IngredientVerdict(badge: VerdictBadge.cleanKeto),
         ),
@@ -109,6 +124,9 @@ void main() {
       await pumpSheet(
         tester,
         const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
           label: ParsedLabel(ingredients: ['מלח']),
           verdict: IngredientVerdict(badge: VerdictBadge.cleanKeto),
         ),
@@ -124,6 +142,9 @@ void main() {
       await pumpSheet(
         tester,
         const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
           label: ParsedLabel(fatG: 100),
           verdict: IngredientVerdict(
             badge: VerdictBadge.cleanKeto,
@@ -143,6 +164,9 @@ void main() {
       await pumpSheet(
         tester,
         const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
           label: ParsedLabel(fatG: 24),
           verdict: IngredientVerdict(badge: VerdictBadge.cleanKeto),
         ),
@@ -151,25 +175,77 @@ void main() {
       expect(find.textContaining('גודל המנה'), findsOneWidget);
     });
 
-    testWidgets('a clean badge that recognised nothing does not claim keto', (
+    // Neither side carried evidence: the ingredients matched no rule and the
+    // panel could not be read. Saying "no problematic ingredients found" here
+    // is a statement made from nothing, which is the class of claim #306
+    // exists to stop. The neutral chip is the honest answer.
+    testWidgets('no evidence on either side gives the neutral chip', (
       tester,
     ) async {
       await pumpSheet(
         tester,
         const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
           label: ParsedLabel(ingredients: ['קמח חיטה']),
           verdict: IngredientVerdict(badge: VerdictBadge.cleanKeto),
         ),
       );
 
-      expect(find.text('לא נמצאו רכיבים בעייתיים'), findsOneWidget);
+      expect(find.text('לא ניתן לקבוע — בדקו את התווית'), findsOneWidget);
       expect(find.text('קטו נקי'), findsNothing);
+      expect(find.text('לא נמצאו רכיבים בעייתיים'), findsNothing);
+    });
+
+    // But when the panel *does* say something clean, the softened ingredient
+    // copy stands: it is true, and it is now the weaker of two statements on
+    // screen rather than the only one.
+    testWidgets('a clean panel keeps the softened recognised-nothing copy', (
+      tester,
+    ) async {
+      await pumpSheet(
+        tester,
+        ScanSucceeded(
+          macroVerdict: MacroVerdictFixture.keto(),
+          label: const ParsedLabel(netCarbsG: 2, ingredients: ['קמח חיטה']),
+          verdict: const IngredientVerdict(badge: VerdictBadge.cleanKeto),
+        ),
+      );
+
+      expect(find.text('לא נמצאו רכיבים בעייתיים'), findsOneWidget);
+    });
+
+    // The reported defect, asserted where the user would see it: a bread at
+    // 34.2 g of net carbs per 100 g rendered a green tick, because the verdict
+    // never read a number.
+    testWidgets('a clean ingredient list does not survive a red panel', (
+      tester,
+    ) async {
+      await pumpSheet(
+        tester,
+        ScanSucceeded(
+          macroVerdict: MacroVerdictFixture.notKeto(),
+          label: const ParsedLabel(netCarbsG: 34.2, ingredients: ['קמח מלא']),
+          verdict: const IngredientVerdict(badge: VerdictBadge.cleanKeto),
+        ),
+      );
+
+      expect(find.text('לא קטו'), findsOneWidget);
+      expect(find.text('קטו נקי'), findsNothing);
+      expect(
+        find.textContaining('ממצים את תקציב הפחמימות היומי'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('offers the add-to-diary button', (tester) async {
       await pumpSheet(
         tester,
         const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
           label: ParsedLabel(fatG: 24),
           verdict: IngredientVerdict(badge: VerdictBadge.cleanKeto),
         ),
@@ -278,6 +354,9 @@ void main() {
       await tester.pumpWidget(
         _Host(
           result: const ScanSucceeded(
+            macroVerdict: MacroVerdict.indeterminate(
+              MacroIndeterminacy.noCarbRow,
+            ),
             label: ParsedLabel(fatG: 24, netCarbsG: 60, proteinG: 6),
             verdict: IngredientVerdict(badge: VerdictBadge.cleanKeto),
           ),
@@ -320,6 +399,9 @@ void main() {
       await tester.pumpWidget(
         _Host(
           result: const ScanSucceeded(
+            macroVerdict: MacroVerdict.indeterminate(
+              MacroIndeterminacy.noCarbRow,
+            ),
             label: ParsedLabel(fatG: 24),
             verdict: IngredientVerdict(badge: VerdictBadge.cleanKeto),
           ),
@@ -348,6 +430,9 @@ void main() {
       await tester.pumpWidget(
         _Host(
           result: const ScanSucceeded(
+            macroVerdict: MacroVerdict.indeterminate(
+              MacroIndeterminacy.noCarbRow,
+            ),
             label: ParsedLabel(fatG: 24),
             verdict: IngredientVerdict(badge: VerdictBadge.cleanKeto),
           ),

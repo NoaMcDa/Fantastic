@@ -7,6 +7,8 @@ import 'package:fantastic/features/keto_lens/domain/models/parsed_label.dart';
 import 'package:fantastic/features/keto_lens/domain/models/serving_basis.dart';
 import 'package:fantastic/features/keto_lens/domain/models/scan_result.dart';
 import 'package:fantastic/features/keto_lens/presentation/widgets/verdict_badge_widget.dart';
+import 'package:fantastic/features/keto_lens/domain/models/label_verdict.dart';
+import 'package:fantastic/features/keto_lens/domain/models/macro_verdict.dart';
 import 'package:flutter/material.dart';
 
 /// What a scan produced, as a modal bottom sheet.
@@ -153,6 +155,55 @@ class ScanResultSheet extends StatelessWidget {
     ServingBasis.unknown => 'הערכים מהתווית — בדקו את גודל המנה לפני השמירה',
   };
 
+  /// What the product verdict was taken from, what it costs, and anything it
+  /// assumed or adjusted.
+  ///
+  /// Each line is omitted when its input is null. Static and testable rather
+  /// than assembled inside `build`, so the copy can be asserted without
+  /// pumping a widget.
+  @visibleForTesting
+  static List<String> macroCaptions(ScanSucceeded success) {
+    final macros = success.macroVerdict;
+    final label = success.label;
+    final density = macros.netCarbsPer100;
+    final unit = label.basis == ServingBasis.per100ml ? 'מ"ל' : 'גרם';
+
+    return <String>[
+      if (density != null)
+        '${GramsText.format(density)} גרם פחמימות נטו ל-100 $unit',
+      // What converts the amber band from a shrug into an instruction. If this
+      // is ever dropped the whole rule degrades.
+      if (macros.gramsToDailyBudget != null)
+        '${GramsText.format(macros.gramsToDailyBudget)} גרם ממצים את תקציב '
+            'הפחמימות היומי',
+      if (macros.servingNetCarbsG != null && label.servingGrams != null)
+        'מנה (${GramsText.format(label.servingGrams)} גרם): '
+            '${GramsText.format(macros.servingNetCarbsG)} גרם',
+      // A red chip with no reason is a red chip the user argues with.
+      if (LabelVerdict.escalated(ingredients: success.verdict, macros: macros))
+        'מכיל ממתיק שמעלה אינסולין, והכמות בתווית אינה קטנה',
+      if (label.sugarsG != null)
+        'מתוכם ${GramsText.format(label.sugarsG)} גרם סוכר',
+      if (macros.adjustedForPolyols) 'הופחתו רב-כהליים שהוצהרו בתווית',
+      if (macros.basisAssumed)
+        'בתווית לא צוין ל-כמה הערכים — החישוב לפי 100 גרם',
+      ?_indeterminacyCaption(macros.reason),
+    ];
+  }
+
+  /// Why no verdict was reached, in words the person holding the product can
+  /// act on.
+  static String? _indeterminacyCaption(MacroIndeterminacy? reason) =>
+      switch (reason) {
+        null => null,
+        MacroIndeterminacy.noCarbRow => 'לא נמצאה שורת פחמימות בתווית',
+        MacroIndeterminacy.noBasis => 'לא ניתן לקבוע ל-כמה הערכים בתווית',
+        MacroIndeterminacy.implausibleMass =>
+          'הערכים בתווית אינם מסתדרים — בדקו אותה שוב',
+        MacroIndeterminacy.energyMismatch =>
+          'התווית אינה מסתדרת עם מספר הקלוריות שלה — בדקו אותה שוב',
+      };
+
   /// The amount field's label. Only reachable for a per-100 basis.
   @visibleForTesting
   static String amountLabel(ServingBasis basis) => switch (basis) {
@@ -227,8 +278,20 @@ class _SuccessBodyState extends State<_SuccessBody> {
       children: [
         Center(
           child: VerdictBadgeWidget(
-            badge: verdict.badge,
+            // The reduction lives in `LabelVerdict`, not here: it is business
+            // logic, and it is asserted without pumping a widget (#306).
+            badge: widget.success.badge,
             recognisedNothing: verdict.recognisedNothing,
+          ),
+        ),
+        ...ScanResultSheet.macroCaptions(widget.success).map(
+          (caption) => Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              caption,
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
         if (_label.hasMacros) ...[
