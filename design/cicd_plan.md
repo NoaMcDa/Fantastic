@@ -20,6 +20,13 @@ empty.** M2 landed #44–#48 and #54 while this document was being written, so
 the "vacuous gate" argument no longer holds and the coverage number has moved.
 Marked **[r3]**.
 
+Revision 5 is the **pipeline-efficiency pass — §5.7**, the first time the six
+workflows were measured against their own logs rather than reasoned about. It
+corrects two things every earlier revision assumed: **the macOS caches never
+hit, on any run, for a structural reason** (§5.4), and **branch protection was
+never actually configured**, so nothing in §5.5 is in force today. Marked
+**[r5]**.
+
 ---
 
 ## 1. What exists today
@@ -469,12 +476,48 @@ branch, which is why bare directories appeared in its output.
 |---|---|---|
 | Flutter SDK + pub cache | `subosito/flutter-action`'s `cache: true` | ~90s/run |
 | `.dart_tool/build` | `pubspec.lock` hash, `codegen` job only | minutes on a cold builder cache |
+| Gradle | wrapper + `settings.gradle.kts` + `pubspec.lock` hash, **restored always, saved on `main` only** — §5.7 | ~35s/run, and stops a 2.15 GB write per PR run |
+
+**[r5] A cache is scoped to the branch that wrote it, plus the default
+branch — and that is what decides whether any of the above saves anything.**
+A run on `feat/x` may read caches written by `feat/x` and by `main`, and by
+nothing else. Two consequences went unnoticed until the logs were read:
+
+- **A workflow that never runs on `main` can never warm its own cache.**
+  `build-ios.yml` and `build-macos.yml` are `pull_request`-only, so every run
+  either of them has ever made logged `Cache not found`, downloaded 2.1 GB of
+  Flutter SDK, and then uploaded a copy into a PR scope that no later run could
+  read. `warm-macos-cache.yml` exists solely to fix this; see §5.7.
+- **A cache a PR run writes is write-only.** `build-android.yml` uploaded
+  2.15 GB of Gradle cache at the end of every PR run, which cost ~33 s of
+  post-job time and then occupied the repository's **10 GB total cache budget**
+  until eviction. Four of those is the whole budget, and what gets evicted to
+  make room is the SDK caches every other workflow depends on — so the write
+  was not merely useless, it was actively degrading the jobs that did cache
+  correctly.
+
+The rule that follows: **save from `main`, restore everywhere.**
 
 ### 5.5 Branch protection
 
+> **[r5] None of this is configured.** `GET /repos/NoaMcDa/Fantastic/branches/main`
+> reports `"protected": false` as of 2026-09-11, so there are no required
+> status checks, no up-to-date requirement and no enforced squash. Everything
+> below is still the intent, and every other document that says `verify` and
+> `e2e flows` "are required" is describing this plan rather than the
+> repository. The practical consequence is narrow but worth knowing: **renaming
+> a job cannot currently strand a PR on a check that will never report**, which
+> is what made the §5.7 split safe to do in one commit. Configure this and that
+> stops being true — from then on, a job rename is a branch-protection change
+> as well as a workflow change.
+
 Once `ci.yml` has one green run on `main`, configure on `main`:
 
-- Require status checks to pass: **`analyze · format · test`**, **`codegen drift`**
+- Require status checks to pass — **[r5] by their current display names**, which
+  are what branch protection matches on: **`analyze · format · test · coverage`**,
+  **`build web`**, **`e2e flows`**, and **`codegen drift`** once Phase 1 lands.
+  `build web` is new in §5.7 and is a separate check precisely so that a
+  browser-only break names itself
 - Require branches to be up to date before merging
 - Require a pull request before merging (already the convention in
   `design/pr_conventions.md`; this makes it mechanical)
@@ -532,6 +575,74 @@ The same list appears as a `paths-ignore` on `build-android.yml`,
 `build-ios.yml`, `build-macos.yml` and the `pull_request` trigger of
 `build-windows.yml` needed no change — their `paths` include-lists never
 matched a Markdown file in the first place.
+
+### 5.7 **[r5]** The efficiency pass — measured, not reasoned about
+
+Six workflows run in parallel on every code PR and the whole set took about six
+minutes. The question asked was whether the parallel shape was wrong. **It was
+not** — the shape is right, and none of what follows changes it. Every real
+cost was inside a job, and four of the five findings were invisible without
+opening a job log, because a green check reports no timings at all.
+
+Measured on run 222 and its siblings (2026-09-11, all green):
+
+| Workflow | Wall clock | Where it actually went |
+|---|---|---|
+| CI (the gate) | 3m52 | `flutter test --coverage` 2m03, then `build web` 40s **serialized behind it** |
+| Build iOS | 5m50 | SDK setup 1m32 (cold) + 33s saving a cache nothing would read |
+| Build Android | 5m15 | debug APK 83s + release APK 107s + 35s restoring 2.15 GB |
+| Build Windows | 5m06 | SDK setup 2m24, **almost entirely untarring** |
+| Build macOS | 3m50 | SDK download 58s + 38s cache save |
+| Build Linux | 2m36 | nothing anomalous |
+
+Five changes, in payoff order. Each states what it cost, because a change that
+cannot be checked against a number later is a change nobody can undo safely.
+
+1. **`warm-macos-cache.yml` — a job on `main` that builds nothing.** The
+   scoping rule in §5.4 means the two `pull_request`-only macOS workflows had
+   never once read a cache. This warms the SDK and pub caches into `main`'s
+   scope on a dependency or pin change, and twice weekly against the **7-day
+   eviction window**. Expected ~2 min off iOS and ~1.5 min off macOS. **This is
+   the one change no PR can verify** — it runs only on `main`, so its first
+   real run is after merge, and the iOS/macOS jobs on the PR that introduces it
+   are still cold.
+2. **Android builds release only.** The debug assemble proved nothing release
+   does not — same Gradle configuration, manifest merge, plugin set, native
+   libraries and asset packaging; R8 is a superset; both sign with the debug
+   keystore. It bought ~80s of earlier notice on a red run for ~80s of runner
+   time on every green one. The asset assertion moved to the release APK, which
+   is safe because R8 shrinks bytecode and never touches `lib/` or `assets/`.
+   **The `--no-pub` hazard did not go away, it moved**: `flutter pub get` now
+   leaves the dev-inclusive `GeneratedPluginRegistrant.java` that the release
+   build must regenerate, so the release step still deliberately runs pub.
+3. **Gradle cache: restore always, save on `main` only** (§5.4).
+4. **`build web` is its own job.** It was the last step of `verify`, so it
+   started only once the ~2-minute suite finished, and nothing it needs is
+   produced by that suite. Beside `verify` and `e2e` instead: the gate's
+   critical path drops from ~3m52 to ~3m10. It also names itself in the checks
+   list, where before a browser-only break reported as a failure of a check
+   called "analyze · format · test".
+5. **Windows exempts the toolchain directories from Defender.** Restoring the
+   77 MB pub cache took 58s and the 1.8 GB SDK took 56s — **the small archive
+   as slow as the large one**, which is per-file overhead, not throughput.
+   `continue-on-error`, because it is an optimisation and a runner image that
+   refuses `Add-MpPreference` should still build. **This one is a hypothesis
+   with a measurement attached, not a known quantity** — compare the untar
+   times on the next Windows run and delete the step if they have not moved.
+
+Two things were considered and **not** done:
+
+- **Sharding `flutter test` across runners.** It would roughly halve the
+  2-minute step, but `tool/check_coverage.sh` counts `DA:` lines, so two shards
+  would need an lcov merge before the gate or the denominator double-counts.
+  Not worth it at 2 minutes; revisit if the suite passes 4.
+- **Folding the `docs-only?` job into its dependents.** It adds ~23s of serial
+  time, but 16s of that is runner teardown after its last step, which moving
+  the logic would not recover. The gain is ~7s for three copies of the same
+  conditional.
+
+Also bumped: `actions/checkout`, `actions/cache` and `actions/setup-java` to
+v5. Every run was warning that the v4 pins target the deprecated Node 20.
 
 ---
 

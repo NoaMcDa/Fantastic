@@ -771,7 +771,11 @@ the script) runs the full gate instead. **`*.txt` is deliberately not on the
 docs list** — `linux/CMakeLists.txt`, `windows/CMakeLists.txt` and
 `tool/coverage_ignore.txt` are all load-bearing. See `design/cicd_plan.md` §5.6.
 
-Steps, cheapest first so a formatting slip fails in seconds:
+**The gate is three parallel jobs, not one.** `verify`, `build web` and
+`e2e flows` all hang off `docs-only?` and run at the same time; the gate
+finishes when the slowest of them does, currently `verify` at about 2m45.
+
+`verify` — steps cheapest first, so a formatting slip fails in seconds:
 1. `flutter pub get`
 2. **`pubspec.lock` unchanged** — fails if `pub get` rewrote the committed lockfile
 3. `dart format --output=none --set-exit-if-changed lib/ test/ integration_test/` — zero diffs
@@ -779,11 +783,15 @@ Steps, cheapest first so a formatting slip fails in seconds:
 5. `flutter test --no-pub --coverage` — zero failures, and writes `coverage/lcov.info`
 6. `tool/check_coverage.sh coverage/lcov.info 80` — ≥80% on `domain/` + `application/`
 7. `tool/check_coverage_files.sh coverage/lcov.info` — no gated file missing from the report and absent from `tool/coverage_ignore.txt`
-8. `flutter build web --release --no-pub --no-web-resources-cdn` — the web target compiles
 
-Step 8 is not redundant with `analyze`: a stray `dart:io` or `path_provider`
-import outside `lib/core/database/database_factory_io.dart` analyses clean and
-breaks only the web build.
+`build web` — one step, `flutter build web --release --no-pub --no-web-resources-cdn`.
+**It is a job of its own, and was the tail of `verify` until the efficiency
+pass** (`design/cicd_plan.md` §5.7): nothing it needs is produced by the test
+suite, so waiting ~2 minutes for that suite and then adding its own ~40s to the
+critical path bought nothing. Do not fold it back in. It is also not redundant
+with `analyze` — a stray `dart:io` or `path_provider` import outside
+`lib/core/database/database_factory_io.dart` analyses clean and breaks only the
+web build, and now says so under its own name in the checks list.
 
 Two things CI checks but does not generate, because it builds what you committed:
 **generated `.g.dart` files** (run `build_runner` and commit) and **`pubspec.lock`**
@@ -798,8 +806,8 @@ scripts run locally: `flutter test --coverage && tool/check_coverage.sh`.
 
 ### The `e2e flows` job
 
-A second job in the same workflow, on `ubuntu-latest`, per PR and in parallel
-with `verify`:
+A third job in the same workflow, on `ubuntu-latest`, per PR and in parallel
+with `verify` and `build web`:
 
 ```bash
 flutter test -d flutter-tester integration_test/app_test.dart --no-pub
@@ -831,15 +839,25 @@ first, and a screen over a broken store never settles at all because riverpod
 
 `ci.yml` is the gate every PR must pass; it builds **web** and nothing else.
 Five sibling workflows build the other five targets on a runner of their own
-OS, each in its own file so that changing one cannot conflict with another:
+OS, each in its own file so that changing one cannot conflict with another —
+plus a sixth that compiles nothing and exists only to warm a cache:
 
 | Workflow | Runner | Builds | Trigger |
 |---|---|---|---|
-| `build-android.yml` | `ubuntu-latest` | `flutter build apk` | PR + push to main |
+| `build-android.yml` | `ubuntu-latest` | `flutter build apk --release` | PR + push to main |
 | `build-linux.yml` | `ubuntu-latest` | `flutter build linux` **+ a headless smoke test** | PR + push to main |
 | `build-windows.yml` | `windows-latest` (2x minutes) | `flutter build windows` | PR (paths-filtered) + push to main |
 | `build-ios.yml` | `macos-latest` (**10x minutes**) | `flutter build ios --no-codesign` | PR (paths-filtered) only |
 | `build-macos.yml` | `macos-latest` (**10x minutes**) | `flutter build macos` | PR (paths-filtered) only |
+| `warm-macos-cache.yml` | `macos-latest` | **nothing** — it only fills a cache | push to main (paths-filtered) + twice weekly |
+
+**Android builds release only, and the asset assertion reads the release APK.**
+A debug assemble ran first until the efficiency pass; it proved nothing release
+does not, and cost ~80s on every green run to save ~80s on a red one. The
+release step still deliberately omits `--no-pub`: `flutter pub get` leaves a
+dev-inclusive `GeneratedPluginRegistrant.java` naming `IntegrationTestPlugin`,
+and only a pub-enabled build regenerates the release one. See
+`design/cicd_plan.md` §5.7.
 
 **The macOS-runner jobs are deliberately not on `push`.** `design/cicd_plan.md`
 §8 records an earlier plan exceeding the free Actions tier 3x on macOS minutes
@@ -847,6 +865,17 @@ alone; path filters plus `cancel-in-progress` are what keep that from
 recurring. Note a `paths` filter matches the **whole PR diff, not the newest
 push**, so a docs-only commit on a PR that already touched `ios/` still re-runs
 the job — `concurrency` is the per-push control, not `paths`.
+
+**That decision is exactly why `warm-macos-cache.yml` has to exist.** An
+Actions cache is readable only from the branch that wrote it and from the
+default branch, so a workflow that never runs on `main` never warms its own
+cache: both macOS jobs logged `Cache not found` on every run they had ever
+made and re-downloaded 2.1 GB of SDK each time. The warm job runs on `main`,
+builds nothing, and writes the caches the two consumers read. Its
+`flutter-version` **must** stay identical to theirs — a differing pin warms a
+key nothing reads, and the job still goes green. The same scoping rule is why
+`build-android.yml` restores the Gradle cache always but saves it only on
+`main`. See `design/cicd_plan.md` §5.4.
 
 These are not redundant with `analyze`. Every one of the five found a defect
 that analysed clean and compiled clean on every *other* platform: a `jcenter()`
