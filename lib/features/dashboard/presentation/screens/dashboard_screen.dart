@@ -1,3 +1,6 @@
+import 'package:fantastic/features/adaptation/application/providers/streak_providers.dart';
+import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
+import 'package:fantastic/features/adaptation/presentation/widgets/phase_badge_widget.dart';
 import 'package:fantastic/features/adaptation/presentation/widgets/streak_ring_widget.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/electrolytes_card.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card.dart';
@@ -49,10 +52,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 MacroSummaryCard(date: _date),
                 const SizedBox(height: 16),
                 Center(child: StreakRingWidget(date: _date)),
+                const SizedBox(height: 8),
+                const Center(child: PhaseBadgeWidget()),
                 const SizedBox(height: 16),
                 MealListSection(date: _date),
                 const SizedBox(height: 16),
-                ElectrolytesCard(date: _date),
+                // The phase the targets are drawn from, at last: M2 shipped
+                // this card with a parameter defaulting to induction and a
+                // comment saying M3 would pass the real value here.
+                ElectrolytesCard(
+                  date: _date,
+                  phase:
+                      ref.watch(currentPhaseProvider).value ??
+                      AdaptationPhase.induction,
+                ),
                 // Clears the FAB, which would otherwise cover the last row.
                 const SizedBox(height: 80),
               ]),

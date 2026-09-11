@@ -1,4 +1,7 @@
 import 'package:fantastic/features/adaptation/data/providers.dart';
+import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
+import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
+import 'package:fantastic/features/adaptation/presentation/widgets/phase_badge_widget.dart';
 import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
 import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
@@ -40,6 +43,10 @@ void main() {
     streakRepository = _MockStreakRepository();
     when(streakRepository.watch).thenAnswer((_) => Stream.value(null));
   });
+
+  /// Makes the streak resolve to [streak] for the next pump.
+  void streakIs(StreakState? streak) =>
+      when(streakRepository.watch).thenAnswer((_) => Stream.value(streak));
 
   /// The screen is a `Scaffold` in its own right, so it is pumped directly
   /// rather than through `pumpApp`'s wrapper, which would nest two.
@@ -205,5 +212,45 @@ void main() {
     await pumpDashboard(tester, log: DailyLogFixture.fixture(date: today()));
 
     expect(tester.takeException(), isNull);
+  });
+
+  // #64 completed the dashboard's adaptation row and closed the last gap
+  // m2_handoff.md recorded.
+  group('adaptation', () {
+    testWidgets('shows the phase badge', (tester) async {
+      await pumpDashboard(tester, log: DailyLogFixture.fixture(date: today()));
+
+      expect(find.byType(PhaseBadgeWidget), findsOneWidget);
+    });
+
+    // M2 shipped ElectrolytesCard with `phase` defaulting to induction and a
+    // comment saying M3 would pass the real value. This is that assertion:
+    // the targets now follow the user's actual phase, so a fat-adapted user
+    // stops being held to induction's higher sodium figure.
+    testWidgets('passes the live phase to the electrolytes card', (
+      tester,
+    ) async {
+      streakIs(StreakStateFixture.withStreak(12));
+
+      await pumpDashboard(tester, log: DailyLogFixture.fixture(date: today()));
+
+      expect(
+        tester.widget<ElectrolytesCard>(find.byType(ElectrolytesCard)).phase,
+        AdaptationPhase.fatAdapted,
+      );
+    });
+
+    // Induction is the safe default: highest targets, so it over-warns
+    // rather than under-warns while the real phase is unknown.
+    testWidgets('falls back to induction before the phase resolves', (
+      tester,
+    ) async {
+      await pumpDashboard(tester, log: DailyLogFixture.fixture(date: today()));
+
+      expect(
+        tester.widget<ElectrolytesCard>(find.byType(ElectrolytesCard)).phase,
+        AdaptationPhase.induction,
+      );
+    });
   });
 }
