@@ -34,7 +34,11 @@ void main() {
     });
   });
 
-  setUpAll(() => registerFallbackValue(DateTime(2026)));
+  setUpAll(() {
+    registerFallbackValue(DateTime(2026));
+    // For the `verifyNever(save(any()))` guard on reconciliation-on-read.
+    registerFallbackValue(StreakStateFixture.initial());
+  });
 
   /// A day whose totals give exactly [ratio], with a non-zero denominator.
   ///
@@ -47,10 +51,14 @@ void main() {
     totalProteinG: 15,
   );
 
+  /// The instant the grace-window tests reason from.
+  final now = DateTime(2026, 9, 11, 14, 30);
+
   Future<void> pumpRing(
     WidgetTester tester, {
     StreakState? streak,
     DailyLog? log,
+    DateTime? at,
   }) async {
     when(streakRepository.watch).thenAnswer((_) => Stream.value(streak));
     when(() => dailyLogRepository.findByDate(any())).thenAnswer((_) async {
@@ -59,7 +67,7 @@ void main() {
 
     await pumpApp(
       tester,
-      StreakRingWidget(date: date),
+      StreakRingWidget(date: date, clock: at == null ? DateTime.now : () => at),
       overrides: [
         streakRepositoryProvider.overrideWithValue(streakRepository),
         dailyLogRepositoryProvider.overrideWithValue(dailyLogRepository),
@@ -278,6 +286,111 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.byType(StreakRingSkeleton), findsNothing);
       expect(painters(tester), isNotEmpty);
+    });
+  });
+
+  group('an expired grace period', () {
+    /// The number painted inside the ring.
+    String ringDays(WidgetTester tester) => tester
+        .widget<Text>(
+          find
+              .descendant(
+                of: find.byType(StreakRingWidget),
+                matching: find.byType(Text),
+              )
+              .first,
+        )
+        .data!;
+
+    testWidgets('the ring shows zero days when the grace period has expired', (
+      tester,
+    ) async {
+      await pumpRing(
+        tester,
+        streak: StreakStateFixture.inGracePeriod(
+          days: 9,
+          gracePeriodEnd: now.subtract(const Duration(hours: 6)),
+        ),
+        at: now,
+      );
+
+      // The stored `currentStreak` is still 9 — reconciliation runs on write
+      // and nothing has been written. Showing it would present a streak the
+      // user has already lost, which then dropped without explanation the
+      // moment they logged anything.
+      expect(ringDays(tester), '0');
+    });
+
+    // The case a careless fix breaks: a breached day is not a skipped day,
+    // and an unexpired window is exactly what the breach bought.
+    testWidgets('the ring shows the current streak when the grace period is '
+        'still open', (tester) async {
+      await pumpRing(
+        tester,
+        streak: StreakStateFixture.inGracePeriod(
+          days: 9,
+          gracePeriodEnd: now.add(const Duration(hours: 6)),
+        ),
+        at: now,
+      );
+
+      expect(ringDays(tester), '9');
+    });
+
+    testWidgets('the ring shows the current streak when there is no grace '
+        'period', (tester) async {
+      await pumpRing(tester, streak: StreakStateFixture.withStreak(9), at: now);
+
+      expect(ringDays(tester), '9');
+    });
+
+    // `hasExpired` is strictly-after, so the boundary instant is still inside
+    // the window.
+    testWidgets('the exact expiry instant still counts', (tester) async {
+      await pumpRing(
+        tester,
+        streak: StreakStateFixture.inGracePeriod(days: 9, gracePeriodEnd: now),
+        at: now,
+      );
+
+      expect(ringDays(tester), '9');
+    });
+
+    // Reconciliation-on-read is the thing this issue is careful *not* to do:
+    // `CLAUDE.md` records that applying it on read would put `DateTime.now()`
+    // inside a provider and make every widget test that stubs a streak
+    // time-dependent. The ring corrects the number it paints and writes
+    // nothing.
+    testWidgets('the ring does not write to the streak repository when it '
+        'renders an expired state', (tester) async {
+      await pumpRing(
+        tester,
+        streak: StreakStateFixture.inGracePeriod(
+          days: 9,
+          gracePeriodEnd: now.subtract(const Duration(hours: 6)),
+        ),
+        at: now,
+      );
+
+      expect(ringDays(tester), '0');
+      verifyNever(() => streakRepository.save(any()));
+    });
+
+    // `copyWith` cannot clear a `StreakState` field with null, so this pairing
+    // should be unreachable — asserted anyway, since a widget cannot enforce
+    // an invariant it does not own.
+    testWidgets('an open flag with no expiry keeps the stored streak', (
+      tester,
+    ) async {
+      await pumpRing(
+        tester,
+        streak: StreakStateFixture.withStreak(9)
+            .copyWith(inGracePeriod: true, clearGracePeriodEnd: true),
+        at: now,
+      );
+
+      expect(ringDays(tester), '9');
+      expect(tester.takeException(), isNull);
     });
   });
 }
