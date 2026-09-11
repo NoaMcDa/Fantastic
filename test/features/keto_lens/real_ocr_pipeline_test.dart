@@ -5,6 +5,8 @@ import 'package:fantastic/features/keto_lens/domain/models/scan_result.dart';
 import 'package:fantastic/features/keto_lens/domain/models/serving_basis.dart';
 import 'package:fantastic/features/keto_lens/domain/models/verdict_badge.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
+import 'package:fantastic/features/keto_lens/data/classifiers/macro_classifier_impl.dart';
+import 'package:fantastic/features/keto_lens/domain/models/macro_verdict.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../fixtures/fixtures.dart';
@@ -25,6 +27,7 @@ void main() {
   /// classifier are the shipped implementations, not fakes. Stubbing the
   /// recogniser is what lets captured output stand in for a live engine.
   ScanOrchestrator orchestratorReturning(String ocrText) => ScanOrchestrator(
+    macroClassifier: const MacroClassifierImpl(),
     recognizer: _CannedRecognizer(ocrText),
     parser: const HebrewLabelParser(),
     classifier: const IngredientClassifierImpl(),
@@ -164,6 +167,30 @@ void main() {
           // Without this the sheet would log per-100 g figures as if they
           // were one serving, which is what #257 was.
           expect(success.label.basis, ServingBasis.per100g);
+
+          // The panel's own check on itself: 9(3.3) + 4(10.9) + 4(41.2) =
+          // 238.1 against a declared 238. Read, and agreeing (#306).
+          expect(success.label.totalCarbsG, 41.2);
+          expect(success.label.fibreG, 7);
+          expect(success.label.energyKcal, 238);
+        });
+
+        // **The reported defect, on the label that produced it.** A bread at
+        // 34.2 g of net carbs per 100 g rendered `Clean Keto`, because the
+        // verdict was `classifier.classify(label.ingredients)` and nothing
+        // else — `label.netCarbsG` was in scope on the line above and never
+        // reached it.
+        test('the bread is not keto on ${capture.key}', () async {
+          final result = await orchestratorReturning(capture.value).scan('');
+
+          final success = result as ScanSucceeded;
+          expect(success.macroVerdict.judgement, MacroJudgement.notKeto);
+          expect(success.badge, VerdictBadge.nonKeto);
+          expect(success.badge, isNot(VerdictBadge.cleanKeto));
+
+          // 58 g of bread exhausts a day's carbs — the number that turns a
+          // band into an instruction.
+          expect(success.macroVerdict.gramsToDailyBudget, closeTo(58.5, 0.1));
         });
       }
 

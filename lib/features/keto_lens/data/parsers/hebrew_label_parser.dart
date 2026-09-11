@@ -140,7 +140,47 @@ class HebrewLabelParser implements LabelParser {
   static final RegExp _basisPerServing = RegExp('למנה|למנת|לכל מנה');
 
   /// `גודל מנה` / `משקל מנה` — the declared serving weight.
-  static final RegExp _servingSize = RegExp('גודל מנה|משקל מנה|גודל המנה');
+  ///
+  /// Widened for condiments (#306): a spice or sauce jar is the product that
+  /// most needs a declared portion, and it prints one in more shapes than the
+  /// two rows a nutrition table uses.
+  static final RegExp _servingSize = RegExp(
+    'גודל מנה|גודל המנה|משקל מנה|מנה \\(|יחידה \\(|לכל יחידה|מנה בת',
+  );
+
+  /// A number immediately followed by a gram unit.
+  ///
+  /// `גודל מנה 2 יחידות (30 גרם)` declares a 30 g serving, not a 2 g one, so
+  /// the weighed number wins over the first number after the keyword.
+  static final RegExp _gramsValue = RegExp(
+    r"(\d+(?:\.\d+)?|\.\d+)\s*(?:גרם|גר'?|ג'?|g\b|gr\b)",
+  );
+
+  /// `אנרגיה` / `קלוריות` — the panel's own check on itself (#306).
+  static final RegExp _energy = RegExp(
+    '${_tolerant(['א', 'נ', 'ר', 'ג', 'י', 'ה'])}|'
+    '${_tolerant(['ק', 'ל', 'ו', 'ר', 'י', 'ו', 'ת'])}|kcal',
+  );
+
+  /// `מתוכם סוכרים`. The plural is deliberate — see [_ofWhich].
+  static final RegExp _sugars = RegExp(
+    _tolerant(['ס', 'ו', 'כ', 'ר', 'י', 'ם']),
+  );
+
+  /// `מתוכם רב כהליים` / `פוליאולים`.
+  static final RegExp _polyols = RegExp(
+    'רב[\\s-]?${_tolerant(['כ', 'ה', 'ל'])}|'
+    '${_tolerant(['פ', 'ו', 'ל', 'י', 'א', 'ו', 'ל'])}|polyol',
+  );
+
+  /// A *positive* qualifier — the mirror of [_fatSubRow]'s disqualifier.
+  ///
+  /// Without it, the plain lookup's next-line fallback can pair an
+  /// **ingredient** line containing `סוכר` with an unrelated bare number:
+  /// `HebrewLabelFixture.pointedWafer` reads `רכיבים: קמח חיטה, סוכר, …`,
+  /// which is exactly that trap. Matching the plural `סוכרים` is a second,
+  /// independent guard; both are kept.
+  static final RegExp _ofWhich = RegExp('מתוכם|מתוכן');
 
   /// Words that mark a *sub*-row of the fat block rather than total fat.
   ///
@@ -251,7 +291,17 @@ class HebrewLabelParser implements LabelParser {
         // Read even when the basis is unknown: a two-column label is exactly
         // the case where the declared serving weight is most useful to show,
         // and it costs nothing to carry.
-        servingGrams: _valueFor(lines, _servingSize),
+        servingGrams: _valueFor(lines, _servingSize, preferring: _gramsValue),
+        // Carried rather than discarded (#306): a polyol subtraction has to be
+        // checked against them, and the energy cross-check needs *total*
+        // carbohydrate rather than net.
+        totalCarbsG: carbs,
+        fibreG: fibre,
+        // Gated on `מתוכם`, so an ingredient list naming sugar cannot supply
+        // the sugars row.
+        sugarsG: _valueFor(lines, _sugars, requirement: _ofWhich),
+        polyolsG: _valueFor(lines, _polyols, requirement: _ofWhich),
+        energyKcal: _valueFor(lines, _energy),
       );
     } on Object {
       // The interface promises `parse` never throws: garbled input is a
@@ -293,12 +343,25 @@ class HebrewLabelParser implements LabelParser {
     List<String> lines,
     RegExp keyword, {
     RegExp? disqualifier,
+    RegExp? requirement,
+    RegExp? preferring,
   }) {
     for (var i = 0; i < lines.length; i++) {
       final line = lines[i];
       for (final match in keyword.allMatches(line)) {
         if (disqualifier != null && _nearMatch(line, match, disqualifier)) {
           continue;
+        }
+        // The same window, polarity inverted: a sub-row is only a sub-row if
+        // the qualifier that makes it one is actually beside it.
+        if (requirement != null && !_nearMatch(line, match, requirement)) {
+          continue;
+        }
+        if (preferring != null) {
+          final preferred = preferring.firstMatch(line);
+          if (preferred != null) {
+            return double.tryParse(preferred.group(1)!);
+          }
         }
         final onLine = _numberNear(line, match);
         if (onLine != null) {

@@ -1,5 +1,8 @@
 import 'package:fantastic/features/keto_lens/domain/models/ingredient_verdict.dart';
+import 'package:fantastic/features/keto_lens/domain/models/label_verdict.dart';
+import 'package:fantastic/features/keto_lens/domain/models/macro_verdict.dart';
 import 'package:fantastic/features/keto_lens/domain/models/parsed_label.dart';
+import 'package:fantastic/features/keto_lens/domain/models/verdict_badge.dart';
 import 'package:meta/meta.dart';
 
 /// The outcome of one run of the scan pipeline.
@@ -28,7 +31,11 @@ sealed class ScanResult {
 /// A scan that read a label and reached a verdict.
 @immutable
 final class ScanSucceeded extends ScanResult {
-  const ScanSucceeded({required this.label, required this.verdict});
+  const ScanSucceeded({
+    required this.label,
+    required this.verdict,
+    required this.macroVerdict,
+  });
 
   /// What was extracted from the label.
   final ParsedLabel label;
@@ -36,15 +43,29 @@ final class ScanSucceeded extends ScanResult {
   /// What the ingredients classify as.
   final IngredientVerdict verdict;
 
+  /// What the nutrition panel says about the product itself.
+  ///
+  /// `required` rather than defaulted: the compiler pointing at every
+  /// construction site is the cheapest review this change gets (#306).
+  final MacroVerdict macroVerdict;
+
+  /// The one badge the user sees.
+  ///
+  /// Derived, not stored, so it cannot drift from the two verdicts it
+  /// reduces. Null when neither side carried evidence.
+  VerdictBadge? get badge =>
+      LabelVerdict.combine(ingredients: verdict, macros: macroVerdict);
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is ScanSucceeded &&
           other.label == label &&
-          other.verdict == verdict;
+          other.verdict == verdict &&
+          other.macroVerdict == macroVerdict;
 
   @override
-  int get hashCode => Object.hash(label, verdict);
+  int get hashCode => Object.hash(label, verdict, macroVerdict);
 }
 
 /// A scan that did not reach a verdict.

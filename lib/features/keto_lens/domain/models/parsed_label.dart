@@ -18,6 +18,11 @@ class ParsedLabel {
     this.rawText = '',
     this.basis = ServingBasis.unknown,
     this.servingGrams,
+    this.totalCarbsG,
+    this.fibreG,
+    this.sugarsG,
+    this.polyolsG,
+    this.energyKcal,
   });
 
   final double? fatG;
@@ -47,6 +52,30 @@ class ParsedLabel {
   /// which is most labels.
   final double? servingGrams;
 
+  /// Total carbohydrate and fibre, as printed.
+  ///
+  /// [netCarbsG] is already their difference; these are kept because a polyol
+  /// subtraction has to be checked against them, and because the energy
+  /// cross-check needs *total* carbohydrate rather than net.
+  final double? totalCarbsG;
+  final double? fibreG;
+
+  /// `מתוכם סוכרים`.
+  ///
+  /// Moves no band — that is `MacroClassifier`'s rule — but it bounds the
+  /// polyol residual, and it is the most persuasive thing the sheet can print
+  /// under an amber chip.
+  final double? sugarsG;
+
+  /// `מתוכם רב כהליים`.
+  ///
+  /// Declared *inside* total carbohydrate on an Israeli label, so a product
+  /// sweetened cleanly with polyols prints carbs the body does not see.
+  final double? polyolsG;
+
+  /// `אנרגיה (קלוריות)` — the panel's own check on itself.
+  final double? energyKcal;
+
   /// Whether at least one macro was successfully extracted.
   ///
   /// Lets the result sheet decide whether to render the macro card at all.
@@ -57,6 +86,11 @@ class ParsedLabel {
       identical(this, other) ||
       other is ParsedLabel &&
           other.fatG == fatG &&
+          other.totalCarbsG == totalCarbsG &&
+          other.fibreG == fibreG &&
+          other.sugarsG == sugarsG &&
+          other.polyolsG == polyolsG &&
+          other.energyKcal == energyKcal &&
           other.netCarbsG == netCarbsG &&
           other.proteinG == proteinG &&
           other.rawText == rawText &&
@@ -73,5 +107,10 @@ class ParsedLabel {
     basis,
     servingGrams,
     listHash(ingredients),
+    totalCarbsG,
+    fibreG,
+    sugarsG,
+    polyolsG,
+    energyKcal,
   );
 }

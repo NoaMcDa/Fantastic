@@ -2,6 +2,7 @@ import 'package:fantastic/features/keto_lens/domain/models/ingredient_verdict.da
 import 'package:fantastic/features/keto_lens/domain/models/parsed_label.dart';
 import 'package:fantastic/features/keto_lens/domain/models/scan_result.dart';
 import 'package:fantastic/features/keto_lens/domain/models/verdict_badge.dart';
+import 'package:fantastic/features/keto_lens/domain/models/macro_verdict.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -11,7 +12,13 @@ void main() {
   group('ScanResult is sealed', () {
     test('a success and a failure are both ScanResults', () {
       expect(
-        const ScanSucceeded(label: label, verdict: verdict),
+        const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
+          label: label,
+          verdict: verdict,
+        ),
         isA<ScanResult>(),
       );
       expect(
@@ -37,7 +44,15 @@ void main() {
       };
 
       expect(
-        describe(const ScanSucceeded(label: label, verdict: verdict)),
+        describe(
+          const ScanSucceeded(
+            macroVerdict: MacroVerdict.indeterminate(
+              MacroIndeterminacy.noCarbRow,
+            ),
+            label: label,
+            verdict: verdict,
+          ),
+        ),
         'ok',
       );
       expect(
@@ -50,29 +65,74 @@ void main() {
   group('ScanSucceeded equality', () {
     test('two with the same label and verdict are equal', () {
       expect(
-        const ScanSucceeded(label: label, verdict: verdict),
-        const ScanSucceeded(label: label, verdict: verdict),
+        const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
+          label: label,
+          verdict: verdict,
+        ),
+        const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
+          label: label,
+          verdict: verdict,
+        ),
       );
       expect(
-        const ScanSucceeded(label: label, verdict: verdict).hashCode,
-        const ScanSucceeded(label: label, verdict: verdict).hashCode,
+        const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
+          label: label,
+          verdict: verdict,
+        ).hashCode,
+        const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
+          label: label,
+          verdict: verdict,
+        ).hashCode,
       );
     });
 
     test('differing in the label is not equal', () {
       expect(
-        const ScanSucceeded(label: label, verdict: verdict),
+        const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
+          label: label,
+          verdict: verdict,
+        ),
         isNot(
-          const ScanSucceeded(label: ParsedLabel(fatG: 13), verdict: verdict),
+          const ScanSucceeded(
+            macroVerdict: MacroVerdict.indeterminate(
+              MacroIndeterminacy.noCarbRow,
+            ),
+            label: ParsedLabel(fatG: 13),
+            verdict: verdict,
+          ),
         ),
       );
     });
 
     test('differing in the verdict is not equal', () {
       expect(
-        const ScanSucceeded(label: label, verdict: verdict),
+        const ScanSucceeded(
+          macroVerdict: MacroVerdict.indeterminate(
+            MacroIndeterminacy.noCarbRow,
+          ),
+          label: label,
+          verdict: verdict,
+        ),
         isNot(
           const ScanSucceeded(
+            macroVerdict: MacroVerdict.indeterminate(
+              MacroIndeterminacy.noCarbRow,
+            ),
             label: label,
             verdict: IngredientVerdict(badge: VerdictBadge.nonKeto),
           ),

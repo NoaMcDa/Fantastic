@@ -125,6 +125,62 @@ final class IngredientClassifierProvider
 String _$ingredientClassifierHash() =>
     r'3fe5ce50504009c24ec565adeb6f45d7b488aad8';
 
+/// The product-level verdict rule.
+///
+/// `keepAlive` for the same reason as [ingredientClassifier]: it is stateless,
+/// and every threshold it reads is a compile-time constant.
+
+@ProviderFor(macroClassifier)
+const macroClassifierProvider = MacroClassifierProvider._();
+
+/// The product-level verdict rule.
+///
+/// `keepAlive` for the same reason as [ingredientClassifier]: it is stateless,
+/// and every threshold it reads is a compile-time constant.
+
+final class MacroClassifierProvider
+    extends
+        $FunctionalProvider<MacroClassifier, MacroClassifier, MacroClassifier>
+    with $Provider<MacroClassifier> {
+  /// The product-level verdict rule.
+  ///
+  /// `keepAlive` for the same reason as [ingredientClassifier]: it is stateless,
+  /// and every threshold it reads is a compile-time constant.
+  const MacroClassifierProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'macroClassifierProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$macroClassifierHash();
+
+  @$internal
+  @override
+  $ProviderElement<MacroClassifier> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  MacroClassifier create(Ref ref) {
+    return macroClassifier(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(MacroClassifier value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<MacroClassifier>(value),
+    );
+  }
+}
+
+String _$macroClassifierHash() => r'2f0a6a18759b0343f4a26e30ff7f08e5d9154a21';
+
 /// On-device OCR, or the stub that says it is unavailable.
 ///
 /// Which one is decided at compile time by the conditional export in

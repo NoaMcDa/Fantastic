@@ -288,4 +288,29 @@ void main() {
     expect(find.byType(ScanResultSheet), findsNothing);
     expect(find.byKey(const Key('lens_camera_problem')), findsOneWidget);
   });
+
+  // **The reported defect, driven through the real UI** (#306). A whole-wheat
+  // and rye bread at 34.2 g of net carbs per 100 g rendered `קטו נקי` — a
+  // green tick — because the verdict read only the ingredient list and never
+  // looked at the panel beside it. Every number in this flow comes from a real
+  // photographed label via `RealOcrFixture`.
+  testWidgets('a high-carb label is not given a green tick', (tester) async {
+    final app = await bootApp(
+      onboarded: true,
+      overrides: _lensOverrides(ocrText: RealOcrFixture.wholeWheatRyeBread),
+    );
+    await pumpApp(tester, app);
+    await importPhoto(tester);
+
+    expect(find.byType(ScanResultSheet), findsOneWidget);
+    expect(find.text('לא קטו'), findsOneWidget);
+    expect(find.text('קטו נקי'), findsNothing);
+
+    // The line that turns a verdict into an instruction: 58 g of this bread
+    // exhausts a whole day's carbohydrate budget.
+    expect(
+      find.textContaining('ממצים את תקציב הפחמימות היומי'),
+      findsOneWidget,
+    );
+  });
 }
