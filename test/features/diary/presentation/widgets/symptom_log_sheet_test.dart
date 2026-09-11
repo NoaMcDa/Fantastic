@@ -1,5 +1,4 @@
 import 'package:fantastic/core/error/repository_exception.dart';
-import 'package:fantastic/features/diary/application/providers/symptom_providers.dart';
 import 'package:fantastic/features/diary/application/symptom_logging_service.dart';
 import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
 import 'package:fantastic/features/diary/presentation/symptom_scale.dart';
