@@ -167,4 +167,76 @@ void main() {
       expect(find.text('שקשוקה'), findsOneWidget);
     });
   });
+
+  group('tapping', () {
+    testWidgets('calls onTap', (tester) async {
+      var taps = 0;
+      await pumpApp(
+        tester,
+        MealCard(meal: MealEntryFixture.fixture(), onTap: () => taps++),
+      );
+
+      await tester.tap(find.byType(MealCard));
+      await tester.pumpAndSettle();
+
+      expect(taps, 1);
+    });
+
+    // Every existing call site passes no callback and must keep compiling and
+    // rendering.
+    testWidgets('a card with no onTap renders and does nothing', (
+      tester,
+    ) async {
+      await pumpCard(tester, MealEntryFixture.fixture());
+
+      await tester.tap(find.byType(MealCard));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(MealCard), findsOneWidget);
+    });
+
+    // A horizontal drag is the delete gesture and a tap is the edit gesture;
+    // they must not fight.
+    testWidgets('a tap edits and a swipe still dismisses', (tester) async {
+      var taps = 0;
+      var dismissed = 0;
+      await pumpApp(
+        tester,
+        Dismissible(
+          key: const ValueKey(1),
+          direction: DismissDirection.endToStart,
+          onDismissed: (_) => dismissed++,
+          child: MealCard(
+            meal: MealEntryFixture.fixture(),
+            onTap: () => taps++,
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(MealCard));
+      await tester.pumpAndSettle();
+      expect(taps, 1);
+      expect(dismissed, 0);
+
+      // `endToStart` under RTL drags *rightward* (`design/m2_handoff.md`).
+      await tester.drag(find.byType(MealCard), const Offset(600, 0));
+      await tester.pumpAndSettle();
+
+      expect(dismissed, 1);
+      expect(taps, 1);
+    });
+
+    testWidgets('the tap target clears 44pt', (tester) async {
+      await pumpApp(
+        tester,
+        MealCard(meal: MealEntryFixture.fixture(), onTap: () {}),
+      );
+
+      expect(
+        tester.getSize(find.byType(ListTile)).height,
+        greaterThanOrEqualTo(44),
+      );
+    });
+  });
 }

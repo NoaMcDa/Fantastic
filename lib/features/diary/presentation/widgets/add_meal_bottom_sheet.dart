@@ -9,11 +9,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Manual meal-entry form: a name and three macro fields.
 ///
-/// Opened from the dashboard FAB. On a valid submit it logs the meal, refreshes
-/// the day's providers and closes.
+/// **One sheet, two modes**, chosen by whether [existing] was passed. A
+/// dedicated edit screen would duplicate the validator that `CLAUDE.md`
+/// insists exists exactly once, and two forms drift.
+///
+/// Opened from the add-meal chooser, from the two estimate modes, from the
+/// scan result sheet, and — since #328 — from a tap on a meal card. On a
+/// valid submit it logs or updates the meal, refreshes the day's providers
+/// and closes.
 class AddMealBottomSheet extends ConsumerStatefulWidget {
   const AddMealBottomSheet({
     required this.date,
+    this.existing,
     this.initialName,
     this.initialFatG,
     this.initialNetCarbsG,
@@ -26,6 +33,19 @@ class AddMealBottomSheet extends ConsumerStatefulWidget {
   /// The day the meal is logged against — today from the dashboard, the
   /// selected day from the diary.
   final DateTime date;
+
+  /// The meal being edited, or null when adding a new one.
+  ///
+  /// When non-null its values seed every field, and its id is what makes the
+  /// save an **update** rather than an append. The `initial*` parameters are
+  /// ignored in that case: a caller that passes both is editing, and the
+  /// stored meal is the truth.
+  ///
+  /// An estimate you can correct before saving but not after is a strange
+  /// place to stop. Without this the only way to fix a wrong figure was to
+  /// delete the entry and retype it — losing the timestamp, and teaching the
+  /// user that the diary punishes attention.
+  final MealEntry? existing;
 
   /// The name field's own maximum.
   ///
@@ -82,6 +102,38 @@ class AddMealBottomSheet extends ConsumerStatefulWidget {
   /// code path until the photo mode.
   final String? imageRef;
 
+  /// What [existing]'s `source` becomes after an edit.
+  ///
+  /// **The one real design decision in the edit flow.** `MacroSource` exists
+  /// so a badge can warn "this number was guessed". Once a human has
+  /// corrected the number, that warning is false — the figure in the record
+  /// is now a typed figure — and continuing to flag it trains people to
+  /// ignore the badge, which is worse than never having had one.
+  ///
+  /// So an edit that changes a macro re-sources the meal to
+  /// [MacroSource.manual]. An edit that changes only the **name** does not:
+  /// nothing about the numbers' origin changed.
+  ///
+  /// Compared on the parsed doubles, not the field strings, so retyping `12`
+  /// over `12.0` is not an edit.
+  ///
+  /// Named and exposed rather than inlined in `_submit`, the way
+  /// `ScanResultSheet.failureTitle` is, so a test asserts the *rule* rather
+  /// than a rendering.
+  @visibleForTesting
+  static MacroSource sourceAfterEdit(
+    MealEntry existing, {
+    required double fatG,
+    required double netCarbsG,
+    required double proteinG,
+  }) {
+    final changed =
+        fatG != existing.fatG ||
+        netCarbsG != existing.netCarbsG ||
+        proteinG != existing.proteinG;
+    return changed ? MacroSource.manual : existing.source;
+  }
+
   /// Opens the sheet as a modal over [context].
   ///
   /// Lives here rather than at the call site so the sheet owns how it is
@@ -96,11 +148,13 @@ class AddMealBottomSheet extends ConsumerStatefulWidget {
     double? initialProteinG,
     MacroSource source = MacroSource.manual,
     String? imageRef,
+    MealEntry? existing,
   }) => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     builder: (_) => AddMealBottomSheet(
       date: date,
+      existing: existing,
       initialName: initialName,
       initialFatG: initialFatG,
       initialNetCarbsG: initialNetCarbsG,
@@ -127,15 +181,20 @@ class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.initialName ?? '');
+    // The stored meal wins over the prefills: a caller that passed both is
+    // editing, and what is on disk is the truth.
+    final existing = widget.existing;
+    _nameController = TextEditingController(
+      text: existing?.mealName ?? widget.initialName ?? '',
+    );
     _fatController = TextEditingController(
-      text: GramsText.format(widget.initialFatG),
+      text: GramsText.format(existing?.fatG ?? widget.initialFatG),
     );
     _carbsController = TextEditingController(
-      text: GramsText.format(widget.initialNetCarbsG),
+      text: GramsText.format(existing?.netCarbsG ?? widget.initialNetCarbsG),
     );
     _proteinController = TextEditingController(
-      text: GramsText.format(widget.initialProteinG),
+      text: GramsText.format(existing?.proteinG ?? widget.initialProteinG),
     );
   }
 
@@ -162,7 +221,7 @@ class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'הוספת ארוחה',
+                _isEditing ? 'עריכת ארוחה' : 'הוספת ארוחה',
                 style: Theme.of(context).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
@@ -203,7 +262,13 @@ class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
               FilledButton(
                 key: const Key('save_meal_button'),
                 onPressed: _saving ? null : _submit,
-                child: Text(_saving ? 'שומר...' : 'שמור'),
+                child: Text(
+                  _saving
+                      ? 'שומר...'
+                      : _isEditing
+                      ? 'עדכן'
+                      : 'שמור',
+                ),
               ),
             ],
           ),
@@ -229,6 +294,8 @@ class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
     // Digits, so the field reads left-to-right inside the RTL layout.
     textDirection: TextDirection.ltr,
   );
+
+  bool get _isEditing => widget.existing != null;
 
   String? _validateName(String? value) {
     final trimmed = value?.trim() ?? '';
@@ -286,18 +353,55 @@ class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
       _saveError = null;
     });
 
-    final entry = MealEntry(
-      mealName: _nameController.text.trim(),
-      fatG: double.parse(_fatController.text.trim()),
-      netCarbsG: double.parse(_carbsController.text.trim()),
-      proteinG: double.parse(_proteinController.text.trim()),
-      timestamp: _timestampFor(widget.date),
-      source: widget.source,
-      imageRef: widget.imageRef,
-    );
+    final name = _nameController.text.trim();
+    final fatG = double.parse(_fatController.text.trim());
+    final netCarbsG = double.parse(_carbsController.text.trim());
+    final proteinG = double.parse(_proteinController.text.trim());
+    final existing = widget.existing;
 
     try {
-      await ref.read(mealLoggingServiceProvider).logMeal(entry);
+      if (existing == null) {
+        await ref
+            .read(mealLoggingServiceProvider)
+            .logMeal(
+              MealEntry(
+                mealName: name,
+                fatG: fatG,
+                netCarbsG: netCarbsG,
+                proteinG: proteinG,
+                timestamp: _timestampFor(widget.date),
+                source: widget.source,
+                imageRef: widget.imageRef,
+              ),
+            );
+      } else {
+        // **`copyWith`, never a fresh `MealEntry`.** `id`, `ingredients` and
+        // `imageRef` have to survive an edit, and nothing in the diary
+        // renders the last two — so rebuilding the entry inline would drop
+        // them silently and no assertion in the app would notice. Exactly
+        // the shape of blind spot `design/user_bugs_handoff.md` records.
+        //
+        // The timestamp is kept too: a correction to the carb count must not
+        // move the meal to 14:32 today. #327 handles a meal the user
+        // genuinely moves to another day; this sheet must not move one by
+        // accident.
+        await ref
+            .read(mealLoggingServiceProvider)
+            .updateMeal(
+              existing.copyWith(
+                mealName: name,
+                fatG: fatG,
+                netCarbsG: netCarbsG,
+                proteinG: proteinG,
+                source: AddMealBottomSheet.sourceAfterEdit(
+                  existing,
+                  fatG: fatG,
+                  netCarbsG: netCarbsG,
+                  proteinG: proteinG,
+                ),
+              ),
+            );
+      }
     } on Object catch (_) {
       // Keeps the sheet open with the typed values intact. Closing on failure
       // would discard the entry and tell the user it was saved.
