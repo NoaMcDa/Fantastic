@@ -94,7 +94,18 @@ class StreakNotificationService {
       // and may be batched with other wakeups. `AllowWhileIdle` still gets it
       // out of Doze, so a phone left on the desk all evening still buzzes.
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      // What makes the one scheduled instant repeat every day.
+      // What makes the one scheduled instant repeat every day — on android,
+      // iOS and macOS. **Windows drops it**: the umbrella plugin's
+      // `TargetPlatform.windows` branch does not forward the argument, and
+      // `flutter_local_notifications_windows` ignores it even when passed. So
+      // on Windows this schedules exactly one toast, not a daily one.
+      //
+      // Not a crash and not worth a platform branch: `main` cancels and
+      // reschedules on every launch, so a Windows user who opens the app gets
+      // the next reminder armed each time. A Windows user who does not open
+      // the app stops being reminded — which is the failure mode a reminder
+      // can least afford, and the reason this is written down rather than
+      // left to be rediscovered.
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }

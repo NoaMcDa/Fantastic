@@ -1,0 +1,100 @@
+name: Build Windows
+
+# Windows is a shipping target that has never been built. `ci.yml` proves the
+# Dart compiles and the web bundle links; neither says anything about the
+# Windows toolchain, the CMake plugin graph, or
+# `flutter_local_notifications_windows` — an `ffiPlugin` with a native C++
+# component that no machine in this project has ever compiled.
+#
+# A separate workflow rather than a job added to `ci.yml`, for two reasons: a
+# `windows-latest` runner bills at 2× and should not be spent on a docs-only
+# PR, and `ci.yml` is the validation gate every PR waits on — a long Windows
+# build does not belong in front of it.
+
+on:
+  pull_request:
+    branches: [main]
+    # Paths-filtered on purpose. Everything that can change what the Windows
+    # binary contains is listed; nothing else pays 2× minutes.
+    paths:
+      - 'windows/**'
+      - 'lib/**'
+      - 'test/**'
+      - 'assets/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/build-windows.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: build windows · probe libtesseract
+    runs-on: windows-latest
+    # A cold Windows build compiles every native plugin from source with no
+    # pub or CMake cache at all. 45 is generous rather than optimistic.
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned to exactly what `ci.yml` pins. Two toolchains verifying one
+          # repository is one too many: a Windows-only failure must mean
+          # Windows, not a version skew.
+          flutter-version: 3.47.3
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      # Installed before the build so that even a failed build still leaves the
+      # DLL inventory below in the log. The Windows library names in
+      # TesseractFfiRecognizer were written from documentation and have never
+      # been checked against a real Windows install.
+      - name: Install Tesseract
+        run: choco install --no-progress --yes tesseract
+
+      - name: Inventory the installed Tesseract DLLs
+        shell: pwsh
+        run: |
+          $dir = 'C:\Program Files\Tesseract-OCR'
+          if (-not (Test-Path $dir)) {
+            Write-Host "::error::chocolatey did not install Tesseract to $dir"
+            Get-ChildItem 'C:\Program Files' | Select-Object -ExpandProperty Name
+            exit 1
+          }
+          Write-Host '--- DLLs shipped by the chocolatey tesseract package ---'
+          Get-ChildItem $dir -Filter *.dll | Select-Object -ExpandProperty Name
+          # LoadLibrary searches PATH for a bare DLL name, which is how
+          # TesseractFfiRecognizer opens one. The installer edits the machine
+          # PATH, but this job's later shells are not guaranteed to pick that
+          # up, so publish it explicitly rather than hoping.
+          Add-Content -Path $env:GITHUB_PATH -Value $dir
+
+      - name: Build Windows
+        # The point of the whole workflow. `--release` rather than `--debug`
+        # because release is what links every plugin the way a shipped binary
+        # would.
+        run: flutter build windows --release --no-pub
+
+      # The Windows entries in `TesseractLibraryCandidates` were written from
+      # documentation and had never been exercised. `tool/tesseract_dylib_probe.dart`
+      # is the shared tool that exercises such a list — the macOS workflow runs
+      # the same one after `brew install` — and it imports the app's list rather
+      # than carrying a copy, so it proves the app's names and not its own.
+      #
+      # It is also why this job does not gate on
+      # `tesseract_ffi_recognizer_test.dart`: that test skips when nothing
+      # opens, which is right on a contributor's laptop and useless here, and it
+      # cannot tell a wrong name from a hostile PATH. The probe can, and says
+      # which it saw.
+      - name: The Windows library names match what a real Tesseract install ships
+        run: dart run tool/tesseract_dylib_probe.dart

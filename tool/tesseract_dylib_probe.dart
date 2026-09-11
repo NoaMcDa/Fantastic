@@ -42,17 +42,45 @@ void main(List<String> args) {
 /// last entry is correct looks exactly like a list where all four are.
 bool _probe(String label, List<String> candidates) {
   var opened = 0;
+  var present = 0;
   for (final name in candidates) {
     try {
       DynamicLibrary.open(name);
       opened++;
+      present++;
       stdout.writeln('  [open] $label <- $name');
     } on Object catch (error) {
-      stdout.writeln('  [miss] $label <- $name  ($error)');
+      // Windows distinguishes two failures that every other platform, and the
+      // app itself, collapse into one "it did not open".
+      //
+      //   126, ERROR_MOD_NOT_FOUND  - no such file. THE NAME IS WRONG, which
+      //                               is the bug this probe exists to catch.
+      //   127, ERROR_PROC_NOT_FOUND - the file was found and loaded, and one
+      //                               of *its own* imports resolved to some
+      //                               other DLL earlier on PATH. The name is
+      //                               right; the machine's DLL environment is
+      //                               not, and no list of names can fix that.
+      //
+      // Measured on a windows-latest runner with chocolatey tesseract 5.5.3:
+      // run from PowerShell both libraries open, and run from Git Bash
+      // `libtesseract-5.dll` returns 127 — Git for Windows puts its own MSYS2
+      // `bin` directories ahead on PATH and libtesseract's imports bind
+      // there. Same machine, same names, different answer, so failing the
+      // probe for 127 would be reporting the caller's shell as a defect in
+      // the list.
+      if ('$error'.contains('error code: 127')) {
+        present++;
+        stdout.writeln('  [deps] $label <- $name  (name resolves; $error)');
+      } else {
+        stdout.writeln('  [miss] $label <- $name  ($error)');
+      }
     }
   }
-  stdout.writeln('$label: $opened of ${candidates.length} candidates opened');
-  return opened > 0;
+  stdout.writeln(
+    '$label: $opened of ${candidates.length} candidates opened, '
+    '$present named a file that exists',
+  );
+  return present > 0;
 }
 
 /// `TessdataBundle` unpacks the Hebrew model under [Directory.systemTemp].
