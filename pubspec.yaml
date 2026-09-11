@@ -82,6 +82,53 @@ dependencies:
   flutter_local_notifications: ^22.3.0
   timezone: ^0.11.1
 
+  # --- Keto Lens (M6) ---
+
+  # On-device Hebrew OCR. No network call is made during a scan, which is
+  # Epic #10's first architectural invariant and CLAUDE.md's OCR rule.
+  #
+  # A native-only plugin: its pubspec declares android and ios and nothing
+  # else, and google_mlkit_commons' input_image.dart carries a bare
+  # `import 'dart:io'`. That was expected to break CI's web build. It does
+  # not - dart2js ships dart:io as a library of throwing stubs, so the
+  # import compiles and fails only when called. design/m6_preflight.md
+  # Part 0 records the three spike builds that established this.
+  #
+  # The hazard is therefore a runtime MissingPluginException in a browser,
+  # not a red gate, and #80 puts the plugin behind a conditional export on
+  # `dart.library.io` anyway - the same firewall shape as
+  # lib/core/database/database_factory.dart.
+  #
+  # There is no Hebrew script model: TextRecognitionScript is
+  # latin/chinese/devanagiri/japanese/korean, and Hebrew rides on the Latin
+  # recogniser. 0.17.1 exists; 0.13.x is what the issue specified, it
+  # resolves cleanly against riverpod 3, and nothing in M6 needs a newer
+  # API.
+  google_mlkit_text_recognition: ^0.13.0
+
+  # Live viewfinder. Has a first-party web implementation (camera_web is a
+  # declared default_package), so the tab still renders in a browser even
+  # though the OCR behind it cannot run there.
+  #
+  # `permission_handler`, which issue #85 imports and #79 never listed, is
+  # deliberately NOT added: `controller.initialize()` already triggers the
+  # iOS prompt and throws CameraException('CameraAccessDenied') when
+  # refused, so catching that costs one clause and avoids a second
+  # native-only plugin on the one screen that has to degrade cleanly on
+  # web. design/m6_preflight.md 2.2.
+  camera: ^0.11.0
+
+  # Gallery import, the fallback for a photo already taken. Has a web
+  # implementation (image_picker_for_web).
+  #
+  # The `image` package issue #79 also lists is deliberately NOT added:
+  # nothing in M6 crops, greyscales or otherwise pre-processes - #85 and
+  # #87 both hand a file path straight to InputImage.fromFilePath - so it
+  # would be ~2.6 MB of unused Dart that `depend_on_referenced_packages`
+  # cannot even flag, because nothing imports it. design/m6_preflight.md
+  # 2.1.
+  image_picker: ^1.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
