@@ -1,0 +1,140 @@
+name: Create milestones (one-shot)
+
+# Throwaway administrative workflow. The GitHub tooling available to the agent
+# session exposes no milestone API and there is no `gh` CLI there, so the
+# milestone objects for M9-M14 and the v1.0 release are created here, on a
+# runner, where a repo-scoped GITHUB_TOKEN is available.
+#
+# `on: push` to this branch rather than `workflow_dispatch`, which only fires
+# for workflows that already sit on the default branch. Pushing the file is the
+# trigger. Deleted immediately afterwards - ci.yml is the only permanent
+# workflow (design/cicd_plan.md).
+
+on:
+  push:
+    branches: [chore/create-milestones]
+
+permissions:
+  issues: write
+
+jobs:
+  milestones:
+    name: create milestones and assign issues
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+
+    steps:
+      - name: Create the seven milestones and assign all 33 issues
+        run: |
+          set -euo pipefail
+
+          # Idempotent. POST returns 422 when the title already exists, in
+          # which case the number is looked up instead, so a re-run after a
+          # partial failure duplicates nothing.
+          ms() {
+            local title="$1" desc="$2" num out
+            if out=$(gh api --method POST "/repos/$REPO/milestones" \
+                       -f title="$title" -f description="$desc" -f state=open \
+                       --jq .number 2>/tmp/ms_err); then
+              num="$out"
+              echo "created   #$num  $title" >&2
+            else
+              sed 's/^/    api: /' /tmp/ms_err >&2
+              num=$(gh api "/repos/$REPO/milestones?state=all&per_page=100" \
+                      --jq ".[] | select(.title == \"$title\") | .number")
+              if [ -n "$num" ]; then
+                echo "existing  #$num  $title" >&2
+              fi
+            fi
+            if [ -z "$num" ]; then
+              echo "FAILED to create or find milestone: $title" >&2
+              exit 1
+            fi
+            echo "$num"
+          }
+
+          # Re-assigning an issue that already carries the milestone is a no-op.
+          assign() {
+            local num="$1"; shift
+            for n in "$@"; do
+              gh api --method PATCH "/repos/$REPO/issues/$n" \
+                -F milestone="$num" \
+                --jq '"    #\(.number)  ->  \(.milestone.title)"'
+            done
+          }
+
+          echo "=== 1. create the seven milestones ==="
+
+          M9=$(ms "M9 — Biomarker Logging" \
+            "Post-MVP. Daily biomarker capture - weight, ketones, glucose - on the daily-keyed sembast store M1 shipped, charted with fl_chart. Entry condition: ready now. Tracked by Epic #264; label epic:m9-biomarkers.")
+
+          M10=$(ms "M10 — Recipe Converter" \
+            "Post-MVP. Convert a conventional recipe into a keto version with recalculated macros and substituted ingredients. Entry condition: ready now. Tracked by Epic #265; label epic:m10-recipe-converter.")
+
+          M11=$(ms "M11 — Restaurant Directory" \
+            "Post-MVP. Curated Israeli keto restaurant directory with map and filters. Entry condition: content curated and the map SDK re-decided for web. Tracked by Epic #266; label epic:m11-directory.")
+
+          M12=$(ms "M12 — Menu Analyzer" \
+            "Post-MVP. Photograph a restaurant menu and rank its dishes by keto suitability, reusing the M6 Keto Lens OCR and classifier pipeline. Entry condition: M6 closed - met. Tracked by Epic #267; label epic:m12-menu-analyzer.")
+
+          M13=$(ms "M13 — Apple Health Sync" \
+            "Post-MVP. Sync macros, weight and workouts with Apple Health. Entry condition: HealthKit entitlement granted. Tracked by Epic #268; label epic:m13-health-sync.")
+
+          M14=$(ms "M14 — Backup & Restore" \
+            "Post-MVP. Export and restore the full sembast database on every platform, the browser included. Entry condition: re-spec'd for sembast + web. Tracked by Epic #269; label epic:m14-backup.")
+
+          REL=$(ms "Release v1.0 — App Store Launch" \
+            "Ships the MVP: store assets, privacy manifest, release builds and submission. Entry condition: M8 closed and design/cicd_plan.md 7.1 entry conditions met. Runs before M9-M14, not after. Tracked by Epic #270; label epic:release-v1.")
+
+          echo
+          echo "=== 2. assign all 33 issues (26 work issues + 7 Epics) ==="
+
+          echo "  M9 — Biomarker Logging (#$M9)"
+          assign "$M9"   264 103 104 105 106 107
+
+          echo "  M10 — Recipe Converter (#$M10)"
+          assign "$M10"  265 118 119 120
+
+          echo "  M11 — Restaurant Directory (#$M11)"
+          assign "$M11"  266 111 112 113 114 115 116 117
+
+          echo "  M12 — Menu Analyzer (#$M12)"
+          assign "$M12"  267 121 122
+
+          echo "  M13 — Apple Health Sync (#$M13)"
+          assign "$M13"  268 108 109 110
+
+          echo "  M14 — Backup & Restore (#$M14)"
+          assign "$M14"  269 123 124
+
+          echo "  Release v1.0 — App Store Launch (#$REL)"
+          assign "$REL"  270 125 126 127 128
+
+          echo
+          echo "=== 3. retire v1.1 — Post-MVP Backlog ==="
+
+          V11=$(gh api "/repos/$REPO/milestones?state=all&per_page=100" \
+                  --jq '.[] | select(.title | startswith("v1.1")) | .number')
+          if [ -z "$V11" ]; then
+            echo "  no v1.1 milestone found - nothing to retire"
+          else
+            OPEN=$(gh api "/repos/$REPO/milestones/$V11" --jq .open_issues)
+            CLOSED=$(gh api "/repos/$REPO/milestones/$V11" --jq .closed_issues)
+            echo "  v1.1 milestone #$V11: $OPEN open, $CLOSED closed"
+            if [ "$OPEN" -eq 0 ]; then
+              gh api --method PATCH "/repos/$REPO/milestones/$V11" -f state=closed \
+                --jq '"  retired: \(.title) -> \(.state)"'
+            else
+              echo "  NOT retiring - $OPEN issues are still open on it"
+              gh api "/repos/$REPO/issues?milestone=$V11&state=open&per_page=100" \
+                --jq '.[] | "    still on v1.1: #\(.number) \(.title)"'
+            fi
+          fi
+
+          echo
+          echo "=== 4. final state ==="
+          gh api "/repos/$REPO/milestones?state=all&per_page=100" \
+            --jq '.[] | "  #\(.number)  \(.state)  \(.open_issues) open / \(.closed_issues) closed  \(.title)"'
