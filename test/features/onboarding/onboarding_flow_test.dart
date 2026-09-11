@@ -95,10 +95,19 @@ void main() {
 
   /// `pumpAndSettle` with a short deadline.
   ///
-  /// The dashboard draws an indeterminate `CircularProgressIndicator` while
-  /// its providers load, and an indeterminate spinner animates forever — so
-  /// a provider that never resolves does not fail this suite, it hangs it
-  /// for the default ten minutes per call.
+  /// **The original reason is gone, and the bound is kept anyway.** This was
+  /// written because the dashboard drew an indeterminate
+  /// `CircularProgressIndicator` while its providers loaded, and an
+  /// indeterminate spinner animates forever — so a provider that never
+  /// resolved did not fail this suite, it hung it for ten minutes per call.
+  /// #88 replaced those with static skeletons, and an unbounded
+  /// `pumpAndSettle()` now completes this suite in about four seconds.
+  ///
+  /// The deadline stays because the other half of the hazard did not move:
+  /// riverpod 3 retries a failed provider on an exponential backoff, so
+  /// frames keep being scheduled over a broken store for as long as the
+  /// backoff runs. `design/m8_preflight.md` bounds every settle in the e2e
+  /// harness for that reason alone.
   Future<void> settle(WidgetTester tester) => tester.pumpAndSettle(
     const Duration(milliseconds: 100),
     EnginePhase.sendSemanticsUpdate,

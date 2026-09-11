@@ -10,6 +10,7 @@ import 'package:fantastic/features/diary/presentation/symptom_scale.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_diary_section.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_log_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:fantastic/features/diary/presentation/widgets/symptom_diary_skeleton.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -373,13 +374,14 @@ void main() {
       await pumpSection(tester, pending: pending);
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(SymptomDiarySkeleton), findsOneWidget);
       expect(find.byType(Chip), findsNothing);
 
       pending.complete(SymptomLogFixture.varied(date: date));
       await tester.pumpAndSettle();
 
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(SymptomDiarySkeleton), findsNothing);
       // Four score chips + one symptom chip (muscleCramps from varied()).
       expect(find.byType(Chip), findsNWidgets(5));
     });
@@ -402,6 +404,7 @@ void main() {
 
       expect(find.text('לא ניתן לטעון את התסמינים'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(SymptomDiarySkeleton), findsNothing);
     });
 
     // A failed read and an empty day mean opposite things.

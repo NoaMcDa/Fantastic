@@ -5,6 +5,7 @@ import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
 import 'package:fantastic/features/diary/presentation/widgets/empty_meals_state.dart';
 import 'package:fantastic/features/onboarding/application/providers/user_profile_providers.dart';
 import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
+import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -48,15 +49,7 @@ class MacroSummaryCard extends ConsumerWidget {
     }
 
     if (!logAsync.hasValue || !targetsAsync.hasValue) {
-      // A bare progress spinner is deliberate rather than a skeleton: the
-      // skeleton (#88-#94, M7 polish) does not exist yet, and the issue's
-      // reference to "issue #75" points into M5's symptom-diary range.
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      );
+      return const MacroSummaryCardSkeleton();
     }
 
     final log = logAsync.requireValue;

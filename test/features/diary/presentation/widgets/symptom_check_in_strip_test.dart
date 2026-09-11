@@ -9,6 +9,7 @@ import 'package:fantastic/features/diary/presentation/symptom_scale.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_check_in_strip.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_log_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:fantastic/core/widgets/skeleton_box.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -422,6 +423,7 @@ void main() {
 
       expect(find.byKey(const Key('symptom_dot_energy_1')), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(SkeletonBox), findsNothing);
     });
 
     testWidgets('says the read failed rather than showing a blank day', (

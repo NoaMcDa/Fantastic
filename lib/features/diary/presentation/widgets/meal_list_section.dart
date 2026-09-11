@@ -5,6 +5,7 @@ import 'package:fantastic/features/diary/application/meal_logging_service.dart';
 import 'package:fantastic/features/diary/application/providers/meal_providers.dart';
 import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_card.dart';
+import 'package:fantastic/features/diary/presentation/widgets/meal_list_section_skeleton.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -63,10 +64,7 @@ class _MealListSectionState extends ConsumerState<MealListSection> {
     }
 
     if (!mealsAsync.hasValue) {
-      return const Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return const MealListSectionSkeleton();
     }
 
     // No empty-state widget here — MacroSummaryCard above already shows one

@@ -8,6 +8,7 @@ import 'package:fantastic/features/diary/presentation/widgets/meal_card.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fantastic/features/diary/presentation/widgets/meal_list_section_skeleton.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -126,7 +127,7 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(MealListSectionSkeleton), findsOneWidget);
     });
 
     // An empty list and a failed load look identical otherwise.
@@ -205,6 +206,7 @@ void main() {
 
       expect(find.text('לא ניתן לטעון את הארוחות'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(MealListSectionSkeleton), findsNothing);
 
       // Let the one armed retry fire, so nothing is pending at teardown.
       await tester.pump(const Duration(milliseconds: 40));
