@@ -49,7 +49,30 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - uses: actions/checkout@v4
+      # Before checkout, because the workspace is one of the directories being
+      # exempted. **Two thirds of this job used to be untarring.** Restoring
+      # the 1.8 GB Flutter SDK cache took 56 s and the 77 MB pub cache took
+      # 58 s — the small one as long as the large one, which is the signature
+      # of per-file overhead rather than I/O throughput. That overhead is
+      # Defender opening every one of the tens of thousands of files an SDK
+      # tarball contains. None of these paths holds anything a scan protects:
+      # the tool cache and pub cache are archives GitHub just fetched, and the
+      # workspace is this repository's own checkout and build output.
+      #
+      # continue-on-error because this is an optimisation, not a requirement:
+      # if a future runner image runs the job without the privileges
+      # Add-MpPreference needs, the build should still happen, slowly.
+      - name: Exempt the toolchain directories from Defender
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Add-MpPreference -ExclusionPath `
+            "$env:RUNNER_TOOL_CACHE", `
+            "$env:LOCALAPPDATA\Pub\Cache", `
+            "$env:GITHUB_WORKSPACE"
+          Write-Host 'Defender exclusions added for the tool cache, the pub cache and the workspace.'
+
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:

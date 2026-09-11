@@ -1,4 +1,6 @@
 import 'package:fantastic/core/providers/notification_providers.dart';
+import 'package:fantastic/features/diary/data/providers.dart';
+import 'package:fantastic/features/diary/domain/models/estimation_settings.dart';
 import 'package:fantastic/features/onboarding/data/providers.dart';
 import 'package:fantastic/features/onboarding/domain/models/user_profile.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -35,3 +37,18 @@ Stream<UserProfile?> userProfile(Ref ref) =>
 @riverpod
 Future<bool> notificationPermission(Ref ref) =>
     ref.watch(notificationServiceProvider).isPermissionGranted();
+
+/// The stored estimation settings.
+///
+/// A one-shot read rather than a stream, because `EstimationSettingsRepository`
+/// exposes no `watch` — it is a settings record read when a settings screen
+/// opens, not something the rest of the app reacts to. The section
+/// invalidates this after every write.
+///
+/// **Deliberately an `AsyncValue`.** A settings record that cannot be *read*
+/// is not a record that says estimation is off, and rendering an unticked
+/// checkbox for a storage failure would invite the user to "fix" something
+/// that is not broken.
+@riverpod
+Future<EstimationSettings> estimationSettings(Ref ref) =>
+    ref.watch(estimationSettingsRepositoryProvider).load();

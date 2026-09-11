@@ -1,0 +1,90 @@
+name: Warm macOS cache
+
+# This workflow builds nothing and asserts nothing. It exists so that the two
+# macOS workflows stop paying for a 2.1 GB SDK download on every run.
+#
+# **The problem is cache scoping, not cache size.** A GitHub Actions cache is
+# readable from the branch that wrote it and from the default branch, and from
+# nowhere else — a cache saved by a run on `feat/x` is invisible to `feat/y`
+# and to every future PR. `build-ios.yml` and `build-macos.yml` are
+# `pull_request`-only by decision (design/cicd_plan.md §8, macOS runner minutes
+# bill at 10x on private repositories), so neither has ever run on `main`, so
+# neither has ever written a cache into `main`'s scope. Every one of their runs
+# therefore logged `Cache not found`, spent ~35 s pulling the SDK from Google
+# and another ~20-40 s uploading a copy that nothing would ever read — and
+# raced the other macOS job to do it, which is the `Unable to reserve cache`
+# line in both logs.
+#
+# The fix is one job on `main` whose only purpose is to populate that scope.
+# `subosito/flutter-action@v2` derives its cache keys from the OS, the pinned
+# Flutter version and the runner architecture (plus a hash of `pubspec.lock`
+# for the pub cache), so the entries written here are byte-identical to the
+# ones `build-ios.yml` and `build-macos.yml` look for. Both of them restore
+# from this one copy.
+#
+# Linux and Windows need no equivalent: `ci.yml`, `build-linux.yml`,
+# `build-windows.yml` and `build-android.yml` all run on `push` to `main`
+# already, so their caches are in the right scope by construction.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # The pub-cache key hashes the lockfile, so a dependency change makes a
+      # new key that nothing has warmed yet.
+      - 'pubspec.lock'
+      - 'pubspec.yaml'
+      # The SDK-cache key is the Flutter version, which is pinned inside these
+      # files. Changing a pin invalidates the SDK cache for both consumers.
+      - '.github/workflows/build-ios.yml'
+      - '.github/workflows/build-macos.yml'
+      - '.github/workflows/warm-macos-cache.yml'
+  schedule:
+    # **GitHub evicts a cache entry that has not been read for 7 days**, and a
+    # quiet week in `ios/` or `macos/` is entirely normal on this project — so
+    # without a heartbeat the cache would expire exactly when nobody had
+    # touched those platforms in a while, which is when the next PR to touch
+    # them is least expecting a cold build. Twice a week caps the gap at four
+    # days. A restore counts as a read, so on a run where the cache is already
+    # valid this costs one restore and saves nothing new.
+    - cron: '0 5 * * 1,4'
+  workflow_dispatch:
+
+# Never cancel: a half-finished warm is a cold cache for everyone downstream.
+# Two pushes in quick succession queue rather than race.
+concurrency:
+  group: warm-macos-cache
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    name: populate the macOS SDK and pub caches
+    runs-on: macos-latest
+    # A cold run is a 2.1 GB download plus a tar of comparable size. 30 is
+    # generous rather than optimistic.
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Must stay identical to build-ios.yml, build-macos.yml and ci.yml.
+          # A version that differs by a patch is a different cache key, and
+          # this job would then warm a cache nothing reads — failing silently,
+          # which is the one failure mode a warming job has.
+          flutter-version: 3.47.3
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        # This is what populates ~/.pub-cache, which the action then saves
+        # under the lockfile-hashed key that both macOS jobs restore from.
+        run: flutter pub get
+
+      - name: What was warmed
+        # The whole job succeeds whether it filled a cache or found one, so
+        # without this the log gives no way to tell those apart.
+        run: |
+          echo "flutter: $(flutter --version | head -n 1)"
+          echo "pub cache: $(du -sh "${PUB_CACHE:-$HOME/.pub-cache}" | cut -f1)"

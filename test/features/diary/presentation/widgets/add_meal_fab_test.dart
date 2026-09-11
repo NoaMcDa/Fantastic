@@ -2,6 +2,7 @@ import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/features/diary/application/meal_logging_service.dart';
 import 'package:fantastic/features/diary/presentation/widgets/add_meal_bottom_sheet.dart';
 import 'package:fantastic/features/diary/presentation/widgets/add_meal_fab.dart';
+import 'package:fantastic/features/diary/presentation/widgets/add_meal_mode_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -34,13 +35,34 @@ void main() {
     expect(find.byIcon(Icons.add), findsOneWidget);
   });
 
-  testWidgets('opens the add-meal sheet for the date it was given', (
+  /// Taps the FAB and picks [mode] from the chooser behind it.
+  Future<void> choose(WidgetTester tester, String mode) async {
+    await tester.tap(find.byType(AddMealFab));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key(mode)));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('opens the chooser, not a sheet, on the first tap', (
     tester,
   ) async {
     await pumpFab(tester);
 
     await tester.tap(find.byType(AddMealFab));
     await tester.pumpAndSettle();
+
+    expect(find.byType(AddMealModeSheet), findsOneWidget);
+    expect(find.byType(AddMealBottomSheet), findsNothing);
+  });
+
+  // Manual entry is the whole milestone's regression surface: at the end of
+  // M15 its observable behaviour must be what it was before any of it.
+  testWidgets('opens the add-meal sheet for the date it was given', (
+    tester,
+  ) async {
+    await pumpFab(tester);
+
+    await choose(tester, 'add_meal_mode_manual');
 
     final sheet = tester.widget<AddMealBottomSheet>(
       find.byType(AddMealBottomSheet),
@@ -52,13 +74,55 @@ void main() {
     final past = DateTime(2026, 9, 1);
     await pumpFab(tester, on: past);
 
-    await tester.tap(find.byType(AddMealFab));
-    await tester.pumpAndSettle();
+    await choose(tester, 'add_meal_mode_manual');
 
     expect(
       tester.widget<AddMealBottomSheet>(find.byType(AddMealBottomSheet)).date,
       past,
     );
+  });
+
+  testWidgets('dismissing the chooser opens nothing at all', (tester) async {
+    await pumpFab(tester);
+
+    await tester.tap(find.byType(AddMealFab));
+    await tester.pumpAndSettle();
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AddMealModeSheet), findsNothing);
+    expect(find.byType(AddMealBottomSheet), findsNothing);
+  });
+
+  // Each mode opens its own sheet and, crucially, **not** the manual one: a
+  // mode that quietly fell through to manual entry would look like it worked
+  // and log the wrong thing.
+  for (final (mode, sheetKey) in const [
+    ('add_meal_mode_description', 'add_meal_description_sheet'),
+    ('add_meal_mode_photo', 'add_meal_photo_sheet'),
+  ]) {
+    testWidgets('$mode opens its own sheet, not the manual form', (
+      tester,
+    ) async {
+      await pumpFab(tester);
+
+      await choose(tester, mode);
+
+      expect(find.byKey(Key(sheetKey)), findsOneWidget);
+      expect(find.byType(AddMealBottomSheet), findsNothing);
+    });
+  }
+
+  // Still a placeholder until #324 lands. The description mode's own suite
+  // covers the real sheet.
+  testWidgets('the photo placeholder closes cleanly', (tester) async {
+    await pumpFab(tester);
+
+    await choose(tester, 'add_meal_mode_photo');
+    await tester.tap(find.byKey(const Key('coming_soon_close')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('add_meal_photo_sheet')), findsNothing);
   });
 
   // Apple's HIG minimum, and the reason the standard FAB size is kept rather

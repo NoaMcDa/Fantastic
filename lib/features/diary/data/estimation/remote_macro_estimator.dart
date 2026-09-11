@@ -1,6 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:fantastic/core/services/llm/llm_chat_client.dart';
 import 'package:fantastic/features/diary/data/estimation/estimate_response_parser.dart';
 import 'package:fantastic/features/diary/data/estimation/macro_estimation_prompt.dart';
+import 'package:fantastic/features/diary/data/estimation/meal_photo_prep.dart';
+import 'package:fantastic/features/diary/data/estimation/photo_bytes_reader.dart';
 import 'package:fantastic/features/diary/domain/models/estimate_failure_reason.dart';
 import 'package:fantastic/features/diary/domain/models/meal_estimate.dart';
 import 'package:fantastic/features/diary/domain/services/macro_estimator.dart';
@@ -14,12 +18,12 @@ import 'package:fantastic/features/diary/domain/services/macro_estimator.dart';
 /// owns the prompt as well, the answer is a *second* `MacroEstimator` beside
 /// this one — still with no edit here.
 ///
-/// **`imagePath` is accepted and ignored.** The photo mode is #320's; this
-/// class handles a written description only. Passing a path today is not an
-/// error and not a photo estimate — it simply does nothing, and saying so
-/// here is cheaper than the next reader assuming it works.
+/// **Both modes go through one parser.** A photo request and a text request
+/// differ in the user turn and in whether an image part is attached; the
+/// response schema is identical, so a second parser would only be a second
+/// thing to keep in step.
 class RemoteMacroEstimator implements MacroEstimator {
-  const RemoteMacroEstimator({required this.client});
+  const RemoteMacroEstimator({required this.client, required this.photoBytes});
 
   /// Public rather than private, for the reason `MealLoggingService` and
   /// `AdaptationPhaseService` both record: Dart forbids a named parameter
@@ -28,24 +32,59 @@ class RemoteMacroEstimator implements MacroEstimator {
   /// interface, and the tests already hold it.
   final LlmChatClient client;
 
+  /// Reads the bytes behind [estimate]'s `imagePath`.
+  ///
+  /// Injected rather than reached for, so this file needs no `dart:io` — it
+  /// ships in the web bundle, and dart2js compiles `dart:io` as throwing
+  /// stubs that `flutter analyze` and `flutter build web` both accept.
+  final PhotoBytesReader photoBytes;
+
   @override
   Future<MealEstimate> estimate({
     String? description,
     String? imagePath,
   }) async {
     final text = description?.trim() ?? '';
-    if (text.isEmpty) {
+    final path = imagePath?.trim() ?? '';
+    if (text.isEmpty && path.isEmpty) {
       // **Before anything else**, so an empty submit costs nothing against a
-      // 50-requests-a-day quota. `imagePath` does not rescue it here: until
-      // #320 there is no photo path to take.
+      // 50-requests-a-day quota. A photo alone is enough — the model can see
+      // the food without being told what it is — so this only fires when
+      // there is neither.
       return const EstimateFailed(reason: EstimateFailureReason.emptyInput);
+    }
+
+    String? image;
+    if (path.isNotEmpty) {
+      final Uint8List? bytes;
+      try {
+        bytes = await photoBytes.read(path);
+      } on Object catch (_) {
+        // `PhotoBytesReader` promises never to throw; this catch is here
+        // because a promise is not an enforcement.
+        return const EstimateFailed(reason: EstimateFailureReason.badResponse);
+      }
+      // Unreadable bytes, an undecodable image and one too large to send are
+      // one outcome from the user's seat — nothing they can retype fixes any
+      // of them, and the instruction for all three is to try another photo.
+      // Reported as `badResponse` rather than a new reason for exactly that.
+      image = bytes == null ? null : MealPhotoPrep.prepare(bytes);
+      if (image == null) {
+        return const EstimateFailed(reason: EstimateFailureReason.badResponse);
+      }
     }
 
     final ChatResult result;
     try {
       result = await client.complete(
         systemPrompt: MacroEstimationPrompt.system,
-        userPrompt: MacroEstimationPrompt.user(text),
+        // The photo prompt asks for the portion on the plate; the text prompt
+        // cannot, having nothing to look at.
+        userPrompt: image == null
+            ? MacroEstimationPrompt.user(text)
+            : MacroEstimationPrompt.photo(text),
+        imageBase64: image,
+        imageMediaType: image == null ? null : MealPhotoPrep.mediaType,
       );
     } on Object catch (_) {
       // `LlmChatClient` promises never to throw, and this catch is here

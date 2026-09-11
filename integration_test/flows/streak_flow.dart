@@ -26,7 +26,7 @@ void main() {
     // Net carbs 2, comfortably inside the 50 g limit the streak measures.
     // The keto ratio these macros imply is no longer what decides this — see
     // `DayCompliance` and #303.
-    await tapAt(tester, find.byKey(const Key('add_meal_fab')));
+    await openAddMeal(tester);
     await enterInto(tester, 'meal_name_field', 'אבוקדו וחמאה');
     await enterInto(tester, 'fat_field', '50');
     await enterInto(tester, 'carbs_field', '2');
@@ -57,7 +57,7 @@ void main() {
     await pumpApp(tester, app);
 
     for (final name in ['ארוחה ראשונה', 'ארוחה שנייה']) {
-      await tapAt(tester, find.byKey(const Key('add_meal_fab')));
+      await openAddMeal(tester);
       await enterInto(tester, 'meal_name_field', name);
       await enterInto(tester, 'fat_field', '40');
       await enterInto(tester, 'carbs_field', '2');
@@ -103,7 +103,7 @@ void main() {
         tester,
         find.byKey(Key('date_chip_${date.year}_${date.month}_${date.day}')),
       );
-      await tapAt(tester, find.byKey(const Key('add_meal_fab_diary')));
+      await openAddMeal(tester, fabKey: 'add_meal_fab_diary');
       await enterInto(tester, 'meal_name_field', 'סלט אבוקדו');
       await enterInto(tester, 'fat_field', '45');
       await enterInto(tester, 'carbs_field', '4');

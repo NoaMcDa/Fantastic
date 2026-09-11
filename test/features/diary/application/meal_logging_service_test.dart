@@ -1,3 +1,4 @@
+import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/features/adaptation/application/adaptation_phase_service.dart';
 import 'package:fantastic/features/adaptation/data/providers.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
@@ -533,6 +534,284 @@ void main() {
       ).thenThrow(Exception('store gone'));
 
       await expectLater(service.logMeal(meal), throwsA(isA<Exception>()));
+    });
+  });
+
+  group('updateMeal', () {
+    DateTime todayAt(int hour) {
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day, hour);
+    }
+
+    /// Makes the day hold exactly [meals], whatever date is queried.
+    void dayHolds(List<MealEntry> meals) =>
+        when(() => mealRepository.findByDate(any())).thenAnswer((_) async {
+          return meals;
+        });
+
+    /// Makes [stored] the meal already on disk under its own id.
+    void alreadyStored(MealEntry stored) =>
+        when(() => mealRepository.findById(stored.id!))
+            .thenAnswer((_) async => stored);
+
+    /// Every date a `DailyLog` was written for, in order.
+    List<DateTime> recalculatedDates() =>
+        verify(() => dailyLogRepository.save(captureAny())).captured
+            .cast<DailyLog>()
+            .map((log) => log.date)
+            .toList();
+
+    test('overwrites the stored meal and returns the saved copy', () async {
+      final stored = MealEntryFixture.fixture(id: 7, timestamp: todayAt(9));
+      final edited = stored.copyWith(fatG: 44);
+      alreadyStored(stored);
+      final persisted = edited.copyWith(mealName: 'from the store');
+      when(() => mealRepository.save(any())).thenAnswer((_) async => persisted);
+
+      final result = await service.updateMeal(edited);
+
+      verify(() => mealRepository.save(edited)).called(1);
+      expect(result, persisted);
+    });
+
+    test('reads the stored meal before overwriting it', () async {
+      final stored = MealEntryFixture.fixture(id: 7, timestamp: todayAt(9));
+      alreadyStored(stored);
+
+      // Afterwards there is nothing left to read the old date from.
+      await service.updateMeal(stored.copyWith(fatG: 1));
+
+      verifyInOrder([
+        () => mealRepository.findById(7),
+        () => mealRepository.save(any()),
+      ]);
+    });
+
+    test('recomputes the day from all its meals, not from a delta', () async {
+      final stored = MealEntryFixture.fixture(id: 7, timestamp: todayAt(9));
+      alreadyStored(stored);
+      dayHolds([
+        MealEntryFixture.fixture(fatG: 10, netCarbsG: 2, proteinG: 5),
+        MealEntryFixture.fixture(fatG: 30, netCarbsG: 3, proteinG: 15),
+      ]);
+
+      await service.updateMeal(stored.copyWith(fatG: 999));
+
+      final log =
+          verify(() => dailyLogRepository.save(captureAny())).captured.single
+              as DailyLog;
+      expect(log.totalFatG, 40);
+      expect(log.totalNetCarbsG, 5);
+      expect(log.totalProteinG, 20);
+    });
+
+    // The defect this whole method is shaped around: the day a meal *left*
+    // would otherwise keep its macros for ever, with nothing to detect it.
+    test('a meal moved to another day recalculates both days', () async {
+      final stored = MealEntryFixture.fixture(
+        id: 7,
+        timestamp: DateTime(2026, 9, 3, 20),
+      );
+      alreadyStored(stored);
+
+      await service.updateMeal(
+        stored.copyWith(timestamp: DateTime(2026, 9, 5, 8)),
+      );
+
+      final dates = recalculatedDates();
+      expect(dates, hasLength(2));
+      expect(dates.map((d) => d.day), containsAll(<int>[3, 5]));
+    });
+
+    test('the new day is recalculated first, the old one after', () async {
+      final stored = MealEntryFixture.fixture(
+        id: 7,
+        timestamp: DateTime(2026, 9, 3, 20),
+      );
+      alreadyStored(stored);
+
+      await service.updateMeal(
+        stored.copyWith(timestamp: DateTime(2026, 9, 5, 8)),
+      );
+
+      expect(recalculatedDates().first.day, 5);
+    });
+
+    test('both days reach the state machine', () async {
+      final stored = MealEntryFixture.fixture(
+        id: 7,
+        timestamp: DateTime(2026, 9, 3, 20),
+      );
+      alreadyStored(stored);
+
+      await service.updateMeal(
+        stored.copyWith(timestamp: DateTime(2026, 9, 5, 8)),
+      );
+
+      final dates = verify(
+        () => adaptationPhaseService.recomputeFor(
+          captureAny(),
+          at: any(named: 'at'),
+        ),
+      ).captured.cast<DateTime>();
+      expect(dates.map((d) => d.day), containsAll(<int>[3, 5]));
+    });
+
+    // By year/month/day, never `==` on `DateTime`: two meals on one day at
+    // different times are not equal instants.
+    test(
+      'a meal moved within the same day recalculates it exactly once',
+      () async {
+        final stored = MealEntryFixture.fixture(
+          id: 7,
+          timestamp: DateTime(2026, 9, 3, 8),
+        );
+        alreadyStored(stored);
+
+        await service.updateMeal(
+          stored.copyWith(timestamp: DateTime(2026, 9, 3, 21, 45)),
+        );
+
+        expect(recalculatedDates(), hasLength(1));
+      },
+    );
+
+    test('an edit that does not move the meal recalculates one day', () async {
+      final stored = MealEntryFixture.fixture(id: 7, timestamp: todayAt(9));
+      alreadyStored(stored);
+
+      await service.updateMeal(stored.copyWith(netCarbsG: 30));
+
+      expect(recalculatedDates(), hasLength(1));
+    });
+
+    test('moving a meal off today still recalculates today', () async {
+      final stored = MealEntryFixture.fixture(id: 7, timestamp: todayAt(20));
+      alreadyStored(stored);
+      final past = todayAt(20).subtract(const Duration(days: 4));
+
+      await service.updateMeal(stored.copyWith(timestamp: past));
+
+      // Today's totals changed too — a meal left it.
+      expect(recalculatedDates().map((d) => d.day), contains(todayAt(20).day));
+    });
+
+    // Since #303 the streak is derived rather than accumulated, so an edit to
+    // a past day is *expected* to move it — pushing a past day over the limit
+    // breaks the streak across that day, and correcting it back under repairs
+    // the streak across the gap. The version of this issue written before
+    // #303 landed asked for the opposite.
+    test('editing a past meal still re-derives the streak', () async {
+      final past = DateTime(2026, 1, 4, 12);
+      final stored = MealEntryFixture.fixture(id: 7, timestamp: past);
+      alreadyStored(stored);
+
+      await service.updateMeal(stored.copyWith(netCarbsG: 80));
+
+      verify(
+        () => adaptationPhaseService.recomputeFor(any(), at: any(named: 'at')),
+      ).called(1);
+    });
+
+    test('both days are evaluated at one wall-clock instant', () async {
+      final stored = MealEntryFixture.fixture(
+        id: 7,
+        timestamp: DateTime(2026, 9, 3, 20),
+      );
+      alreadyStored(stored);
+
+      await service.updateMeal(
+        stored.copyWith(timestamp: DateTime(2026, 9, 5, 8)),
+      );
+
+      // Two `DateTime.now()` calls would differ by milliseconds, and a write
+      // straddling midnight would evaluate the two days against two days.
+      final instants = verify(
+        () => adaptationPhaseService.recomputeFor(
+          any(),
+          at: captureAny(named: 'at'),
+        ),
+      ).captured.cast<DateTime>();
+      expect(instants, hasLength(2));
+      expect(instants.first, instants.last);
+    });
+
+    // Not a formality: `save` is an upsert keyed on the id, so a null one
+    // would append a *second* meal and silently double the day's macros.
+    test('a null id throws and never reaches save', () async {
+      final entry = MealEntryFixture.fixture();
+
+      await expectLater(
+        service.updateMeal(entry),
+        throwsA(isA<ArgumentError>()),
+      );
+      verifyNever(() => mealRepository.save(any()));
+      verifyNever(() => dailyLogRepository.save(any()));
+    });
+
+    test('an id with no stored meal throws and never reaches save', () async {
+      when(() => mealRepository.findById(any())).thenAnswer((_) async => null);
+
+      await expectLater(
+        service.updateMeal(MealEntryFixture.fixture(id: 404)),
+        throwsA(isA<EntityNotFoundException>()),
+      );
+      verifyNever(() => mealRepository.save(any()));
+    });
+
+    // Services do not catch to convert — `design/base_design.md`'s Error
+    // Handling Contract. Presentation reads these as `AsyncValue.error`.
+    test('a storage failure on the read propagates unchanged', () async {
+      when(() => mealRepository.findById(any()))
+          .thenThrow(const PersistenceException('read failed', 'closed'));
+
+      await expectLater(
+        service.updateMeal(MealEntryFixture.fixture(id: 7)),
+        throwsA(isA<PersistenceException>()),
+      );
+    });
+
+    test('a storage failure on the write propagates unchanged', () async {
+      final stored = MealEntryFixture.fixture(id: 7);
+      alreadyStored(stored);
+      when(() => mealRepository.save(any()))
+          .thenThrow(const PersistenceException('write failed', 'closed'));
+
+      await expectLater(
+        service.updateMeal(stored.copyWith(fatG: 2)),
+        throwsA(isA<PersistenceException>()),
+      );
+    });
+
+    test('a failure in the state machine is not swallowed', () async {
+      final stored = MealEntryFixture.fixture(id: 7, timestamp: todayAt(10));
+      alreadyStored(stored);
+      when(
+        () => adaptationPhaseService.recomputeFor(any(), at: any(named: 'at')),
+      ).thenThrow(Exception('store gone'));
+
+      await expectLater(
+        service.updateMeal(stored.copyWith(fatG: 3)),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('water and electrolytes survive an edit', () async {
+      final stored = MealEntryFixture.fixture(id: 7, timestamp: todayAt(9));
+      alreadyStored(stored);
+      when(() => dailyLogRepository.findByDate(any())).thenAnswer(
+        (_) async =>
+            DailyLogFixture.fixture(date: stored.timestamp)
+                .copyWith(waterMl: 1800, sodiumMg: 3000),
+      );
+
+      await service.updateMeal(stored.copyWith(fatG: 1));
+
+      final log =
+          verify(() => dailyLogRepository.save(captureAny())).captured.single
+              as DailyLog;
+      expect(log.waterMl, 1800);
+      expect(log.sodiumMg, 3000);
     });
   });
 }

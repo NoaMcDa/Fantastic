@@ -153,3 +153,80 @@ final class NotificationPermissionProvider
 
 String _$notificationPermissionHash() =>
     r'd241b49c2281f6ffed7f2e1e4c1e70604af69762';
+
+/// The stored estimation settings.
+///
+/// A one-shot read rather than a stream, because `EstimationSettingsRepository`
+/// exposes no `watch` — it is a settings record read when a settings screen
+/// opens, not something the rest of the app reacts to. The section
+/// invalidates this after every write.
+///
+/// **Deliberately an `AsyncValue`.** A settings record that cannot be *read*
+/// is not a record that says estimation is off, and rendering an unticked
+/// checkbox for a storage failure would invite the user to "fix" something
+/// that is not broken.
+
+@ProviderFor(estimationSettings)
+const estimationSettingsProvider = EstimationSettingsProvider._();
+
+/// The stored estimation settings.
+///
+/// A one-shot read rather than a stream, because `EstimationSettingsRepository`
+/// exposes no `watch` — it is a settings record read when a settings screen
+/// opens, not something the rest of the app reacts to. The section
+/// invalidates this after every write.
+///
+/// **Deliberately an `AsyncValue`.** A settings record that cannot be *read*
+/// is not a record that says estimation is off, and rendering an unticked
+/// checkbox for a storage failure would invite the user to "fix" something
+/// that is not broken.
+
+final class EstimationSettingsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<EstimationSettings>,
+          EstimationSettings,
+          FutureOr<EstimationSettings>
+        >
+    with
+        $FutureModifier<EstimationSettings>,
+        $FutureProvider<EstimationSettings> {
+  /// The stored estimation settings.
+  ///
+  /// A one-shot read rather than a stream, because `EstimationSettingsRepository`
+  /// exposes no `watch` — it is a settings record read when a settings screen
+  /// opens, not something the rest of the app reacts to. The section
+  /// invalidates this after every write.
+  ///
+  /// **Deliberately an `AsyncValue`.** A settings record that cannot be *read*
+  /// is not a record that says estimation is off, and rendering an unticked
+  /// checkbox for a storage failure would invite the user to "fix" something
+  /// that is not broken.
+  const EstimationSettingsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'estimationSettingsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$estimationSettingsHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<EstimationSettings> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<EstimationSettings> create(Ref ref) {
+    return estimationSettings(ref);
+  }
+}
+
+String _$estimationSettingsHash() =>
+    r'2b7c672fd6296910d78bd50b39706de03ebc993e';

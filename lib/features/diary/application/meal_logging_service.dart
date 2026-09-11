@@ -1,3 +1,4 @@
+import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/features/adaptation/application/adaptation_phase_service.dart';
 import 'package:fantastic/features/dashboard/application/keto_ratio_calculator.dart';
 import 'package:fantastic/features/dashboard/data/providers.dart';
@@ -50,6 +51,65 @@ class MealLoggingService {
     return saved;
   }
 
+  /// Overwrites the stored meal with [entry] and updates every day the change
+  /// touched. Returns the saved copy.
+  ///
+  /// A meal could be added and deleted but not changed, which was survivable
+  /// while every macro in the diary was typed by hand and is conspicuous now
+  /// that some are estimated: an estimate could be corrected before it was
+  /// saved and not after. The only move left was to delete the entry and
+  /// retype it, which loses the timestamp.
+  ///
+  /// **Two days, not one.** An edit may move a meal to a different calendar
+  /// day, and the day it left has to lose the macros as surely as the day it
+  /// joined has to gain them. The old date is read from the store *before*
+  /// the overwrite, because afterwards there is nothing left to read it
+  /// from — the same problem [deleteMeal] solves by taking the date as an
+  /// argument, solved here by reading rather than by trusting the caller,
+  /// since the caller holds an entry it has already modified.
+  ///
+  /// **Unlike [logMeal], the streak is evaluated at the wall clock.**
+  /// `logMeal` passes the entry's own timestamp because a meal being logged
+  /// *is* an event happening now; an edit is not, and its timestamp is
+  /// whatever day the user is correcting. [deleteMeal] records what handing a
+  /// date-only midnight to the state machine cost.
+  ///
+  /// Since #303 the streak is *derived* rather than accumulated, so editing a
+  /// past meal is expected to change it: pushing a past day over the limit
+  /// breaks the streak across that day, and correcting a day back under it
+  /// repairs the streak across the gap. Nothing here suppresses that, and
+  /// nothing should.
+  ///
+  /// Throws [ArgumentError] if `entry.id` is null.
+  /// Throws [EntityNotFoundException] if no meal has that id.
+  Future<MealEntry> updateMeal(MealEntry entry) async {
+    final id = entry.id;
+    if (id == null) {
+      // Not a formality. `save` is an upsert keyed on the id, so a null one
+      // would **append a second meal** rather than overwrite the first, and
+      // the day's macros would silently double.
+      throw ArgumentError.notNull('entry.id');
+    }
+
+    final existing = await mealRepository.findById(id);
+    if (existing == null) {
+      throw EntityNotFoundException('No meal with id $id');
+    }
+
+    final saved = await mealRepository.save(entry);
+
+    // One wall-clock instant for both recalculations, not two `DateTime.now()`
+    // calls: the second would be a few milliseconds later, and a write that
+    // straddled midnight would evaluate the two days against different days.
+    final evaluatedAt = DateTime.now();
+    await _recalculateDailyLog(entry.timestamp, evaluatedAt: evaluatedAt);
+    if (!_isSameDay(existing.timestamp, entry.timestamp)) {
+      await _recalculateDailyLog(existing.timestamp, evaluatedAt: evaluatedAt);
+    }
+
+    return saved;
+  }
+
   /// Deletes the meal with [id] and updates [date]'s totals.
   ///
   /// [date] is passed in because the entry is gone by the time the totals are
@@ -64,6 +124,16 @@ class MealLoggingService {
     await mealRepository.delete(id);
     await _recalculateDailyLog(date, evaluatedAt: DateTime.now());
   }
+
+  /// Whether two instants fall on the same calendar day.
+  ///
+  /// By year/month/day, never `==` on `DateTime`: two meals on the same day
+  /// at different times are not equal instants, and comparing instants would
+  /// recalculate the old day on every single edit — harmless in effect and
+  /// wrong in intent, which is the kind of thing that stops being harmless
+  /// the moment someone optimises it.
+  static bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   Future<void> _recalculateDailyLog(
     DateTime date, {
