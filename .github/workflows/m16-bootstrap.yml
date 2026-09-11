@@ -1,0 +1,50 @@
+# One-shot: create the M16 epic label and GitHub milestone.
+#
+# An agent session's GitHub tooling can set an issue's label and milestone but
+# can create neither (design/v1_1_split.md §6). A runner has `gh` and a
+# repo-scoped token, so this throwaway workflow does it. Triggered by pushing
+# this file to its own branch — `workflow_dispatch` only fires for workflows
+# already on the default branch, so it cannot bootstrap itself. Idempotent:
+# an existing label or milestone is looked up rather than failing.
+#
+# Deleted (with its branch) as soon as the run has succeeded.
+name: m16 bootstrap
+on:
+  push:
+    branches: [chore/m16-milestone-bootstrap]
+permissions:
+  issues: write
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      LABEL: "epic:m16-menu-scanner"
+      LABEL_DESC: "M16 AI Menu Scanner milestone"
+      LABEL_COLOR: "7C3AED"
+      MILESTONE_TITLE: "M16 — AI Menu Scanner"
+      MILESTONE_DESC: "AI Menu Scanner & Keto Compatibility Classifier — Epic and research in design/m16_menu_scanner_research.md"
+    steps:
+      - name: Create or confirm the label
+        run: |
+          if gh label list --limit 200 --json name --jq '.[].name' | grep -qxF "$LABEL"; then
+            echo "label exists: $LABEL"
+            gh label edit "$LABEL" --description "$LABEL_DESC" --color "$LABEL_COLOR"
+          else
+            gh label create "$LABEL" --description "$LABEL_DESC" --color "$LABEL_COLOR"
+            echo "label created: $LABEL"
+          fi
+      - name: Create or confirm the milestone
+        run: |
+          existing=$(gh api "repos/$GH_REPO/milestones?state=all&per_page=100" \
+            --jq ".[] | select(.title == \"$MILESTONE_TITLE\") | .number")
+          if [ -n "$existing" ]; then
+            echo "milestone exists: #$existing"
+          else
+            created=$(gh api -X POST "repos/$GH_REPO/milestones" \
+              -f title="$MILESTONE_TITLE" -f description="$MILESTONE_DESC" --jq '.number')
+            echo "milestone created: #$created"
+          fi
+          echo "MILESTONE_NUMBER=$(gh api "repos/$GH_REPO/milestones?state=all&per_page=100" \
+            --jq ".[] | select(.title == \"$MILESTONE_TITLE\") | .number")"
