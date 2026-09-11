@@ -1,5 +1,6 @@
 import 'package:flutter_tesseract_ocr/flutter_tesseract_ocr.dart';
 
+import 'package:fantastic/features/keto_lens/data/adapters/ocr_image_prep.dart';
 import 'package:fantastic/features/keto_lens/data/adapters/tessdata_bundle.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
 
@@ -45,15 +46,29 @@ class TesseractPluginRecognizer implements TextRecognitionService {
   Future<String> recognise(String imagePath) => FlutterTesseractOcr.extractText(
     imagePath,
     language: TessdataBundle.language,
-    args: const {
-      // Matches the desktop and web halves exactly. A nutrition panel is a
-      // single uniform block; the default hunts for page columns that are
-      // not there.
+    args: {
+      // Matches the desktop and web halves exactly.
+      //
+      // `psm 4` — a single column of variable-size text. This was `6`
+      // ("a single uniform block") until a user scanned a real Israeli
+      // nutrition panel and the app read six of its nine rows as
+      // punctuation. A bordered table with its numbers in one column and its
+      // Hebrew labels in another is exactly what mode 6 flattens: it returned
+      // `%- |` and `|` where `פחמימות (גרם) 41.2` was printed. Mode 4 keeps
+      // each row with its own number. Measured on tesseract 5.3.4 against the
+      // model this app bundles.
+      //
+      // `user_defined_dpi` — Tesseract estimates resolution when the file
+      // does not declare one, and on that same image it estimated 631 dpi and
+      // then downscaled internally on the strength of the guess, which is
+      // what destroyed the rows. Declaring a value stops the guess.
+      // `OcrImagePrep` has the measurements.
       //
       // `preserve_interword_spaces` is deliberately absent: on RTL Hebrew
       // it removes spaces rather than preserving them. Measured on the FFI
       // and wasm engines; see `design/m6_platform_research.md`.
-      'psm': '6',
+      'psm': '4',
+      'user_defined_dpi': '${OcrImagePrep.assumedDpi}',
     },
   );
 }

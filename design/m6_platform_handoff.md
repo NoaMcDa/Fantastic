@@ -379,6 +379,123 @@ shipping a defect**
 
 ---
 
+## The scan that read nothing — what the shipped engine settings got wrong
+
+**Added after this handoff was first written.** A user scanned a clean,
+well-lit crop of a real Israeli nutrition panel — whole wheat + rye bread, a
+bordered two-column table with the numbers in the left column — and Keto Lens
+reported `ScanFailed(notALabel)`.
+
+**The pipeline was innocent.** `HebrewLabelParser`, `HebrewTextNormaliser`,
+`IngredientClassifier` and `ScanOrchestrator` all behaved correctly, and the
+orchestrator correctly refused to invent a verdict. Every macro was `null`
+because the engine had returned six of the nine rows as punctuation rubble
+(`%- |`, `|`, `היווה`) and misread `100` as `106`. The defect was entirely in
+the engine configuration the three adapters share.
+
+**Four independent causes. Fixing any three of them still fails.**
+
+| # | Cause | Evidence |
+|---|---|---|
+| 1 | `psm 6` flattens a bordered table | six of nine rows lost; `psm 4` keeps each row with its number |
+| 2 | `heb` alone cannot read an isolated Latin digit column | returned 218/9/2/43/9/308 for 238/10.9/41.2/7/3.3/368 |
+| 3 | Tesseract *estimated* the resolution, at **631 dpi**, and downscaled internally on that basis | declaring `user_defined_dpi` stops the guess |
+| 4 | a **colour** buffer makes it drop every digit | 4-channel and 3-channel both read zero numbers; 1-channel greyscale reads all of them |
+
+Cause 3 is the one nobody was looking for, and it is invisible: Tesseract logs
+`Estimating resolution as 631` to stderr and then quietly degrades. Cause 4 was
+introduced *by the fix for cause 1* and is the more dangerous shape — every
+Hebrew row survived, so the output looked healthy while every number was gone.
+
+### What this cost, and what it did not
+
+`eng.traineddata` adds **3.92 MB** to every bundle and to the browser's
+same-origin fetch. It is a trade, not a free win: on **pointed (niqqud)**
+Hebrew the English model sometimes wins a word it should not, and the
+`pointedWafer` fixture now loses its carbohydrate row. That degradation is to
+`null` — "not found" — so the sheet asks the user rather than stating a figure.
+It is never `0`.
+
+**A second `heb`-only pass to recover it was considered and rejected.** It would
+fill a safe `null` from a pass measured to be unreliable on digits, turning "the
+app asks" into "the app guesses". #257 is why that direction is closed. Do not
+reintroduce it.
+
+### The margin is thin, and that is the honest finding
+
+Sweeping interpolation against target width on this label, scored by what the
+parser extracts, does not show a broad plateau — it shows a narrow one:
+
+```
+           1200  1400  1600  1800  2000  2400
+  cubic     ok    -p    -p    -p    xx    fat=0.5
+  linear    -p    ok    ok    xx    xx    fat=53.0
+  average   ok    -f-p  ok    -c-p  xx    fat=9.0
+```
+
+`linear` at 1600 is chosen because it is the only kernel correct at two
+*adjacent* widths. Read the right-hand columns as the warning they are: at
+other settings the engine returns a **plausible wrong** fat figure — 0.5 is the
+saturated-fat sub-row, 53.0 is nothing on the label at all — rather than
+failing visibly. This is a 580×498 image at the edge of what the engine can do.
+These numbers are evidence that linear/1600 is right *here*, not in general.
+
+### Engine output is not stable across Tesseract versions
+
+**Found by CI, and it is the most transferable lesson in this section.** The
+macOS runner installs Tesseract **5.5.3** from brew; the container this was
+developed in has **5.3.4**. Given the *same image*, the same `psm 4`,
+`heb+eng`, `user_defined_dpi=300` and the same preparation step, the two
+engines disagree:
+
+| 5.3.4 | 5.5.3 |
+|---|---|
+| `חלבונים (גרם) 10.9` | **`חזלבונים`** `(גרם) 10.9` |
+| `כלל סיבים תזונתיים (גרם) ] 7` | `... (גרם) § 7` |
+| `שומנים (גרם) 3.3` | `3.3 (Da) ‏שומנים‎` |
+
+The parser's `חלבו[נן]` does not match `חזלבונים`, so **on a Mac this label
+logged with protein silently missing** — every other macro present, basis
+correctly `per100g`, and a hole in the middle of a confident-looking result.
+
+Three consequences, all of them now enforced in code:
+
+1. **Never assert on raw OCR text.** `expect(text, contains('חלבונים'))` is a
+   latent cross-platform failure: it pins bytes that legitimately vary by
+   engine build. **Assert the parsed result instead** — `fatG`, `netCarbsG`,
+   `proteinG`, `basis`. That is both stabler *and* stronger, because it is the
+   property a user actually depends on. The one remaining raw-text assertion
+   is in `real_ocr_pipeline_test.dart`, and it exists precisely to prove a
+   fixture still *contains* the corruption it is there to exercise.
+2. **The parser tolerates one corrupted letter per keyword**, and the
+   disqualifier tolerates one too. See `HebrewLabelParser._tolerant` for why
+   it is that narrow: a matcher loose enough to let `שומנים` claim the
+   `מתוכם שומן רווי` row would report saturated fat as total fat, which is far
+   worse than the missing protein it fixes. Tolerance is capped at one error,
+   never substitutes the first or last letter, and is refused entirely for
+   keywords under four letters.
+3. **A fixture per engine version.** `test/fixtures/ci_ocr_fixture.dart` holds
+   the 5.5.3 capture, kept out of the generated `real_ocr_fixture.dart`
+   because it was transcribed from a CI log rather than produced by
+   `tool/capture_ocr_fixtures.sh`. The pipeline assertions run against both.
+
+**This also qualifies the interpolation sweep above.** Those numbers were
+measured on **5.3.4 only**. The narrow ridge they identify — `linear` at
+1600 px — may well sit somewhere else on another engine build, and nothing
+here has checked. Treat the table as evidence that the margin is thin, not as
+a calibration that transfers.
+
+### Still not verified
+
+The committed fixture image is **screenshot quality** — a clean, flat crop, not
+a photograph taken at arm's length off a curved bread bag under supermarket
+lighting. There is still **no camera in this repository**, no accuracy figure
+is claimed, and **#256 and Epic #10 stay open**. The browser's canvas
+preprocessing path has never executed in a real browser, and the mobile plugin
+path has never executed at all.
+
+---
+
 ## Conventions inherited
 
 1. **One engine, every platform.** The same argument `web_support.md` §1 used to
@@ -386,6 +503,20 @@ shipping a defect**
    reintroduce a per-platform engine without a measured reason.
 2. **`preserve_interword_spaces` stays unset.** It is a regression, not a
    tuning knob, on RTL text.
+2b. **Every engine parameter is set in all three adapters, or in none.** `psm`,
+   the language pair, the OCR engine mode and `user_defined_dpi` each appear in
+   the web JS shim, the mobile plugin and the desktop FFI half. A setting
+   changed in one place is a platform quietly running a different engine.
+2c. **Tesseract gets a single-channel greyscale image, never colour.** Measured:
+   colour costs every digit while keeping every Hebrew row. Flattening alpha is
+   not sufficient — three-channel fails identically.
+2e. **Assert the parsed result, never the raw OCR text.** Engine output varies
+   by Tesseract build; the pipeline's output is the only stable contract.
+2d. **A fixture is captured through the app's own preparation code**, not through
+   a reimplementation of it. `tool/capture_ocr_fixtures.py` shells out to
+   `tool/prepare_for_ocr.dart` for exactly this reason: a Pillow reimplementation
+   produced an easier image than the app submits, and the fixture recorded a
+   pipeline that does not exist.
 3. **Capability checks, not platform checks**, for anything a plugin may or may
    not implement — `NotificationService.supportsScheduling` is the pattern.
    False by default; each platform earns a true.

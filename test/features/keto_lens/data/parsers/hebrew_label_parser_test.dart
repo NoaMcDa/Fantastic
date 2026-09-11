@@ -265,6 +265,105 @@ void main() {
       expect(label.ingredients, ['מלח']);
     });
 
+    group('tolerating one OCR corruption in a keyword', () {
+      // Tesseract 5.3.4 and 5.5.3 disagree on this label: the newer engine
+      // inserts a `ז` into `חלבונים`. The parser absorbs one such error. These
+      // tests are mostly about what it must *not* absorb — a matcher loose
+      // enough to put the saturated-fat number in the fat field would be far
+      // worse than the missing protein it was built to fix.
+
+      test('a spurious letter inside a keyword still matches', () {
+        final label = parser.parse('חזלבונים (גרם) 10.9');
+
+        expect(label.proteinG, 10.9);
+      });
+
+      test('a substituted interior letter still matches', () {
+        final label = parser.parse('פחסימות (גרם) 41.2');
+
+        expect(label.netCarbsG, 41.2);
+      });
+
+      test('two corruptions are one too many', () {
+        // The tolerance is exactly one error. Two is no longer a corrupted
+        // keyword, it is a guess.
+        final label = parser.parse('חזלבזנים (גרם) 10.9');
+
+        expect(label.proteinG, isNull);
+      });
+
+      test('a three-letter keyword gets no tolerance at all', () {
+        // `סיב`. One error in three letters is a different word.
+        final label = parser.parse('סזבים תזונתיים (גרם) 7');
+
+        expect(label.netCarbsG, isNull);
+      });
+
+      group('keywords still cannot claim each others rows', () {
+        // The whole risk of a tolerant matcher, stated as assertions.
+        const rows = {
+          'חלבונים (גרם) 10.9': 'protein',
+          'פחמימות (גרם) 41.2': 'carbs',
+          'שומנים (גרם) 3.3': 'fat',
+        };
+
+        for (final row in rows.entries) {
+          test('${row.value} row feeds only the ${row.value} field', () {
+            final label = parser.parse(row.key);
+
+            expect(label.proteinG, row.value == 'protein' ? 10.9 : isNull);
+            expect(label.fatG, row.value == 'fat' ? 3.3 : isNull);
+            expect(label.netCarbsG, row.value == 'carbs' ? 41.2 : isNull);
+          });
+        }
+      });
+
+      test('sesame is not a fat row', () {
+        // `משומשום` contains `שומש`. Allowing the final letter of `שומ[נן]`
+        // to be substituted would match it, and this line is an *ingredient*
+        // on the project's own tahini fixture.
+        final label = parser.parse('טחינה גולמית משומשום מלא 100');
+
+        expect(label.fatG, isNull);
+      });
+
+      test('the saturated sub-row is still disqualified from total fat', () {
+        // The catastrophic case. A tolerant keyword with an exact
+        // disqualifier would report 0.9 as total fat.
+        final label = parser.parse('מתוכם שומן רווי (גרם) 0.9');
+
+        expect(label.fatG, isNull);
+      });
+
+      test('a corrupted disqualifier still disqualifies', () {
+        // The disqualifier is tolerant for the same reason the keyword is,
+        // but the risk runs the other way: over-disqualifying loses a value,
+        // under-disqualifying invents one.
+        final label = parser.parse('מתוכם שומן רוויי (גרם) 0.9');
+
+        expect(label.fatG, isNull);
+      });
+
+      test('the real labels spell it טראנס, which now disqualifies', () {
+        // The old exact `טרנס` did not match `טראנס` at all, so the trans-fat
+        // row was never disqualified on a real label — only line order kept
+        // it out of the fat field.
+        final label = parser.parse('מתוכם שומן טראנס (גרם) 0.5');
+
+        expect(label.fatG, isNull);
+      });
+
+      test('total fat still wins when it precedes its sub-rows', () {
+        final label = parser.parse(
+          'שומנים (גרם) 3.3\n'
+          'מתוכם שומן רווי (גרם) 0.9\n'
+          'מתוכם שומן טראנס (גרם) 0.5',
+        );
+
+        expect(label.fatG, 3.3);
+      });
+    });
+
     test('never throws, whatever it is handed', () {
       for (final input in [
         '',

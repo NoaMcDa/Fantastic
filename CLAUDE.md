@@ -379,10 +379,11 @@ See `design/m6_platform_research.md` and `design/m6_platform_handoff.md`.
 CameraScreen / gallery import
   → TextRecognitionService   (domain interface)
       browser  → TesseractJsTextRecognizer      tesseract.js (wasm), self-hosted
-      VM       → TesseractNativeTextRecognizer  dispatches on Platform:
+      VM       → ScalingTextRecognizer          greyscale + scale-up, in an isolate
+                 wrapping TesseractNativeTextRecognizer, which dispatches on Platform:
                    android/ios → TesseractPluginRecognizer  (flutter_tesseract_ocr)
                    desktop     → TesseractFfiRecognizer     (dart:ffi → libtesseract)
-                   otherwise   → UnavailableTextRecognizer
+                   otherwise   → UnavailableTextRecognizer  (not wrapped)
   → LabelParser              → HebrewLabelParser + HebrewTextNormaliser
   → IngredientClassifier     → IngredientClassifierImpl
   → ScanResult               (sealed: ScanSucceeded | ScanFailed)
@@ -426,6 +427,35 @@ label and `ParsedLabel.basis` defaults to `unknown`, which never scales.
   zero.** A zero-macro meal saves without complaint and is invisible in the
   day's totals.
 
+**The engine settings are `psm 4`, `heb+eng`, `oem 1` and an explicit
+`user_defined_dpi`, and every one of them is set in all three adapters.** A
+user scanned a real bordered Israeli panel and got nothing back; the parsers
+were innocent and the shared engine configuration was at fault, in four
+independent ways at once:
+
+- **`psm 6` flattens a bordered two-column table.** Six of the label's nine rows
+  came back as punctuation. `psm 4` keeps each row with its own number.
+- **The Hebrew model cannot read an isolated column of Latin digits.** It
+  returned 218/9/2/43/9/308 where the label printed 238/10.9/41.2/7/3.3/368,
+  and more resolution did not help. `eng.traineddata` ships beside `heb` for
+  this — 3.92 MB, and a real trade: on **pointed (niqqud)** Hebrew English
+  sometimes wins a word, and a macro degrades to `null`. **Never to `0`, and
+  never "recovered" by a second `heb`-only pass** — that fills a safe null from
+  a pass known to be unreliable on digits, which is the #257 direction.
+- **Tesseract estimates resolution when the file declares none, and estimated
+  631 dpi here**, then downscaled internally on the strength of it.
+  `user_defined_dpi` stops the guess.
+- **Colour costs every digit.** Handed a 4- or 3-channel buffer the engine read
+  every Hebrew row and not one number. `ScalingTextRecognizer` converts to
+  single-channel greyscale; flattening alpha alone is *not* sufficient.
+
+**A small image is scaled up before recognition** (`OcrImagePrep`,
+`ScalingTextRecognizer`, and a canvas in `fantastic_ocr.js`), with hard caps on
+edge length and pixel count so no input can provoke an unbounded allocation — a
+12 MP phone photo passes through untouched. The chosen kernel and width sit on
+a **narrow** plateau; adjacent settings return plausible *wrong* macros. See
+`design/m6_platform_handoff.md` §"The scan that read nothing".
+
 **`preserve_interword_spaces` must stay unset.** It reads like the safe choice
 and is, for Latin — but on RTL Hebrew it *removes* spaces: `53.8 גרם` comes back
 as `53.8גרם`. Measured identically on libtesseract and on the wasm build.
@@ -442,8 +472,8 @@ Worst badge wins. An unrecognised token is *not* flagged, so
 "nothing here was readable" — without it the UI would put a green tick on an
 unreadable label.
 
-**Tesseract has been verified to read Hebrew labels; no *photograph* has ever
-been scanned.** `test/fixtures/real_ocr_fixture.dart` holds verbatim engine
+**Tesseract has been verified to read Hebrew labels, including one real
+photographed label; no label has ever been read *through a camera*.** `test/fixtures/real_ocr_fixture.dart` holds verbatim engine
 output captured from labels rendered in the app's own font
 (`tool/capture_ocr_fixtures.sh` regenerates it), and
 `real_ocr_pipeline_test.dart` asserts what the shipped pipeline does with it.
@@ -512,11 +542,27 @@ Full testing strategy in `design/tests.md`. Summary:
 - **Two suites need something the default run does not have.**
   `tesseract_ffi_recognizer_test.dart` runs a real OCR engine and **skips** when
   libtesseract is absent (as on CI) rather than failing — a red suite people
-  learn to ignore is worse than a skip that says what is unchecked.
+  learn to ignore is worse than a skip that says what is unchecked. **It now
+  prints a loud banner when it skips**, because a silent skip once let a
+  regression through that dropped every digit off a label while CI stayed
+  green: a green run proves nothing about desktop or mobile OCR.
+  `scaling_text_recognizer_test.dart` is the pure-Dart companion that would
+  have caught that one — it asserts the *buffer* handed to the engine (single
+  channel, target width), which needs no engine and runs everywhere.
   `tesseract_js_text_recognizer_test.dart` is `@TestOn('browser')` and needs
   `--platform chrome`; it covers the `dart:js_interop` boundary, which fails
   silently — a mismatched `extension type` member compiles and then throws in a
   browser only, and neither `analyze` nor `build web` catches it
+- **Never assert on raw OCR text — assert what the pipeline parsed.** Tesseract
+  5.3.4 and 5.5.3 read the same label differently (`חלבונים` vs `חזלבונים`), so
+  a `contains('חלבונים')` assertion passes locally and fails on the macOS
+  runner. The parsed macros are stable across both and are what the user
+  depends on. `HebrewLabelParser` absorbs **one** corrupted letter per keyword
+  for the same reason — narrowly, because a loose matcher that let `שומנים`
+  claim the `מתוכם שומן רווי` row would report saturated fat as total fat
+- **`CiOcrFixture` is transcribed from a CI log**, not generated, because no
+  machine here runs 5.5.3. It is a separate file so that "never hand-edit
+  `real_ocr_fixture.dart`" stays an unambiguous rule
 - **`RealOcrFixture` is generated, not written.** Every other fixture here was
   written by hand, which `design/m6_handoff.md` warns is "exactly the kind of
   test that passes and then fails on a real label". That one is verbatim

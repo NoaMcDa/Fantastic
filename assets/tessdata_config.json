@@ -1,5 +1,6 @@
 {
   "files": [
-    "heb.traineddata"
+    "heb.traineddata",
+    "eng.traineddata"
   ]
 }
