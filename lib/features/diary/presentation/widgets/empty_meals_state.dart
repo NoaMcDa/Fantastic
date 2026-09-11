@@ -16,10 +16,18 @@ import 'package:flutter/material.dart';
 class EmptyMealsState extends StatelessWidget {
   const EmptyMealsState({super.key});
 
+  /// The headline, as its own constant.
+  ///
+  /// `MacroSummaryCard` shows this line *above* its bars on a day with nothing
+  /// logged, where the full centred block would be a header taller than the
+  /// content it introduces — enough to push the streak ring off the first
+  /// screen. One definition either way, so the two cannot drift (#301).
+  static const String headline = 'לא נרשמו ארוחות להיום';
+
   @override
   Widget build(BuildContext context) => const EmptyStateWidget(
     icon: Icons.restaurant_menu_outlined,
-    headline: 'לא נרשמו ארוחות להיום',
+    headline: headline,
     subtitle: 'הקש על + כדי להוסיף ארוחה',
   );
 }
