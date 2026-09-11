@@ -2,7 +2,8 @@ import 'package:fantastic/features/adaptation/application/adaptation_phase_servi
 import 'package:fantastic/features/adaptation/data/providers.dart';
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
-import 'package:fantastic/features/adaptation/presentation/widgets/grace_period_banner.dart';
+import 'package:fantastic/features/adaptation/presentation/widgets/grace_period_banner.dart'
+    show GracePeriodBanner, GracePeriodBannerText;
 import 'package:fantastic/features/adaptation/presentation/widgets/streak_ring_widget.dart';
 import 'package:fantastic/features/dashboard/data/providers.dart';
 import 'package:flutter/material.dart';
@@ -208,6 +209,30 @@ void main() {
           ),
         );
     await pumpApp(tester, app);
+
+    // **Before anything is written.** Reconciliation runs on write, not on
+    // read, so the store still says `currentStreak: 10` with an open grace
+    // flag — and until #308 the display repeated it: the ring showed a
+    // ten-day streak the user had already lost, and the banner counted down
+    // "פחות מדקה" to a reset that had happened an hour ago.
+    //
+    // Nothing here has written; only what is painted has changed.
+    expect(ringShows('0'), findsOneWidget);
+    await openAdaptationTab(tester);
+    expect(bannerText(), findsNothing);
+    expect(
+      find.text(GracePeriodBannerText.expiredNotice),
+      findsOneWidget,
+      reason: 'the expired window was not reported on screen',
+    );
+    final beforeWrite = await storedStreak(app);
+    expect(
+      beforeWrite.currentStreak,
+      10,
+      reason: 'the display corrected itself by writing, which it must not do',
+    );
+    expect(beforeWrite.inGracePeriod, isTrue);
+    await openHomeTab(tester);
 
     await logMeal(
       tester,

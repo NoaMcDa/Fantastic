@@ -115,7 +115,7 @@ class AdaptationPhaseService {
   /// follows decides what the streak is worth now, so this only has to stop
   /// the stale window from forgiving a day it no longer covers.
   static StreakState _expireIfClosed(StreakState state, DateTime at) =>
-      _hasExpired(state, at)
+      hasExpired(state, at)
       ? state.copyWith(inGracePeriod: false, clearGracePeriodEnd: true)
       : state;
 
@@ -164,7 +164,7 @@ class AdaptationPhaseService {
   /// [StreakState].
   static DateTime? _gracedDate(StreakState state, DateTime at) {
     final end = state.gracePeriodEnd;
-    if (!state.inGracePeriod || end == null || _hasExpired(state, at)) {
+    if (!state.inGracePeriod || end == null || hasExpired(state, at)) {
       return null;
     }
     return StreakCalculator.dateOnly(end.subtract(gracePeriod));
@@ -195,7 +195,15 @@ class AdaptationPhaseService {
   /// An `inGracePeriod` with no [StreakState.gracePeriodEnd] cannot be judged
   /// expired: there is no instant to compare against, and guessing would reset
   /// a streak on a malformed record.
-  static bool _hasExpired(StreakState state, DateTime at) {
+  ///
+  /// **Public because two widgets ask the same question** (#308):
+  /// `GracePeriodBanner` decides whether it is showing a countdown or a
+  /// notice, and `StreakRingWidget` decides whether the streak it was handed
+  /// is still the user's. Two copies of "is this window still open" is how
+  /// the write path and the display would come to disagree — and this is the
+  /// definition the write path already uses, not a second one written to
+  /// match it.
+  static bool hasExpired(StreakState state, DateTime at) {
     final end = state.gracePeriodEnd;
     return state.inGracePeriod && end != null && at.isAfter(end);
   }

@@ -1,19 +1,44 @@
 import 'dart:async';
 
 import 'package:fantastic/core/theme/app_theme.dart';
+import 'package:fantastic/core/time/today_tracker.dart';
 import 'package:fantastic/features/adaptation/application/adaptation_phase_service.dart';
 import 'package:fantastic/features/adaptation/application/providers/streak_providers.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// A warning shown while the user is inside the 24-hour grace period, with
-/// the time left before the streak resets.
+/// What the 24-hour grace period is doing: a countdown while it runs, a
+/// notice once it has closed.
 ///
-/// Occupies no space at all when there is nothing to warn about, so it can be
-/// placed unconditionally at the top of a screen.
+/// Occupies no space at all when there is nothing to say, so it can be placed
+/// unconditionally at the top of a screen.
+///
+/// **Two states, because reconciliation runs on write and not on read.**
+/// Nothing persists the reset until the user's next logged meal, so a window
+/// that closed six hours ago is still `inGracePeriod: true` on the record.
+/// The banner used to report that as a live countdown and
+/// [GracePeriodBannerText.describe] fell through to `'פחות מדקה'` for any
+/// duration under a minute, negative included — so the user was told their
+/// streak would reset within the minute, indefinitely, and both halves of
+/// that were false: the window was gone and the reset had not happened
+/// either (#308).
+///
+/// **The expired state is not hidden.** Vanishing is how the user learns
+/// nothing, and the number on the ring changing later with no explanation is
+/// the failure this issue is fixing rather than reproducing.
 class GracePeriodBanner extends ConsumerStatefulWidget {
-  const GracePeriodBanner({super.key});
+  const GracePeriodBanner({this.clock = DateTime.now, super.key});
+
+  /// The clock seam. Production reads the real one; a test places a window in
+  /// the past without sleeping.
+  ///
+  /// A widget parameter rather than a provider, deliberately: `CLAUDE.md`
+  /// records that reconciliation is applied on write precisely so that
+  /// `DateTime.now()` never enters a provider and every widget test that
+  /// stubs a `StreakState` stays deterministic. Reading the clock to decide
+  /// what to *paint* does not persist anything and does not change that.
+  final Clock clock;
 
   @override
   ConsumerState<GracePeriodBanner> createState() => _GracePeriodBannerState();
@@ -50,13 +75,28 @@ class _GracePeriodBannerState extends ConsumerState<GracePeriodBanner> {
   Widget build(BuildContext context) {
     final streak = ref.watch(streakStateProvider).value;
     final endsAt = _graceEnd(streak);
+    final now = widget.clock();
 
-    _tickWhile(visible: endsAt != null);
+    // Only a live countdown needs the ticker. The expired notice says the
+    // same thing every minute, and a timer rebuilding an unchanging widget
+    // for the life of the app is what the comment on [_tickWhile] warns
+    // against.
+    final counting = endsAt != null && !endsAt.isBefore(now);
+    _tickWhile(visible: counting);
+
     if (endsAt == null) {
       return const SizedBox.shrink();
     }
 
-    return _Banner(remaining: endsAt.difference(DateTime.now()));
+    // `AdaptationPhaseService.hasExpired` rather than a second comparison
+    // written here: the write path already owns this question, and two
+    // definitions of "is the window still open" is how the display and the
+    // store would come to disagree.
+    if (AdaptationPhaseService.hasExpired(streak!, now)) {
+      return const _ExpiredNotice();
+    }
+
+    return _Banner(remaining: endsAt.difference(now));
   }
 
   /// When the open grace period ends, or null if there is none.
@@ -73,6 +113,38 @@ class _GracePeriodBannerState extends ConsumerState<GracePeriodBanner> {
   }
 }
 
+/// The closed-window notice.
+///
+/// Caution rather than danger, with dark text on it: the red countdown means
+/// "act now", and this means "that has already happened". The colour carries
+/// the difference so the two are not one banner whose text quietly changed.
+class _ExpiredNotice extends StatelessWidget {
+  const _ExpiredNotice();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('grace_period_expired'),
+    width: double.infinity,
+    color: AppTheme.caution,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    child: const Row(
+      children: [
+        Icon(Icons.restart_alt, color: AppTheme.primary),
+        SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            GracePeriodBannerText.expiredNotice,
+            style: TextStyle(
+              color: AppTheme.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class _Banner extends StatelessWidget {
   const _Banner({required this.remaining});
 
@@ -80,6 +152,7 @@ class _Banner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
+    key: const Key('grace_period_countdown'),
     width: double.infinity,
     color: AppTheme.danger,
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -115,9 +188,19 @@ abstract final class GracePeriodBannerText {
   ///
   /// Clamped at [AdaptationPhaseService.gracePeriod], because a clock moved
   /// backwards should not promise more time than a grace period can hold, and
-  /// at zero, because an expired window is not negative time: the reset lands
-  /// on the next evaluation, and until then this reads "פחות מדקה".
+  /// at zero, where it reads [expired] rather than a duration — the reset
+  /// itself still lands on the next evaluation, but saying "less than a
+  /// minute" for a window that closed hours ago is a claim, not a rounding.
   static String describe(Duration remaining) {
+    // Expired, not "less than a minute". The old fall-through told a user
+    // whose window closed hours ago that their streak would reset within the
+    // minute, and went on telling them so until they logged something (#308).
+    // The banner renders [_ExpiredNotice] rather than a countdown in that
+    // case, so this is the guard for any other caller — and for a window that
+    // closes between one tick and the next.
+    if (remaining <= Duration.zero) {
+      return expired;
+    }
     if (remaining >= AdaptationPhaseService.gracePeriod) {
       return '${AdaptationPhaseService.gracePeriod.inHours} שעות';
     }
@@ -131,4 +214,15 @@ abstract final class GracePeriodBannerText {
     }
     return 'פחות מדקה';
   }
+
+  /// What a closed window reads as.
+  static const String expired = 'הסתיימה';
+
+  /// The whole sentence the expired banner paints.
+  ///
+  /// Not a countdown, so it is not worded or styled as one: the streak is
+  /// already lost and the only useful thing left to say is how to start
+  /// another.
+  static const String expiredNotice =
+      'תקופת החסד הסתיימה — רשמו ארוחה תואמת כדי להתחיל רצף חדש';
 }

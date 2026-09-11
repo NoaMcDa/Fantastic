@@ -26,11 +26,22 @@ void main() {
     when(repository.watch).thenAnswer((_) => Stream.value(null));
   });
 
-  Future<void> pumpBanner(WidgetTester tester, {StreakState? streak}) async {
+  /// The instant every clock-seam test reasons from.
+  ///
+  /// Fixed, so a window placed relative to it cannot drift between the pump
+  /// and the assertion — which is what `graceEndingIn`'s spare minute below
+  /// exists to work around for the tests that still use the real clock.
+  final now = DateTime(2026, 9, 11, 14, 30);
+
+  Future<void> pumpBanner(
+    WidgetTester tester, {
+    StreakState? streak,
+    DateTime? at,
+  }) async {
     when(repository.watch).thenAnswer((_) => Stream.value(streak));
     await pumpApp(
       tester,
-      const GracePeriodBanner(),
+      GracePeriodBanner(clock: at == null ? DateTime.now : () => at),
       overrides: [
         streakRepositoryProvider.overrideWithValue(repository),
         dailyLogRepositoryProvider.overrideWithValue(_MockDailyLogRepository()),
@@ -139,10 +150,26 @@ void main() {
       expect(describe(const Duration(seconds: 20)), 'פחות מדקה');
     });
 
-    // An expired window is not negative time. The reset lands on the next
-    // evaluation; until then the banner holds at the floor.
-    test('an expired window does not go negative', () {
-      expect(describe(const Duration(minutes: -30)), 'פחות מדקה');
+    // **This expectation has flipped, and it is the defect #308 fixes.** It
+    // used to assert `'פחות מדקה'`, characterising the fall-through that told
+    // a user whose window closed half an hour ago that their streak would
+    // reset within the minute — and went on telling them so indefinitely,
+    // because nothing reconciles until the next write.
+    test('a negative duration reads as expired, not as less than a minute', () {
+      expect(describe(const Duration(minutes: -30)), 'הסתיימה');
+      expect(describe(const Duration(minutes: -30)), isNot('פחות מדקה'));
+    });
+
+    // The boundary between the two. `AdaptationPhaseService.hasExpired` is
+    // strictly-after for the same reason: the user is given the instant, not
+    // denied it — but a duration of exactly zero has none of it left.
+    test('exactly zero reads as expired', () {
+      expect(describe(Duration.zero), 'הסתיימה');
+    });
+
+    // A regression guard on the branch that was always right.
+    test('fifty-nine seconds still reads as less than a minute', () {
+      expect(describe(const Duration(seconds: 59)), 'פחות מדקה');
     });
 
     // A clock moved backwards must not promise more time than a grace period
@@ -188,5 +215,120 @@ void main() {
 
     // A surviving Timer.periodic fails the test binding at teardown.
     expect(find.byType(GracePeriodBanner), findsNothing);
+  });
+
+  group('an expired window', () {
+    /// A window that closed [ago] before [now].
+    StreakState graceClosed(Duration ago) =>
+        StreakStateFixture.inGracePeriod(gracePeriodEnd: now.subtract(ago));
+
+    testWidgets('shows the expired copy when gracePeriodEnd is in the past', (
+      tester,
+    ) async {
+      await pumpBanner(
+        tester,
+        streak: graceClosed(const Duration(hours: 6)),
+        at: now,
+      );
+
+      expect(find.byKey(const Key('grace_period_expired')), findsOneWidget);
+      expect(find.text(GracePeriodBannerText.expiredNotice), findsOneWidget);
+    });
+
+    // The whole defect in one assertion: six hours after the window closed,
+    // the banner used to say the streak would reset in under a minute.
+    testWidgets('does not claim the streak resets within the minute', (
+      tester,
+    ) async {
+      await pumpBanner(
+        tester,
+        streak: graceClosed(const Duration(hours: 6)),
+        at: now,
+      );
+
+      expect(find.textContaining('פחות מדקה'), findsNothing);
+      expect(find.textContaining('הרצף שלך בסכנה'), findsNothing);
+    });
+
+    // Vanishing is how the user learns nothing — and the ring's number
+    // changing later with no explanation is the failure being fixed, not
+    // reproduced.
+    testWidgets('does not hide itself', (tester) async {
+      await pumpBanner(
+        tester,
+        streak: graceClosed(const Duration(hours: 6)),
+        at: now,
+      );
+
+      expect(find.byType(SizedBox), findsWidgets);
+      expect(
+        tester.getSize(find.byKey(const Key('grace_period_expired'))).height,
+        greaterThan(0),
+      );
+    });
+
+    // The expired notice says the same thing every minute, so it must not
+    // leave a ticker rebuilding it for the life of the app. `pumpAndSettle`
+    // throws if a periodic timer is still pending.
+    testWidgets('leaves no timer running', (tester) async {
+      await pumpBanner(
+        tester,
+        streak: graceClosed(const Duration(hours: 6)),
+        at: now,
+      );
+
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('grace_period_expired')), findsOneWidget);
+    });
+
+    // The legitimate case, and the one a careless fix breaks: a breached day
+    // is not a skipped day, and an unexpired window is exactly what the
+    // breach bought.
+    testWidgets('shows the countdown when gracePeriodEnd is in the future', (
+      tester,
+    ) async {
+      await pumpBanner(
+        tester,
+        streak: StreakStateFixture.inGracePeriod(
+          gracePeriodEnd: now.add(const Duration(hours: 6, minutes: 1)),
+        ),
+        at: now,
+      );
+
+      expect(find.byKey(const Key('grace_period_countdown')), findsOneWidget);
+      expect(find.byKey(const Key('grace_period_expired')), findsNothing);
+      expect(find.textContaining('6 שעות'), findsOneWidget);
+    });
+
+    // `hasExpired` is strictly-after, so the boundary instant is still
+    // inside the window — the user is given it, not denied it.
+    testWidgets('the exact expiry instant is still inside the window', (
+      tester,
+    ) async {
+      await pumpBanner(
+        tester,
+        streak: StreakStateFixture.inGracePeriod(gracePeriodEnd: now),
+        at: now,
+      );
+
+      expect(find.byKey(const Key('grace_period_countdown')), findsOneWidget);
+    });
+
+    // `copyWith` cannot clear a `StreakState` field with null, so this pairing
+    // should be unreachable. Asserted anyway: a widget cannot enforce an
+    // invariant it does not own.
+    testWidgets('an open flag with no expiry renders nothing and does not '
+        'throw', (tester) async {
+      await pumpBanner(
+        tester,
+        streak: StreakStateFixture.withStreak(5)
+            .copyWith(inGracePeriod: true, clearGracePeriodEnd: true),
+        at: now,
+      );
+
+      expect(find.byKey(const Key('grace_period_expired')), findsNothing);
+      expect(find.byKey(const Key('grace_period_countdown')), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
   });
 }

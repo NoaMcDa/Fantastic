@@ -11,6 +11,17 @@ DateTime dateOnly(DateTime instant) =>
 /// Today's calendar date, with the time of day stripped.
 DateTime todayDate() => dateOnly(DateTime.now());
 
+/// A source of the current wall-clock instant.
+///
+/// The seam a widget takes when *what it renders* depends on the time rather
+/// than only on what it was given — a countdown, or a window that has closed.
+/// A test passes a fixed instant instead of sleeping.
+///
+/// An **instant**, never a date: [TodayTracker.now]'s doc records what
+/// happened the one time a clock seam returned a stripped date, and the same
+/// reasoning applies to anything named `Clock` here.
+typedef Clock = DateTime Function();
+
 /// Holds [today] for a screen and refreshes it when the app comes back to the
 /// foreground on a later calendar day.
 ///

@@ -2,6 +2,9 @@ import 'dart:math' as math;
 
 import 'package:fantastic/core/constants/keto_constants.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
+import 'package:fantastic/core/time/today_tracker.dart';
+import 'package:fantastic/features/adaptation/application/adaptation_phase_service.dart';
+import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 import 'package:fantastic/features/adaptation/application/providers/streak_providers.dart';
 import 'package:fantastic/features/dashboard/application/keto_ratio_calculator.dart';
 import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
@@ -17,11 +20,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// *history* — how many compliant days are behind it. A user checks the arc
 /// several times a day and the number once.
 class StreakRingWidget extends ConsumerWidget {
-  const StreakRingWidget({required this.date, super.key});
+  const StreakRingWidget({
+    required this.date,
+    this.clock = DateTime.now,
+    super.key,
+  });
 
   /// Pass a date-only value — `todaysDailyLogProvider` is keyed on it, and a
   /// wall-clock time recomputed each build would refetch forever.
   final DateTime date;
+
+  /// The clock seam, used only to ask whether a grace window has closed.
+  ///
+  /// Production reads the real one; a test places a window in the past
+  /// without sleeping. A widget parameter rather than a provider: `CLAUDE.md`
+  /// records that reconciliation is applied on write precisely so
+  /// `DateTime.now()` never enters a provider. Reading the clock to decide
+  /// what to *paint* persists nothing and does not change that.
+  final Clock clock;
 
   /// Painted size. Fixed so the loading placeholder reserves exactly the
   /// space the ring will take and the dashboard does not jump when it lands.
@@ -66,7 +82,35 @@ class StreakRingWidget extends ConsumerWidget {
                 protein: log.totalProteinG,
               );
 
-    return _Ring(ratio: ratio, days: streakAsync.value?.currentStreak ?? 0);
+    return _Ring(ratio: ratio, days: _days(streakAsync.value));
+  }
+
+  /// The streak the user actually still has.
+  ///
+  /// Reconciliation runs on write, not on read, so after a grace window
+  /// closes the stored `currentStreak` is the **pre-breach** number until the
+  /// next logged meal — a streak the user has already lost, shown as current,
+  /// which then dropped without explanation the moment they logged anything
+  /// (#308).
+  ///
+  /// **Only an expired window is the stale case.** `inGracePeriod` with a
+  /// *future* `gracePeriodEnd` is the legitimate one and must show the real
+  /// count: a breached day is not a skipped day, and that window is precisely
+  /// what the breach bought. `AdaptationPhaseService.hasExpired` is asked
+  /// rather than a comparison written here, so the display cannot drift from
+  /// the write path that owns the rule.
+  ///
+  /// **Nothing is persisted.** This corrects the number on screen; the stored
+  /// `StreakState` is untouched until the user's next logged meal, when
+  /// `AdaptationPhaseService.recomputeFor` does the real work. The display and
+  /// the store are deliberately allowed to disagree for that window.
+  int _days(StreakState? streak) {
+    if (streak == null) {
+      return 0;
+    }
+    return AdaptationPhaseService.hasExpired(streak, clock())
+        ? 0
+        : streak.currentStreak;
   }
 }
 
