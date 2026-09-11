@@ -62,6 +62,12 @@ Everything in the MVP serves one of those two goals. Features that don't serve t
   - Phase 2 (Days 8–27): Fat-Adapted Transition
   - Phase 3 (Days 28+): Deep Ketosis
 - Phase state machine: compliant day → advance; breach → grace period (24h) → reset
+- **A compliant day is one with meals logged whose total net carbs are at or
+  below `KetoConstants.maxCompliantNetCarbsG` (50 g); above it is a breach, and
+  a day with nothing logged breaks the streak outright.** The keto ratio does
+  not decide this. The streak counter is *derived* by walking the `DailyLog`
+  history on every write, so editing or back-filling a past day re-derives it
+  (#303)
 - Phase detail screen: what to expect, electrolyte advice for current phase
 - Streak ring animation on the dashboard (keto ratio arc)
 - Push notification at 20:00 if no meal logged ("streak at risk")

@@ -54,11 +54,16 @@ void main() {
   }
 
   /// A day in [month] whose totals give [ratio], with a real denominator.
-  DailyLog dayWithRatio(int day, double ratio) => DailyLogFixture.fixture(
+  /// A compliant day: comfortably inside the streak's net-carb limit.
+  DailyLog compliantDay(int day) => DailyLogFixture.fixture(
     date: DateTime(month.year, month.month, day),
-    totalFatG: ratio * 20,
-    totalNetCarbsG: 5,
-    totalProteinG: 15,
+    totalNetCarbsG: 12,
+  );
+
+  /// A breached day: comfortably over it.
+  DailyLog breachDay(int day) => DailyLogFixture.fixture(
+    date: DateTime(month.year, month.month, day),
+    totalNetCarbsG: 120,
   );
 
   group('layout', () {
@@ -111,31 +116,52 @@ void main() {
   });
 
   group('day colours', () {
-    testWidgets('a day at or above the target is green', (tester) async {
-      await pumpCalendar(tester, logs: [dayWithRatio(3, 2.5)]);
+    testWidgets('a day within the carb limit is green', (tester) async {
+      await pumpCalendar(tester, logs: [compliantDay(3)]);
 
       expect(cellColour(tester, 3), AppTheme.success);
     });
 
-    testWidgets('a day below the target is red', (tester) async {
-      await pumpCalendar(tester, logs: [dayWithRatio(4, 0.8)]);
+    testWidgets('a day over the carb limit is red', (tester) async {
+      await pumpCalendar(tester, logs: [breachDay(4)]);
 
       expect(cellColour(tester, 4), AppTheme.danger);
     });
 
+    // The grid and the ring are now one rule, not two copies of it (#303).
+    // This is the case that separates them: 30g fat / 8g carbs / 90g protein
+    // is a ratio of 0.31, which the old rule painted red, and 8g of net carbs,
+    // which the streak counts as one of its best days.
+    testWidgets('the cell follows the carb rule, not the keto ratio', (
+      tester,
+    ) async {
+      await pumpCalendar(
+        tester,
+        logs: [
+          DailyLogFixture.fixture(
+            date: DateTime(month.year, month.month, 7),
+            totalFatG: 30,
+            totalNetCarbsG: 8,
+            totalProteinG: 90,
+            ketoRatioAvg: 0.31,
+          ),
+        ],
+      );
+
+      expect(cellColour(tester, 7), AppTheme.success);
+    });
+
     testWidgets('a day with no log is neither', (tester) async {
-      await pumpCalendar(tester, logs: [dayWithRatio(3, 2.5)]);
+      await pumpCalendar(tester, logs: [compliantDay(3)]);
 
       expect(cellColour(tester, 5), isNot(AppTheme.success));
       expect(cellColour(tester, 5), isNot(AppTheme.danger));
     });
 
-    // Consistent with MealLoggingService, which does not evaluate such a day
-    // either: the ratio is fat / (netCarbs + protein), and a zero denominator
-    // reports as 0. Painting it red would contradict the streak.
-    testWidgets('a fat-only day reads as unlogged, not as a breach', (
-      tester,
-    ) async {
+    // Butter coffee and nothing else. The old rule read `netCarbs + protein
+    // == 0` and called this unlogged; under a carb rule zero net carbs is the
+    // best day there is, so it is green.
+    testWidgets('a fat-only day is compliant, not unlogged', (tester) async {
       await pumpCalendar(
         tester,
         logs: [
@@ -148,11 +174,11 @@ void main() {
         ],
       );
 
-      expect(cellColour(tester, 6), isNot(AppTheme.danger));
+      expect(cellColour(tester, 6), AppTheme.success);
     });
 
     testWidgets('only the logged day is coloured', (tester) async {
-      await pumpCalendar(tester, logs: [dayWithRatio(3, 2.5)]);
+      await pumpCalendar(tester, logs: [compliantDay(3)]);
 
       expect(cellColour(tester, 3), AppTheme.success);
       expect(cellColour(tester, 4), isNot(AppTheme.success));
@@ -189,7 +215,7 @@ void main() {
   // would hit the store thirty-one times to draw one screen and flicker in
   // cell by cell.
   testWidgets('reads the store once for the whole month', (tester) async {
-    await pumpCalendar(tester, logs: [dayWithRatio(3, 2.5)]);
+    await pumpCalendar(tester, logs: [compliantDay(3)]);
 
     verify(repository.findAll).called(1);
   });

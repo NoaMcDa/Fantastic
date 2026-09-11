@@ -4,6 +4,7 @@ import 'package:fantastic/features/adaptation/application/adaptation_phase_servi
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
+import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:fantastic/features/onboarding/application/onboarding_service.dart';
 import 'package:fantastic/features/onboarding/domain/models/biological_sex.dart';
 import 'package:fantastic/features/onboarding/domain/models/keto_goal.dart';
@@ -19,6 +20,8 @@ class _MockUserProfileRepository extends Mock
     implements UserProfileRepository {}
 
 class _MockStreakRepository extends Mock implements StreakRepository {}
+
+class _MockDailyLogRepository extends Mock implements DailyLogRepository {}
 
 class _MockNotificationService extends Mock implements NotificationService {}
 
@@ -42,7 +45,12 @@ void main() {
       streakRepository: streaks,
       // The real state machine, not a mock: the phase a seeded streak lands
       // in is the thing under test, and a stubbed one would assert nothing.
-      adaptationPhaseService: AdaptationPhaseService(streaks),
+      // Its day-log repository is never reached — onboarding only calls
+      // `currentPhase`, which is pure.
+      adaptationPhaseService: AdaptationPhaseService(
+        repository: streaks,
+        dailyLogRepository: _MockDailyLogRepository(),
+      ),
       notificationService: notifications,
     );
 

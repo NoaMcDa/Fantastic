@@ -1,13 +1,12 @@
-import 'package:fantastic/core/constants/keto_constants.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
-import 'package:fantastic/features/dashboard/application/keto_ratio_calculator.dart';
+import 'package:fantastic/features/adaptation/domain/models/day_compliance.dart';
 import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// A month of compliance at a glance: one cell per day, coloured by whether
-/// that day's keto ratio cleared the target.
+/// that day's net carbs stayed within the streak's limit.
 class StreakCalendarWidget extends ConsumerWidget {
   const StreakCalendarWidget({required this.month, super.key});
 
@@ -83,7 +82,6 @@ class StreakCalendarWidget extends ConsumerWidget {
               status: _statusFor(
                 DateTime(month.year, month.month, day),
                 logsAsync.value?[day],
-                ref,
               ),
             );
           },
@@ -94,29 +92,23 @@ class StreakCalendarWidget extends ConsumerWidget {
 
   /// How [date] should be coloured, given the log it does or does not have.
   ///
-  /// A day whose net carbs and protein are both zero counts as **unlogged**,
-  /// not as a breach. The ratio is `fat / (netCarbs + protein)` and
-  /// `KetoRatioCalculator` reports a zero denominator as `0`, which would
-  /// paint a fat-only morning red — and would contradict the streak, since
-  /// `MealLoggingService` deliberately does not evaluate such a day either
-  /// (`design/m3_preflight.md` §1.3).
-  static _DayStatus _statusFor(DateTime date, DailyLog? log, WidgetRef ref) {
+  /// Delegates to [DayCompliance], which is the *only* definition of a
+  /// compliant day. This method used to compute a keto ratio and compare it to
+  /// the target — a second, independent copy of the streak's rule, so the month
+  /// grid and the ring could disagree about the same day and changing one
+  /// changed only half the app (#303).
+  ///
+  /// The future guard stays here: it is a rendering concern, not a compliance
+  /// one. A day that has not happened is neither compliant nor a breach.
+  static _DayStatus _statusFor(DateTime date, DailyLog? log) {
     if (date.isAfter(DateTime.now())) {
       return _DayStatus.future;
     }
-    if (log == null || log.totalNetCarbsG + log.totalProteinG == 0) {
-      return _DayStatus.unlogged;
-    }
-    final ratio = ref
-        .watch(ketoRatioCalculatorProvider)
-        .calculate(
-          fat: log.totalFatG,
-          netCarbs: log.totalNetCarbsG,
-          protein: log.totalProteinG,
-        );
-    return ratio >= KetoConstants.targetKetoRatioIdeal
-        ? _DayStatus.compliant
-        : _DayStatus.breach;
+    return switch (DayCompliance.of(log)) {
+      DayStatus.compliant => _DayStatus.compliant,
+      DayStatus.breach => _DayStatus.breach,
+      DayStatus.unlogged => _DayStatus.unlogged,
+    };
   }
 }
 

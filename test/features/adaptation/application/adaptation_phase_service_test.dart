@@ -2,6 +2,8 @@ import 'package:fantastic/features/adaptation/application/adaptation_phase_servi
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
+import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
+import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -9,8 +11,11 @@ import '../../../fixtures/fixtures.dart';
 
 class _MockStreakRepository extends Mock implements StreakRepository {}
 
+class _MockDailyLogRepository extends Mock implements DailyLogRepository {}
+
 void main() {
   late _MockStreakRepository repository;
+  late _MockDailyLogRepository dailyLogRepository;
   late AdaptationPhaseService service;
 
   /// The instant every test reasons from. Fixed, never `DateTime.now()` — the
@@ -20,20 +25,40 @@ void main() {
   final today = DateTime(2026, 9, 10);
   final yesterday = DateTime(2026, 9, 9);
 
+  DateTime daysBefore(int n) =>
+      DateTime(today.year, today.month, today.day - n);
+
+  /// A compliant day [n] days before [today]: well under the carb limit.
+  DailyLog compliant(int n) =>
+      DailyLogFixture.fixture(date: daysBefore(n), totalNetCarbsG: 12);
+
+  /// A breached day [n] days before [today]: well over it.
+  DailyLog breach(int n) =>
+      DailyLogFixture.fixture(date: daysBefore(n), totalNetCarbsG: 120);
+
   setUpAll(() => registerFallbackValue(StreakStateFixture.initial()));
 
   setUp(() {
     repository = _MockStreakRepository();
-    service = AdaptationPhaseService(repository);
+    dailyLogRepository = _MockDailyLogRepository();
+    service = AdaptationPhaseService(
+      repository: repository,
+      dailyLogRepository: dailyLogRepository,
+    );
     // `save` echoes its argument, as the repository contract requires.
     when(() => repository.save(any())).thenAnswer(
       (invocation) async => invocation.positionalArguments.first as StreakState,
     );
+    when(dailyLogRepository.findAll).thenAnswer((_) async => const []);
   });
 
-  /// Stubs the stored state. Null is the first-launch sentinel.
+  /// Stubs the stored streak state. Null is the first-launch sentinel.
   void stored(StreakState? state) =>
       when(repository.load).thenAnswer((_) async => state);
+
+  /// Stubs the logged day history.
+  void history(List<DailyLog> logs) =>
+      when(dailyLogRepository.findAll).thenAnswer((_) async => logs);
 
   /// The state handed to `save`.
   ///
@@ -130,574 +155,323 @@ void main() {
     });
   });
 
-  group('recordCompliantDay', () {
-    test('increments the streak', () async {
-      stored(StreakStateFixture.withStreak(3, lastCompliantDate: yesterday));
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().currentStreak, 4);
-    });
-
-    test('seeds a streak of 1 on first launch', () async {
+  group('recomputeFor — the derived counter', () {
+    test('a single compliant day is a streak of 1', () async {
       stored(null);
+      history([compliant(0)]);
 
-      await service.recordCompliantDay(now);
+      await service.recomputeFor(today, at: now);
 
-      expect(saved().currentStreak, 1);
+      final state = saved();
+      expect(state.currentStreak, 1);
+      expect(state.lastCompliantDate, today);
+      expect(state.phase, AdaptationPhase.induction);
     });
 
-    test('advances the phase with the streak', () async {
-      stored(StreakStateFixture.withStreak(7, lastCompliantDate: yesterday));
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().phase, AdaptationPhase.fatAdapted);
-    });
-
-    test('raises the personal best when the streak passes it', () async {
-      stored(StreakStateFixture.withStreak(3, lastCompliantDate: yesterday));
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().highestStreak, 4);
-    });
-
-    test('leaves a higher personal best alone', () async {
-      stored(
-        StreakStateFixture.withStreak(
-          3,
-          lastCompliantDate: yesterday,
-        ).copyWith(highestStreak: 42),
-      );
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().highestStreak, 42);
-    });
-
-    test('stores the compliant date stripped to midnight', () async {
-      stored(StreakStateFixture.withStreak(3, lastCompliantDate: yesterday));
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().lastCompliantDate, today);
-    });
-
-    test('closes an open grace period', () async {
-      stored(openWindow());
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().inGracePeriod, isFalse);
-    });
-
-    // The defect `design/m3_preflight.md` §1.1 exists to prevent:
-    // `copyWith(gracePeriodEnd: null)` resolves to the *existing* value, so a
-    // service that passed null here would leave the expiry behind. The
-    // assertion above on `inGracePeriod` passes either way — only this one
-    // fails when the flag is missing.
-    test('clears the grace-period expiry, not just the flag', () async {
-      stored(openWindow());
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().gracePeriodEnd, isNull);
-    });
-
-    test('resuming inside a grace period keeps the streak going', () async {
-      stored(openWindow());
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().currentStreak, 6);
-    });
-
-    // The reset is lazy: nothing evaluates the state machine while the user
-    // logs nothing, so an expired window is first seen on the next
-    // evaluation — and that is at least as likely to be a compliant meal as a
-    // breach. Checking expiry only in `handleBreach` let a user who breached,
-    // sat out the whole 24 hours and then logged a compliant day carry on as
-    // if the lapse had never happened.
-    group('after the window has closed', () {
-      test('the streak restarts at one rather than resuming', () async {
-        stored(closedWindow());
-
-        await service.recordCompliantDay(now);
-
-        expect(saved().currentStreak, 1);
-      });
-
-      test('the phase returns to induction', () async {
-        stored(closedWindow());
-
-        await service.recordCompliantDay(now);
-
-        expect(saved().phase, AdaptationPhase.induction);
-      });
-
-      test('the grace period closes', () async {
-        stored(closedWindow());
-
-        await service.recordCompliantDay(now);
-
-        final state = saved();
-        expect(state.inGracePeriod, isFalse);
-        expect(state.gracePeriodEnd, isNull);
-      });
-
-      // A personal best is history, not current state — a lapse must not cost
-      // it, here any more than in `handleBreach`.
-      test('the personal best survives', () async {
-        stored(closedWindow());
-
-        await service.recordCompliantDay(now);
-
-        expect(saved().highestStreak, 30);
-      });
-
-      test('the new day is still banked', () async {
-        stored(closedWindow());
-
-        await service.recordCompliantDay(now);
-
-        expect(saved().lastCompliantDate, today);
-      });
-
-      // Strictly after, matching `handleBreach`: the boundary instant is
-      // still inside the window, so the streak resumes rather than restarts.
-      test('a compliant day at the exact expiry still resumes', () async {
-        final end = now.add(const Duration(hours: 6));
-        stored(
-          StreakStateFixture.inGracePeriod(
-            days: 5,
-            gracePeriodEnd: end,
-          ).copyWith(lastCompliantDate: yesterday),
-        );
-
-        await service.recordCompliantDay(end);
-
-        expect(saved().currentStreak, 6);
-      });
-
-      // A malformed record — the flag set with no expiry — has no instant to
-      // judge, and guessing would reset a streak on bad data.
-      test('an open flag with no expiry does not reset the streak', () async {
-        stored(
-          StreakStateFixture.withStreak(
-            5,
-            lastCompliantDate: yesterday,
-          ).copyWith(inGracePeriod: true),
-        );
-
-        await service.recordCompliantDay(now);
-
-        expect(saved().currentStreak, 6);
-      });
-    });
-
-    group('idempotence', () {
-      // The trigger is per meal (#58). Without the day guard, three meals
-      // would leave a three-day streak — §1.2.
-      test('a second call for the same day does not increment', () async {
-        stored(StreakStateFixture.withStreak(3, lastCompliantDate: today));
-
-        await service.recordCompliantDay(now);
-
-        verifyNever(() => repository.save(any()));
-      });
-
-      test(
-        'returns the stored state unchanged for a day already banked',
-        () async {
-          final current = StreakStateFixture.withStreak(
-            3,
-            lastCompliantDate: today,
-          );
-          stored(current);
-
-          expect(await service.recordCompliantDay(now), current);
-        },
-      );
-
-      test(
-        'a different time on the same day still does not increment',
-        () async {
-          stored(StreakStateFixture.withStreak(3, lastCompliantDate: today));
-
-          await service.recordCompliantDay(DateTime(2026, 9, 10, 22, 5));
-
-          verifyNever(() => repository.save(any()));
-        },
-      );
-
-      test('the next day does increment', () async {
-        stored(StreakStateFixture.withStreak(3, lastCompliantDate: today));
-
-        await service.recordCompliantDay(DateTime(2026, 9, 11, 8));
-
-        expect(saved().currentStreak, 4);
-      });
-    });
-  });
-
-  // The rule nothing else in the app can apply: every other transition is
-  // driven by a meal being logged, so without this a compliant day in January
-  // and another in March read as a two-day streak.
-  group('reconcile — a skipped day breaks the streak', () {
-    final twoDaysAgo = DateTime(2026, 9, 8);
-
-    test('a last compliant day of today is intact', () {
-      final state = StreakStateFixture.withStreak(6, lastCompliantDate: today);
-
-      expect(service.reconcile(state, now).currentStreak, 6);
-    });
-
-    // Today is still winnable until midnight, so yesterday is not a skip.
-    test('a last compliant day of yesterday is intact', () {
-      final state = StreakStateFixture.withStreak(
-        6,
-        lastCompliantDate: yesterday,
-      );
-
-      expect(service.reconcile(state, now).currentStreak, 6);
-    });
-
-    test('one whole skipped day breaks it', () {
-      final state = StreakStateFixture.withStreak(
-        6,
-        lastCompliantDate: twoDaysAgo,
-      );
-
-      expect(service.reconcile(state, now).currentStreak, 0);
-    });
-
-    test('a long absence breaks it', () {
-      final state = StreakStateFixture.withStreak(
-        30,
-        lastCompliantDate: DateTime(2026, 7, 1),
-      );
-
-      expect(service.reconcile(state, now).currentStreak, 0);
-    });
-
-    test('breaking returns the phase to induction', () {
-      final state = StreakStateFixture.withStreak(
-        30,
-        phase: AdaptationPhase.deepKetosis,
-        lastCompliantDate: twoDaysAgo,
-      );
-
-      expect(service.reconcile(state, now).phase, AdaptationPhase.induction);
-    });
-
-    // A personal best is history, not current state.
-    test('breaking keeps the personal best', () {
-      final state = StreakStateFixture.withStreak(
-        6,
-        lastCompliantDate: twoDaysAgo,
-      ).copyWith(highestStreak: 30);
-
-      expect(service.reconcile(state, now).highestStreak, 30);
-    });
-
-    test('breaking clears the stale compliant date', () {
-      final state = StreakStateFixture.withStreak(
-        6,
-        lastCompliantDate: twoDaysAgo,
-      );
-
-      expect(service.reconcile(state, now).lastCompliantDate, isNull);
-    });
-
-    test('a user who has never banked a day is left alone', () {
-      expect(service.reconcile(StreakStateFixture.initial(), now), isNotNull);
-      expect(
-        service.reconcile(StreakStateFixture.initial(), now).currentStreak,
-        0,
-      );
-    });
-
-    // A breached day is not a skipped day. The 24-hour window is exactly what
-    // a breach buys, and `CLAUDE.md` promises the streak resumes inside it.
-    test('an unexpired grace window survives the gap it created', () {
-      final state = StreakStateFixture.inGracePeriod(
-        days: 6,
-        gracePeriodEnd: now.add(const Duration(hours: 3)),
-      ).copyWith(lastCompliantDate: twoDaysAgo);
-
-      expect(service.reconcile(state, now).currentStreak, 6);
-    });
-
-    test('an expired grace window does not', () {
-      final state = StreakStateFixture.inGracePeriod(
-        days: 6,
-        gracePeriodEnd: now.subtract(const Duration(minutes: 1)),
-      ).copyWith(lastCompliantDate: twoDaysAgo);
-
-      expect(service.reconcile(state, now).currentStreak, 0);
-    });
-
-    test('is pure — it reads and writes no state', () {
-      service.reconcile(
-        StreakStateFixture.withStreak(6, lastCompliantDate: twoDaysAgo),
-        now,
-      );
-
-      verifyNever(repository.load);
-      verifyNever(() => repository.save(any()));
-    });
-  });
-
-  group('recordCompliantDay after a skipped day', () {
-    final twoDaysAgo = DateTime(2026, 9, 8);
-
-    // The whole point, end to end: the streak restarts at 1 rather than
-    // resuming at 7.
-    test('restarts the streak at 1', () async {
-      stored(StreakStateFixture.withStreak(6, lastCompliantDate: twoDaysAgo));
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().currentStreak, 1);
-    });
-
-    test('returns the phase to induction', () async {
-      stored(
-        StreakStateFixture.withStreak(
-          30,
-          phase: AdaptationPhase.deepKetosis,
-          lastCompliantDate: twoDaysAgo,
-        ),
-      );
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().phase, AdaptationPhase.induction);
-    });
-
-    test('keeps the personal best', () async {
-      stored(
-        StreakStateFixture.withStreak(
-          6,
-          lastCompliantDate: twoDaysAgo,
-        ).copyWith(highestStreak: 30),
-      );
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().highestStreak, 30);
-    });
-
-    test('banks the new day', () async {
-      stored(StreakStateFixture.withStreak(6, lastCompliantDate: twoDaysAgo));
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().lastCompliantDate, today);
-    });
-
-    // The 43-day-gap case that started this: three compliant days, a long
-    // absence, then one more used to read as a four-day streak.
-    test('a compliant day after a long absence is day one', () async {
-      stored(
-        StreakStateFixture.withStreak(
-          3,
-          lastCompliantDate: DateTime(2026, 7, 29),
-        ),
-      );
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().currentStreak, 1);
-    });
-
-    // The counterpart that must keep working: a breach, then a compliant day
-    // inside the window, still resumes.
-    test('resuming inside a grace window still continues the streak', () async {
-      stored(
-        StreakStateFixture.inGracePeriod(
-          days: 6,
-          gracePeriodEnd: now.add(const Duration(hours: 3)),
-        ).copyWith(lastCompliantDate: twoDaysAgo),
-      );
-
-      await service.recordCompliantDay(now);
-
-      expect(saved().currentStreak, 7);
-    });
-  });
-
-  group('handleBreach', () {
-    test('opens a grace period on the first breach', () async {
-      stored(StreakStateFixture.withStreak(5, lastCompliantDate: yesterday));
-
-      await service.handleBreach(now);
-
-      expect(saved().inGracePeriod, isTrue);
-    });
-
-    test('the window runs 24 hours from the breach', () async {
-      stored(StreakStateFixture.withStreak(5, lastCompliantDate: yesterday));
-
-      await service.handleBreach(now);
-
-      expect(saved().gracePeriodEnd, now.add(const Duration(hours: 24)));
-    });
-
-    test('the streak survives the first breach', () async {
-      stored(StreakStateFixture.withStreak(5, lastCompliantDate: yesterday));
-
-      await service.handleBreach(now);
-
-      expect(saved().currentStreak, 5);
-    });
-
-    test('a second breach inside the window changes nothing', () async {
-      stored(
-        StreakStateFixture.inGracePeriod(
-          gracePeriodEnd: now.add(const Duration(hours: 6)),
-        ).copyWith(lastCompliantDate: yesterday),
-      );
-
-      await service.handleBreach(now);
-
-      verifyNever(() => repository.save(any()));
-    });
-
-    // Strictly after, so a breach landing on the exact expiry instant is still
-    // inside the window. The user is given the boundary, not denied it.
-    test('a breach at the exact expiry is still inside the window', () async {
-      final end = now.add(const Duration(hours: 6));
-      stored(
-        StreakStateFixture.inGracePeriod(gracePeriodEnd: end)
-            .copyWith(lastCompliantDate: yesterday),
-      );
-
-      await service.handleBreach(end);
-
-      verifyNever(() => repository.save(any()));
-    });
-
-    group('after the window expires', () {
-      StreakState expired() => closedWindow();
-
-      test('the streak resets to zero', () async {
-        stored(expired());
-
-        await service.handleBreach(now);
+    test(
+      'an empty history derives a zero streak rather than throwing',
+      () async {
+        stored(StreakStateFixture.withStreak(5));
+        history(const []);
+
+        await service.recomputeFor(today, at: now);
 
         expect(saved().currentStreak, 0);
-      });
+      },
+    );
 
-      test('the phase returns to induction', () async {
-        stored(expired());
-
-        await service.handleBreach(now);
-
-        expect(saved().phase, AdaptationPhase.induction);
-      });
-
-      test('the grace period closes', () async {
-        stored(expired());
-
-        await service.handleBreach(now);
-
-        expect(saved().inGracePeriod, isFalse);
-      });
-
-      // §1.1 again, on the other branch.
-      test('the expiry is cleared, not just the flag', () async {
-        stored(expired());
-
-        await service.handleBreach(now);
-
-        expect(saved().gracePeriodEnd, isNull);
-      });
-
-      test('the stale compliant date is cleared', () async {
-        stored(expired());
-
-        await service.handleBreach(now);
-
-        expect(saved().lastCompliantDate, isNull);
-      });
-
-      // A personal best is history, not current state. Wiping it would punish
-      // the user twice for one lapse.
-      test('the personal best survives', () async {
-        stored(expired());
-
-        await service.handleBreach(now);
-
-        expect(saved().highestStreak, 30);
-      });
-    });
-
-    // §1.3's companion: once a day is banked, a later carb-heavy meal that day
-    // must not open a grace period against it.
-    test('a day already banked compliant is not breached', () async {
-      stored(StreakStateFixture.withStreak(5, lastCompliantDate: today));
-
-      await service.handleBreach(now);
-
-      verifyNever(() => repository.save(any()));
-    });
-
-    test('breaching on first launch opens a grace period from zero', () async {
+    test('the phase follows the derived streak', () async {
       stored(null);
+      history([for (var back = 0; back < 8; back++) compliant(back)]);
 
-      await service.handleBreach(now);
+      await service.recomputeFor(today, at: now);
 
       final state = saved();
-      expect(state.inGracePeriod, isTrue);
+      expect(state.currentStreak, 8);
+      expect(state.phase, AdaptationPhase.fatAdapted);
+    });
+
+    test('the personal best rises with the streak', () async {
+      stored(StreakStateFixture.withStreak(1).copyWith(highestStreak: 1));
+      history([compliant(0), compliant(1), compliant(2)]);
+
+      await service.recomputeFor(today, at: now);
+
+      expect(saved().highestStreak, 3);
+    });
+
+    test('the personal best does not fall when the streak does', () async {
+      // A derived streak *can* fall — that is the point — and a personal best
+      // that fell with it would be a new defect.
+      stored(StreakStateFixture.withStreak(3).copyWith(highestStreak: 30));
+      history([compliant(0)]);
+
+      await service.recomputeFor(today, at: now);
+
+      final state = saved();
+      expect(state.currentStreak, 1);
+      expect(state.highestStreak, 30);
+    });
+
+    test('a skipped day still breaks the streak', () async {
+      // Clause 2 of the user report, preserved exactly.
+      stored(StreakStateFixture.withStreak(5));
+      history([compliant(0), compliant(2), compliant(3)]);
+
+      await service.recomputeFor(today, at: now);
+
+      expect(saved().currentStreak, 1);
+    });
+
+    test('today logged nothing does not break the streak', () async {
+      stored(StreakStateFixture.withStreak(2));
+      history([compliant(1), compliant(2)]);
+
+      await service.recomputeFor(today, at: now);
+
+      final state = saved();
+      expect(state.currentStreak, 2);
+      expect(state.lastCompliantDate, yesterday);
+    });
+
+    test('a broken streak returns the phase to induction', () async {
+      stored(
+        StreakStateFixture.withStreak(30, phase: AdaptationPhase.deepKetosis),
+      );
+      history(const []);
+
+      await service.recomputeFor(today, at: now);
+
+      final state = saved();
       expect(state.currentStreak, 0);
+      expect(state.phase, AdaptationPhase.induction);
+    });
+
+    test('a zero streak clears the stale compliant date', () async {
+      stored(StreakStateFixture.withStreak(9));
+      history(const []);
+
+      await service.recomputeFor(today, at: now);
+
+      expect(saved().lastCompliantDate, isNull);
     });
   });
 
-  group('evaluateToday', () {
-    test('a compliant day advances the streak', () async {
-      stored(StreakStateFixture.withStreak(3, lastCompliantDate: yesterday));
+  group('recomputeFor — retroactive edits', () {
+    test(
+      'back-filling the missed day restores the streak across the gap',
+      () async {
+        // Clause 3 of the user report, and the case the old `_isToday` guard
+        // dropped on the floor. Days 1-5 compliant, day 6 missed, day 6 then
+        // back-filled while today is day 7.
+        stored(StreakStateFixture.withStreak(5));
+        history([
+          compliant(1),
+          compliant(2),
+          compliant(3),
+          compliant(4),
+          compliant(5),
+          compliant(6),
+        ]);
 
-      await service.evaluateToday(now, compliant: true);
+        await service.recomputeFor(daysBefore(1), at: now);
 
-      expect(saved().currentStreak, 4);
+        expect(saved().currentStreak, 6);
+      },
+    );
+
+    test(
+      'back-filling a day over the limit breaks the streak at that day',
+      () async {
+        stored(StreakStateFixture.withStreak(5));
+        history([compliant(0), breach(1), compliant(2), compliant(3)]);
+
+        await service.recomputeFor(daysBefore(1), at: now);
+
+        expect(saved().currentStreak, 1);
+      },
+    );
+
+    test('deleting the only meal on a past day shortens the streak', () async {
+      stored(StreakStateFixture.withStreak(4));
+      history([
+        compliant(0),
+        DailyLogFixture.empty(date: daysBefore(1)),
+        compliant(2),
+      ]);
+
+      await service.recomputeFor(daysBefore(1), at: now);
+
+      expect(saved().currentStreak, 1);
     });
 
-    test('a breach opens a grace period instead', () async {
-      stored(StreakStateFixture.withStreak(3, lastCompliantDate: yesterday));
+    test('back-filling thirty non-contiguous days grants no thirty-day streak', () async {
+      // The guard against the naive fix — letting `recordCompliantDay` run on a
+      // past date would have added one per back-filled day, with no contiguity
+      // check, and handed the user Phase 3.
+      stored(null);
+      history([for (var back = 0; back < 60; back += 2) compliant(back)]);
 
-      await service.evaluateToday(now, compliant: false);
+      await service.recomputeFor(daysBefore(30), at: now);
+
+      final state = saved();
+      expect(state.currentStreak, 1);
+      expect(state.phase, AdaptationPhase.induction);
+    });
+
+    test('a past write cannot move lastCompliantDate backwards', () async {
+      stored(StreakStateFixture.withStreak(3));
+      history([compliant(0), compliant(1), compliant(2)]);
+
+      await service.recomputeFor(daysBefore(2), at: now);
+
+      // The most recent compliant day, not the one that was edited.
+      expect(saved().lastCompliantDate, today);
+    });
+  });
+
+  group('recomputeFor — the grace window', () {
+    test('a breach today opens a window running 24 hours from now', () async {
+      stored(StreakStateFixture.withStreak(5));
+      history([breach(0), compliant(1), compliant(2)]);
+
+      await service.recomputeFor(today, at: now);
 
       final state = saved();
       expect(state.inGracePeriod, isTrue);
-      expect(state.currentStreak, 3);
+      expect(state.gracePeriodEnd, now.add(const Duration(hours: 24)));
     });
 
-    // The user's whole experience of the lazy reset: they breach, they let
-    // the 24 hours run out, and the next thing that touches the state machine
-    // is a good meal. Whichever branch that lands on, the lapse must have
-    // cost the streak.
-    test('either branch notices a window that has closed', () async {
+    test('the streak survives the breach the window is holding', () async {
+      stored(StreakStateFixture.withStreak(2));
+      history([breach(0), compliant(1), compliant(2)]);
+
+      await service.recomputeFor(today, at: now);
+
+      // Two compliant days behind the forgiven breach.
+      expect(saved().currentStreak, 2);
+    });
+
+    test('an unexpired window still forgives the breached day', () async {
+      // `openWindow()` expires six hours from now, so it opened eighteen hours
+      // ago — the breach it is holding is *yesterday's*.
+      stored(openWindow());
+      history([breach(1), compliant(2), compliant(3)]);
+
+      await service.recomputeFor(today, at: now);
+
+      final state = saved();
+      expect(state.currentStreak, 2);
+      expect(state.inGracePeriod, isTrue);
+    });
+
+    test('an expired one does not', () async {
       stored(closedWindow());
+      history([breach(1), compliant(2), compliant(3)]);
 
-      await service.evaluateToday(now, compliant: true);
+      await service.recomputeFor(today, at: now);
 
+      final state = saved();
+      expect(state.currentStreak, 0);
+      expect(state.inGracePeriod, isFalse);
+      expect(state.gracePeriodEnd, isNull);
+    });
+
+    test('a compliant day inside the window resumes the streak', () async {
+      stored(openWindow());
+      history([compliant(0), breach(1), compliant(2), compliant(3)]);
+
+      await service.recomputeFor(today, at: now);
+
+      // Today counts, yesterday's breach is graced and earns nothing, and the
+      // two behind it count: three.
+      expect(saved().currentStreak, 3);
+    });
+
+    test('a second breach on a later day is not forgiven twice', () async {
+      stored(openWindow());
+      history([breach(0), breach(1), compliant(2)]);
+
+      await service.recomputeFor(today, at: now);
+
+      // The window graces yesterday only; today's breach ends the walk.
+      expect(saved().currentStreak, 0);
+    });
+
+    test('a breach on a past day opens no window', () async {
+      // A grace period is a chance to recover from a breach as it happens.
+      // Granting one retroactively writes an already-expired window that arms
+      // an immediate reset.
+      stored(StreakStateFixture.withStreak(5));
+      history([compliant(0), breach(3), compliant(4)]);
+
+      await service.recomputeFor(daysBefore(3), at: now);
+
+      final state = saved();
+      expect(state.inGracePeriod, isFalse);
+      expect(state.gracePeriodEnd, isNull);
+    });
+
+    test('a breach at the exact expiry instant is still inside the window', () async {
+      final endsAt = now;
+      stored(
+        StreakStateFixture.inGracePeriod(gracePeriodEnd: endsAt)
+            .copyWith(lastCompliantDate: yesterday),
+      );
+      history([breach(1), compliant(2)]);
+
+      await service.recomputeFor(today, at: now);
+
+      // The user is given the boundary, not denied it: `isAfter` is strict, so
+      // a window ending exactly now is still open and still graces yesterday.
       expect(saved().currentStreak, 1);
+    });
+
+    test('a zero streak closes any window still open', () async {
+      stored(openWindow());
+      history([breach(0), breach(1)]);
+
+      await service.recomputeFor(today, at: now);
+
+      final state = saved();
+      expect(state.currentStreak, 0);
+      expect(state.inGracePeriod, isFalse);
+      expect(state.gracePeriodEnd, isNull);
+    });
+
+    test('clears the expiry, not just the flag', () async {
+      // `copyWith(gracePeriodEnd: null)` resolves null to the existing value
+      // and silently does not clear — `design/m3_handoff.md` convention 2.
+      stored(closedWindow());
+      history(const []);
+
+      await service.recomputeFor(today, at: now);
+
+      final state = saved();
+      expect(state.inGracePeriod, isFalse);
+      expect(state.gracePeriodEnd, isNull);
     });
   });
 
   group('failure', () {
-    test(
-      'a repository failure propagates rather than being swallowed',
-      () async {
-        when(repository.load).thenThrow(Exception('store gone'));
+    test('a streak repository failure propagates', () async {
+      when(repository.load).thenThrow(Exception('store gone'));
 
-        await expectLater(
-          service.recordCompliantDay(now),
-          throwsA(isA<Exception>()),
-        );
-      },
-    );
+      await expectLater(
+        service.recomputeFor(today, at: now),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('a day-log repository failure propagates', () async {
+      // Not swallowed to keep a stale streak on screen.
+      stored(null);
+      when(dailyLogRepository.findAll).thenThrow(Exception('store gone'));
+
+      await expectLater(
+        service.recomputeFor(today, at: now),
+        throwsA(isA<Exception>()),
+      );
+    });
   });
 }

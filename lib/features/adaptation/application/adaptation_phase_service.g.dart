@@ -8,12 +8,14 @@ part of 'adaptation_phase_service.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// The state machine, wired to the repository behind its domain interface.
+/// The state machine, wired to both repositories behind their domain
+/// interfaces.
 
 @ProviderFor(adaptationPhaseService)
 const adaptationPhaseServiceProvider = AdaptationPhaseServiceProvider._();
 
-/// The state machine, wired to the repository behind its domain interface.
+/// The state machine, wired to both repositories behind their domain
+/// interfaces.
 
 final class AdaptationPhaseServiceProvider
     extends
@@ -23,7 +25,8 @@ final class AdaptationPhaseServiceProvider
           AdaptationPhaseService
         >
     with $Provider<AdaptationPhaseService> {
-  /// The state machine, wired to the repository behind its domain interface.
+  /// The state machine, wired to both repositories behind their domain
+  /// interfaces.
   const AdaptationPhaseServiceProvider._()
     : super(
         from: null,
@@ -59,4 +62,4 @@ final class AdaptationPhaseServiceProvider
 }
 
 String _$adaptationPhaseServiceHash() =>
-    r'e795bbdc84265790c3048787b5b692abd4470ac5';
+    r'60a67fe045da08bcd6e0cd6d406f71b2bf4a8073';

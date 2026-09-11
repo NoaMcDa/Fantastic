@@ -6,6 +6,8 @@ import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
 import 'package:fantastic/features/adaptation/presentation/widgets/phase_badge_widget.dart';
 import 'package:flutter/material.dart';
+import 'package:fantastic/features/dashboard/data/providers.dart';
+import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +19,11 @@ import '../../../../helpers/pump_app.dart';
 
 class _MockStreakRepository extends Mock implements StreakRepository {}
 
+/// #303 gave `adaptationPhaseServiceProvider` a second dependency, so a
+/// container that overrides only the streak repository now reaches
+/// `databaseProvider` and tries to open a real database.
+class _MockDailyLogRepository extends Mock implements DailyLogRepository {}
+
 void main() {
   late _MockStreakRepository repository;
 
@@ -27,7 +34,10 @@ void main() {
 
   List<Override> overridesFor(StreakState? streak) {
     when(repository.watch).thenAnswer((_) => Stream.value(streak));
-    return [streakRepositoryProvider.overrideWithValue(repository)];
+    return [
+      streakRepositoryProvider.overrideWithValue(repository),
+      dailyLogRepositoryProvider.overrideWithValue(_MockDailyLogRepository()),
+    ];
   }
 
   Future<void> pumpBadge(WidgetTester tester, {StreakState? streak}) async {
@@ -159,7 +169,12 @@ void main() {
       await pumpApp(
         tester,
         const PhaseBadgeWidget(),
-        overrides: [streakRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          streakRepositoryProvider.overrideWithValue(repository),
+          dailyLogRepositoryProvider.overrideWithValue(
+            _MockDailyLogRepository(),
+          ),
+        ],
       );
       await tester.pump();
 
@@ -177,7 +192,12 @@ void main() {
       await pumpApp(
         tester,
         const PhaseBadgeWidget(),
-        overrides: [streakRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          streakRepositoryProvider.overrideWithValue(repository),
+          dailyLogRepositoryProvider.overrideWithValue(
+            _MockDailyLogRepository(),
+          ),
+        ],
       );
       await tester.pumpAndSettle();
 
