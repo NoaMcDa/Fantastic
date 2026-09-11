@@ -32,6 +32,25 @@ void main() {
       expect(log.energyScore, 3);
       expect(log.moodScore, 3);
     });
+
+    test('AnalysedDishFixture.modifiable always carries a modification', () {
+      expect(AnalysedDishFixture.modifiable().modification, isNotEmpty);
+    });
+
+    test('AnalysedDishFixture.orderAsIs and nonKeto carry no modification', () {
+      expect(AnalysedDishFixture.orderAsIs().modification, isNull);
+      expect(AnalysedDishFixture.nonKeto().modification, isNull);
+    });
+
+    test(
+      'MenuAnalysisFixture.clean carries no unclassified or unread page',
+      () {
+        final analysis = MenuAnalysisFixture.clean();
+
+        expect(analysis.unclassified, isEmpty);
+        expect(analysis.unreadPages, isEmpty);
+      },
+    );
   });
 
   group('fixtures apply every override', () {
@@ -103,6 +122,32 @@ void main() {
       },
     );
 
+    test('AnalysedDishFixture overrides carry through', () {
+      final dish = AnalysedDishFixture.orderAsIs(
+        name: 'שם אחר',
+        description: 'תיאור אחר',
+        why: 'סיבה אחרת',
+      );
+
+      expect(dish.name, 'שם אחר');
+      expect(dish.description, 'תיאור אחר');
+      expect(dish.why, 'סיבה אחרת');
+    });
+
+    test('MenuAnalysisFixture.analysed overrides carry through', () {
+      final analysis = MenuAnalysisFixture.analysed(
+        withDishes: [AnalysedDishFixture.orderAsIs()],
+        unclassified: const ['מנה א', 'מנה ב'],
+        pageCount: 5,
+        unreadPages: const [4, 5],
+      );
+
+      expect(analysis.dishes, hasLength(1));
+      expect(analysis.unclassified, ['מנה א', 'מנה ב']);
+      expect(analysis.pageCount, 5);
+      expect(analysis.unreadPages, [4, 5]);
+    });
+
     test('SymptomLogFixture boundary days sit at 1 and 5', () {
       expect(SymptomLogFixture.worstDay().energyScore, 1);
       expect(SymptomLogFixture.worstDay().moodScore, 1);
@@ -133,6 +178,11 @@ void main() {
       expect(DailyLogFixture.fixture(), DailyLogFixture.fixture());
       expect(StreakStateFixture.initial(), StreakStateFixture.initial());
       expect(SymptomLogFixture.fixture(), SymptomLogFixture.fixture());
+      expect(
+        AnalysedDishFixture.modifiable(),
+        AnalysedDishFixture.modifiable(),
+      );
+      expect(MenuAnalysisFixture.clean(), MenuAnalysisFixture.clean());
     });
 
     test('no fixture date depends on the current clock', () {
@@ -152,6 +202,8 @@ void main() {
       expect(DailyLogFixture.fixture(), isNotNull);
       expect(StreakStateFixture.initial(), isNotNull);
       expect(SymptomLogFixture.bestDay(), isNotNull);
+      expect(AnalysedDishFixture.orderAsIs(), isNotNull);
+      expect(MenuAnalysisFixture.analysed(), isNotNull);
     });
   });
 
