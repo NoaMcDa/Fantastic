@@ -10,6 +10,8 @@ import 'package:fantastic/features/diary/presentation/screens/diary_day_screen.d
 import 'package:fantastic/features/diary/presentation/widgets/empty_meals_state.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_card.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
+import 'package:fantastic/features/onboarding/application/providers/user_profile_providers.dart';
+import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_diary_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,6 +41,11 @@ void main() {
       todaysDailyLogProvider(date).overrideWith((ref) async => log),
       todaysMealsProvider(date).overrideWith((ref) async => meals),
       mealLoggingServiceProvider.overrideWithValue(loggingService),
+      // MacroSummaryCard measures the day against the onboarding profile's
+      // targets (#73); without an override it reaches for a database.
+      macroTargetsProvider.overrideWith(
+        (ref) => Stream.value(MacroTargets.defaults),
+      ),
       // #78 filled the symptom slot, so the screen now reads this too.
       symptomLogProvider(date).overrideWith((ref) async => symptoms),
     ],

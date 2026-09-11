@@ -5,6 +5,8 @@ import 'package:fantastic/features/dashboard/application/providers/daily_log_pro
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card.dart';
 import 'package:fantastic/features/diary/presentation/widgets/empty_meals_state.dart';
+import 'package:fantastic/features/onboarding/application/providers/user_profile_providers.dart';
+import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,10 +16,22 @@ import '../../../../helpers/pump_app.dart';
 void main() {
   final date = DailyLogFixture.defaultDate;
 
-  Future<void> pumpCard(WidgetTester tester, {DailyLog? log}) => pumpApp(
+  Future<void> pumpCard(
+    WidgetTester tester, {
+    DailyLog? log,
+    MacroTargets? targets,
+  }) => pumpApp(
     tester,
     MacroSummaryCard(date: date),
-    overrides: [todaysDailyLogProvider(date).overrideWith((ref) async => log)],
+    overrides: [
+      todaysDailyLogProvider(date).overrideWith((ref) async => log),
+      // The targets the card measures against come from the onboarding
+      // profile now (#73). The defaults are what a user who has not onboarded
+      // sees, and what this card hard-coded through M2 and M3.
+      macroTargetsProvider.overrideWith(
+        (ref) => Stream.value(targets ?? MacroTargets.defaults),
+      ),
+    ],
   );
 
   /// Every bar in the card, in render order.
@@ -178,6 +192,9 @@ void main() {
             // Never completes — holds the widget in its loading state.
             return Completer<DailyLog?>().future;
           }),
+          macroTargetsProvider.overrideWith(
+            (ref) => Stream.value(MacroTargets.defaults),
+          ),
         ],
       );
       await tester.pump();
@@ -196,12 +213,82 @@ void main() {
         overrides: [
           todaysDailyLogProvider(date)
               .overrideWith((ref) async => throw Exception('disk gone')),
+          macroTargetsProvider.overrideWith(
+            (ref) => Stream.value(MacroTargets.defaults),
+          ),
         ],
       );
       await tester.pumpAndSettle();
 
       expect(find.text('לא ניתן לטעון את הנתונים'), findsOneWidget);
       expect(find.byType(EmptyMealsState), findsNothing);
+      // The loading branch has to be *absent*, not merely unasserted:
+      // riverpod 3 reports a provider that failed before its first value as
+      // AsyncLoading with an error attached, so a card that checked
+      // `isLoading` first would spin forever and this test would still pass
+      // without the assertion (`design/m3_handoff.md`).
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    // Same trap on the other input. A card that only guarded the daily log
+    // would spin here forever.
+    testWidgets('a failed targets read says so rather than using defaults', (
+      tester,
+    ) async {
+      await pumpApp(
+        tester,
+        MacroSummaryCard(date: date),
+        overrides: [
+          todaysDailyLogProvider(date)
+              .overrideWith((ref) async => DailyLogFixture.fixture()),
+          macroTargetsProvider.overrideWith(
+            (ref) => Stream<MacroTargets>.error(Exception('disk gone')),
+          ),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('לא ניתן לטעון את הנתונים'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+    });
+  });
+
+  // Epic #8: "Dashboard macro targets match the values set in onboarding."
+  group('personalised targets', () {
+    testWidgets('measures the day against the saved profile targets', (
+      tester,
+    ) async {
+      await pumpCard(
+        tester,
+        log: DailyLogFixture.fixture(totalFatG: 100),
+        targets: const MacroTargets(fatG: 200, netCarbsG: 25, proteinG: 90),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('100/200ג׳'), findsOneWidget);
+      expect(bars(tester).first.value, closeTo(0.5, 0.001));
+    });
+
+    testWidgets('every macro row follows the profile, not the constants', (
+      tester,
+    ) async {
+      await pumpCard(
+        tester,
+        log: DailyLogFixture.fixture(),
+        targets: const MacroTargets(fatG: 200, netCarbsG: 25, proteinG: 90),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('/200ג׳'), findsOneWidget);
+      expect(find.textContaining('/25ג׳'), findsOneWidget);
+      expect(find.textContaining('/90ג׳'), findsOneWidget);
+      expect(
+        find.textContaining(
+          '/${KetoConstants.defaultFatTargetG.toStringAsFixed(0)}ג׳',
+        ),
+        findsNothing,
+      );
     });
   });
 }
