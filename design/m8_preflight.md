@@ -701,6 +701,35 @@ That is exactly what happened, one commit later, to its own author. It now
 asserts the fix: a 15 g spoonful of a per-100 g label logs **8.07 g** of fat,
 not 53.8, and the amount field and basis caption are driven as a user would.
 
+### Adding `integration_test` breaks a release APK built with `--no-pub`
+
+Found by CI, on the one platform this branch never touched. The Android
+release build failed with:
+
+```
+GeneratedPluginRegistrant.java:44: error: package dev.flutter.plugins.integration_test does not exist
+```
+
+The mechanism, from `flutter_tools`:
+
+- A **release** build writes a different registrant from a debug one —
+  `injectPlugins(releaseMode: true)` filters out dev-dependency plugins,
+  because Gradle does not put them on the release classpath.
+- That regeneration is gated on pub:
+  `regeneratePlatformSpecificToolingIfApplicable` returns early when
+  `shouldRunPub` is false.
+- So `flutter build apk --release --no-pub` compiles whichever registrant the
+  previous step left behind — here the debug one, naming
+  `IntegrationTestPlugin`.
+
+The fix is one flag: the release step drops `--no-pub`. The debug step keeps
+it and is unaffected, since dev dependencies *are* on its classpath.
+
+**Generalises beyond this repo:** any project that adds `integration_test`
+and builds release Android with `--no-pub` after a debug build hits this, and
+the error names a package nobody wrote. Worth knowing before the next
+platform target is gated.
+
 ### Still open
 
 - **F6**, above. F9 shipped; what stays open is the OCR *accuracy* claim
