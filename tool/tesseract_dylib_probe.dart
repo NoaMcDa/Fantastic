@@ -61,10 +61,13 @@ bool _probe(String label, List<String> candidates) {
       //                               right; the machine's DLL environment is
       //                               not, and no list of names can fix that.
       //
-      // Measured: on a windows-latest runner with chocolatey tesseract 5.5.3,
-      // `libleptonica-6.dll` opens and `libtesseract-5.dll` returns 127, by
-      // bare name and by absolute path alike. Failing the probe for 127 would
-      // be reporting a CI image's crowded PATH as a defect in this list.
+      // Measured on a windows-latest runner with chocolatey tesseract 5.5.3:
+      // run from PowerShell both libraries open, and run from Git Bash
+      // `libtesseract-5.dll` returns 127 — Git for Windows puts its own MSYS2
+      // `bin` directories ahead on PATH and libtesseract's imports bind
+      // there. Same machine, same names, different answer, so failing the
+      // probe for 127 would be reporting the caller's shell as a defect in
+      // the list.
       if ('$error'.contains('error code: 127')) {
         present++;
         stdout.writeln('  [deps] $label <- $name  (name resolves; $error)');

@@ -38,18 +38,23 @@ abstract final class TesseractLibraryCandidates {
         // Measured on a windows-latest runner with the chocolatey `tesseract`
         // package (5.5.3, an MSYS2 build): this is the name it installs into
         // C:\Program Files\Tesseract-OCR, which the installer puts on PATH,
-        // and a bare name is what LoadLibrary resolves there. The name is
-        // right — the file is found and loaded.
+        // and a bare name is what LoadLibrary resolves there. It opens. The
+        // other two never existed on that machine — both `error code: 126`,
+        // ERROR_MOD_NOT_FOUND — and are kept only as fallbacks for other
+        // Windows builds.
         //
-        // It still does not open *on that runner*: `error code: 127`,
-        // ERROR_PROC_NOT_FOUND, meaning one of its own imports resolved to a
-        // different copy of an MSYS2 runtime DLL earlier on a PATH carrying
-        // several MinGW-ish toolchains. An absolute path fails identically,
-        // and that is expected — Dart calls plain `LoadLibraryW`, so a
-        // library's own directory gets no priority when its dependencies are
-        // resolved. Leptonica, next door and built the same way, opens fine.
-        // So Windows OCR is unproven on a machine where Tesseract is the only
-        // MinGW runtime, and no such machine exists in this project.
+        // **It matters which shell the process was started from, and that is
+        // a real trap rather than a CI artefact.** Run from Git Bash the same
+        // call fails with `error code: 127`, ERROR_PROC_NOT_FOUND: Git for
+        // Windows puts its own `mingw64\bin` and `usr\bin` ahead on PATH,
+        // libtesseract's imports bind to *those* MSYS2 runtime DLLs, and a
+        // symbol is missing. An absolute path does not help — Dart calls
+        // plain `LoadLibraryW`, so a library's own directory gets no priority
+        // when its dependencies are resolved. Leptonica, built the same way,
+        // survives it; libtesseract does not. Nothing here can fix that, and
+        // the honest consequence is that a Windows user who launches the app
+        // from a Git Bash shell may be told Tesseract is not installed when
+        // it is.
         'libtesseract-5.dll',
         'tesseract55.dll',
         'libtesseract.dll',
@@ -83,7 +88,8 @@ abstract final class TesseractLibraryCandidates {
         // Linux-era `liblept-5` spelling is wrong here too. The chocolatey
         // package ships `libleptonica-6.dll`, matching the `.so.6` soname the
         // Linux branch below already knew about — and not one of the three
-        // names originally guessed for Windows existed at all.
+        // names originally guessed for Windows existed at all: three misses,
+        // all `error code: 126`, before this entry was added.
         //
         // Nothing would have crashed. `isAvailable` returns false when either
         // library fails to open, so the lens tab would have told a Windows
