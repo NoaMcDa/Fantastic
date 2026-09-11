@@ -185,29 +185,26 @@ void main() {
     expect(find.text('מוצר סרוק'), findsOneWidget);
 
     // Scaled to the 15 g eaten, not the 100 g printed — the fix, asserted
-    // where a user would see it.
-    expect(double.parse(fieldText(tester, 'fat_field')), closeTo(8.07, 0.001));
-    expect(
-      double.parse(fieldText(tester, 'protein_field')),
-      closeTo(3.975, 0.001),
-    );
+    // where a user would see it. 53.8 × 0.15 = 8.07, shown and saved as 8.1,
+    // which is the figure the strip above displayed.
+    expect(fieldText(tester, 'fat_field'), '8.1');
+    // 26.5 × 0.15 = 3.975, which rounds to a whole 4.
+    expect(fieldText(tester, 'protein_field'), '4');
 
-    // **A defect this flow found, asserted as it behaves.** The sheet
-    // rendered net carbs as a tidy `0.2 ג`; the field it prefills two taps
-    // later carries the raw double. `10.5 - 9.3` is not 1.2 in binary
-    // floating point, and `AddMealBottomSheet._grams` interpolates the value
-    // where `ScanResultSheet` formats it — so the same number is shown two
-    // ways, one screen apart, and the long one is the one the user is asked
-    // to save. Parsed rather than string-matched here so the assertion
-    // survives the fix; `expect` on the raw string is in the reason below.
+    // **The defect this flow found, now fixed and asserted as such (#304).**
+    // The sheet rendered net carbs as a tidy `0.2 ג` and the field it
+    // prefilled two taps later carried the raw double — `10.5 - 9.3` is not
+    // 1.2 in binary floating point — so the same number appeared two ways one
+    // screen apart, and the long one was the one the user was asked to save.
+    // Both sides now go through `GramsText.format`.
     final carbs = fieldText(tester, 'carbs_field');
-    expect(double.parse(carbs), closeTo(0.18, 0.001));
+    expect(carbs, '0.2');
     expect(
       carbs.length,
-      greaterThan(6),
+      lessThanOrEqualTo(4),
       reason:
-          'the prefill still shows floating-point noise ($carbs) where the '
-          'sheet above it showed one decimal — see design/m8_preflight.md',
+          'the prefill is showing floating-point noise ($carbs) again where '
+          'the sheet above it shows one decimal — see #304',
     );
 
     await tapAt(tester, find.byKey(const Key('save_meal_button')));
@@ -226,7 +223,11 @@ void main() {
         .read(mealRepositoryProvider)
         .findByDate(DateTime.now());
     expect(meals.single.mealName, 'מוצר סרוק');
-    expect(meals.single.fatG, closeTo(8.07, 0.001));
+    // What was on screen is what reached storage, to the digit. Before #304
+    // the field said 8.069999999999999 and this said the same — self-consistent
+    // and not what the user was shown.
+    expect(meals.single.fatG, 8.1);
+    expect(meals.single.netCarbsG, 0.2);
 
     // And the dashboard shows it, which is the whole point of the journey:
     // the lens tab is where it started.

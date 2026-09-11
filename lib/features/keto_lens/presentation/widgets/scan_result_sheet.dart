@@ -188,7 +188,7 @@ class _SuccessBodyState extends State<_SuccessBody> {
     // is a no-op scale, so a user who ignores this field gets exactly the
     // behaviour that shipped in M6 rather than a surprise.
     _amount = TextEditingController(
-      text: _formatGrams(_label.servingGrams ?? _referenceAmount),
+      text: GramsText.format(_label.servingGrams ?? _referenceAmount),
     );
   }
 
@@ -315,10 +315,6 @@ class _SuccessBodyState extends State<_SuccessBody> {
   }
 }
 
-/// Formats a gram figure for the amount field without a trailing `.0`.
-String _formatGrams(double grams) =>
-    grams == grams.roundToDouble() ? grams.round().toString() : '$grams';
-
 /// Fat / net carbs / protein, side by side.
 ///
 /// Takes three figures rather than a [ParsedLabel] because since #257 it shows
@@ -360,7 +356,7 @@ class _Macro extends StatelessWidget {
     return Column(
       children: [
         Text(
-          grams == null ? '—' : '${_format(grams!)} ג',
+          grams == null ? '—' : '${GramsText.format(grams!)} ג',
           // Every digit run inside the RTL layout needs this, every time:
           // M3's handoff convention 6. Without it "12.5" renders "5.21".
           textDirection: TextDirection.ltr,
@@ -370,11 +366,4 @@ class _Macro extends StatelessWidget {
       ],
     );
   }
-
-  /// Drops a pointless `.0` — a label saying `12 ג` reads better than
-  /// `12.0 ג`, and the extra digit is not information the label gave.
-  static String _format(double grams) =>
-      grams == grams.roundToDouble() && grams.abs() < 1000
-      ? grams.toStringAsFixed(0)
-      : grams.toStringAsFixed(1);
 }
