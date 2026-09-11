@@ -1,6 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'flows/add_meal_description_flow.dart' as add_meal_description;
+import 'flows/add_meal_manual_flow.dart' as add_meal_manual;
+import 'flows/add_meal_photo_flow.dart' as add_meal_photo;
+import 'flows/edit_meal_flow.dart' as edit_meal;
 import 'flows/grace_period_flow.dart' as grace_period;
 import 'flows/keto_lens_flow.dart' as keto_lens;
 import 'flows/meal_logging_flow.dart' as meal_logging;
@@ -48,4 +52,8 @@ void main() {
   group('grace period', grace_period.main);
   group('profile', profile.main);
   group('storage failure', storage_failure.main);
+  group('add meal — manual', add_meal_manual.main);
+  group('add meal — description', add_meal_description.main);
+  group('add meal — photo', add_meal_photo.main);
+  group('edit meal', edit_meal.main);
 }

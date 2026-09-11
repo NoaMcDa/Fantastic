@@ -302,6 +302,31 @@ Remind users to log meals, warn about streak risk, and prompt daily symptom chec
 | `camera` | Low-level control, live preview, torch control | More setup code |
 | `image_picker` | Simple one-shot capture | No live viewfinder; less control |
 
+---
+
+## Macro estimation (M15)
+
+The app's **first and only outbound network call**, added by M15. It is a
+different feature from Keto Lens and **does not relax Keto Lens's no-network
+invariant**: a scan still makes no request, everything it needs is bundled,
+and Epic #10's first architectural invariant forbids adding one. See
+`design/m15_meal_entry_research.md` §4.
+
+| Concern | Choice | Why |
+|---|---|---|
+| The seam | `LlmChatClient` (interface) | The destination is **known to be temporary**. BYOK ships now because the free tier is 50 requests/day *per key*; our own backend replaces it later, and that swap must be a new implementation of this interface and nothing else — no change to the estimator, the prompt, the parser or any widget |
+| Transport | `http` ^1.2.0 | Already a dependency. One `post`, behind the client |
+| Provider | OpenRouter, named in exactly **two** files | `open_router_client.dart` and the one provider that constructs it. A domain interface that named it would be the first crack in the invariant it exists to hold |
+| Credentials | The user's own key, in its own `estimation_settings` sembast store | **Never in `user_profile`**, whose record existence is the first-launch sentinel. A key shipped inside the app would be exhausted by a handful of users before lunch, and a key in a Flutter bundle is extractable anyway |
+| Image budget | `image` ^4.3.0 → 1024 px longest edge, JPEG q80, 3 MB ceiling | Already a dependency. The **opposite** of `OcrImagePrep`, which scales *up* for Tesseract's LSTM |
+| Failure shape | Sealed `MealEstimate` / `ChatResult` | The same reason `ScanResult` is sealed: a failure must not be expressible as a degenerate success |
+
+**What the user is told, and when.** Estimation is opt-in behind a consent
+checkbox in Profile, with an always-visible disclosure. When it is on, a
+meal **description** and, in photo mode, a **downscaled photograph** are sent
+to the configured provider. Nothing else leaves the device, and nothing at
+all leaves it while estimation is off.
+
 **Recommended:** `camera` for the Keto Lens (needs live viewfinder + torch) + `image_picker` as a fallback for gallery import.
 
 ---
