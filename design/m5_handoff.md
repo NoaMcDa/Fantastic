@@ -217,10 +217,20 @@ Unlike Epic #7, every item holds and **Epic #9 is closed**.
   1–5 row reads as five numbers rather than five buttons until one is
   selected. Legible, but it under-signals that they are tappable. M7 polish —
   the browser screenshot is what showed it; no test could.
-- **`MealListSection` (M2) has the §1.2 bug M5's widgets were corrected for.**
-  Its `.when` is loading-first, so a failed meal read spins forever instead of
-  showing `לא ניתן לטעון את הארוחות`. Out of M5's scope, one line to fix, and
-  it should be fixed with eyes on the whole codebase — M7.
+- **Two M2 widgets still have the §1.2 bug M5's widgets were corrected for.**
+  `MealListSection`'s `.when` is loading-first, so a failed meal read spins
+  forever instead of showing `לא ניתן לטעון את הארוחות` — visible, and the
+  one worth fixing. `ElectrolytesCard` has the same shape, but both its
+  branches are `SizedBox.shrink()`, so today the bug has no visible effect;
+  it becomes one the moment either branch grows content. Out of M5's scope,
+  a line each, and best fixed with eyes on the whole codebase — M7.
+- **`ElectrolytesCard` renders nothing at all on a day with no `DailyLog`.**
+  Noticed during the browser run and initially mistaken for an M5 regression:
+  it is M2's deliberate behaviour (`log == null → SizedBox.shrink()`). It does
+  mean a brand-new user's dashboard has no electrolyte guidance on the day
+  they most need it — induction, before their first meal is logged. Worth a
+  look in M7 alongside M2's standing gap that water and electrolytes have no
+  logging flow.
 - **Water and electrolytes still have no logging flow**, and **macro targets
   are still the `KetoConstants` defaults**, both inherited from M2 and both
   untouched by M5.
