@@ -13,7 +13,7 @@ void main() {
     final app = await bootApp(onboarded: true);
     await pumpApp(tester, app);
 
-    await tapAt(tester, find.byKey(const Key('add_meal_fab')));
+    await openAddMeal(tester);
     await enterInto(tester, 'meal_name_field', 'ביצים וחמאה');
     await enterInto(tester, 'fat_field', '20');
     await enterInto(tester, 'carbs_field', '1');
@@ -45,7 +45,7 @@ void main() {
     final app = await bootApp(onboarded: true);
     await pumpApp(tester, app);
 
-    await tapAt(tester, find.byKey(const Key('add_meal_fab')));
+    await openAddMeal(tester);
     await enterInto(tester, 'meal_name_field', 'אבוקדו');
     await enterInto(tester, 'fat_field', '30');
     await enterInto(tester, 'carbs_field', '2');

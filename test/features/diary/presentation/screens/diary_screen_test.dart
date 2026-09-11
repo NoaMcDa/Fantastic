@@ -192,6 +192,12 @@ void main() {
 
       await tester.tap(find.byKey(const Key('add_meal_fab_diary')));
       await tester.pumpAndSettle();
+      // The `+` opens the mode chooser now (#322); manual entry is one
+      // tile behind it. Asserted on this host separately from the other,
+      // because a capability reachable from one screen and not the other
+      // is the defect `design/user_bugs_handoff.md` records.
+      await tester.tap(find.byKey(const Key('add_meal_mode_manual')));
+      await tester.pumpAndSettle();
 
       expect(find.byType(AddMealBottomSheet), findsOneWidget);
     });
@@ -202,6 +208,12 @@ void main() {
       await pumpDiary(tester);
 
       await tester.tap(find.byKey(const Key('add_meal_fab_diary')));
+      await tester.pumpAndSettle();
+      // The `+` opens the mode chooser now (#322); manual entry is one
+      // tile behind it. Asserted on this host separately from the other,
+      // because a capability reachable from one screen and not the other
+      // is the defect `design/user_bugs_handoff.md` records.
+      await tester.tap(find.byKey(const Key('add_meal_mode_manual')));
       await tester.pumpAndSettle();
 
       final sheet = tester.widget<AddMealBottomSheet>(
@@ -219,6 +231,12 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('add_meal_fab_diary')));
+      await tester.pumpAndSettle();
+      // The `+` opens the mode chooser now (#322); manual entry is one
+      // tile behind it. Asserted on this host separately from the other,
+      // because a capability reachable from one screen and not the other
+      // is the defect `design/user_bugs_handoff.md` records.
+      await tester.tap(find.byKey(const Key('add_meal_mode_manual')));
       await tester.pumpAndSettle();
 
       final sheet = tester.widget<AddMealBottomSheet>(

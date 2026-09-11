@@ -92,7 +92,7 @@ void main() {
     required String carbs,
     required String protein,
   }) async {
-    await tapAt(tester, find.byKey(const Key('add_meal_fab')));
+    await openAddMeal(tester);
     await enterInto(tester, 'meal_name_field', name);
     await enterInto(tester, 'fat_field', fat);
     await enterInto(tester, 'carbs_field', carbs);
