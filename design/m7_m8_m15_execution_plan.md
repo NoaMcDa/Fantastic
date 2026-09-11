@@ -152,7 +152,7 @@ While this lane is open, **no other worker may touch**
 
 | Wave | Issues | Width | Notes |
 |---|---|---|---|
-| **W0** | #91, #304, #315, #316, #317 | 5 | All unblockers. #91 creates `lib/core/widgets/`; #304 unblocks #306 *and* the M15 sheet work; #315/#316/#317 are M15's three independent foundations |
+| ~~**W0**~~ | ~~#91, #304, #315, #316, #317~~ — **shipped, plus #303** | 5 | All unblockers. #91 creates `lib/core/widgets/`; #304 unblocks #306 *and* the M15 sheet work; #315/#316/#317 are M15's three independent foundations |
 | **W1** | #88, #307, #309, #151, #322, #325 | 6 | **Peak.** #88 owns this wave — nothing else in it touches its six files |
 | **W2** | #301, #302, #310, #318, #321, #327 | 6 | **Peak.** #318 adds `http`, so it is the only PR in the programme allowed to change `pubspec.lock` while open |
 | **W3** | #308, #319, #328, #311 | 4 | #308 before #305 — shared `streak_ring_widget.dart` |
@@ -233,7 +233,37 @@ bottleneck. Add a second reviewer, not a sixth worker.
 
 ---
 
-## 8. What running wave 0 changed
+## 8. Wave 0 shipped — what it cost and what it found
+
+Six issues merged: **#303** (the Opus lane) and all five of wave 0, worked
+**serially in one session** rather than by five parallel workers, for the
+reason §8.1 gives. Every one landed green on all eight checks.
+
+| Issue | PR | What the audit found in the issue text |
+|---|---|---|
+| #303 | #330 | Two of the user's three clauses described behaviour the app did not have |
+| #91 | #331 | "8 tests" (it has 7); "its existing icon" (it has none); `subtitle` required, which would have meant inventing Hebrew copy inside a refactor |
+| #304 | #332 | One defective formatter named; **three existed and two were wrong** |
+| #315 | #333 | Cites `evaluateToday`, which #303 had replaced hours earlier |
+| #316 | #334 | Accurate. The coverage gate caught two declaration-only files |
+| #317 | #335 | Its own amendment moved `resolvedApiKey` out; the **research doc** names the wrong store |
+
+**The issue text was wrong in five of six.** That is the pattern this project
+has recorded for seven milestones, holding exactly.
+
+**Two defects were found by tests rather than by reading.** #303's e2e
+back-fill flow caught a write path handing the state machine the *meal's*
+timestamp instead of the wall clock — days wrong for a back-dated meal, and
+invisible to a unit suite that was passing. #304's own regression test showed
+the scan sheet's macro strip and its prefill disagreeing by construction.
+
+**The coverage gate paid for itself twice**, catching `estimate_failure_reason.dart`,
+`macro_estimator.dart` and `estimation_settings_repository.dart` — all
+declaration-only, all silently absent from lcov rather than at 0%.
+
+---
+
+## 8.1 What running wave 0 changed
 
 Recorded the way every other handoff here records what only running it revealed.
 
@@ -307,6 +337,10 @@ day; `design/cicd_plan.md` Phase 1 already lists codegen drift as next.
 ## 9. What this plan does not claim
 
 In the spirit of every other handoff here.
+
+- **Wave 0's numbers are what one session did, not a rate.** Six issues in one
+  sitting says nothing about how long a worker takes; the issues were small and
+  the toolchain was warm by the third one.
 
 - **No wall-clock estimate.** Nothing in this repository measures how long an agent
   takes on an issue of this specification density, and a number invented here would
