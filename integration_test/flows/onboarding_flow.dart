@@ -58,7 +58,7 @@ void main() {
 
     // One meal, and the card switches from zeros to logged values against the
     // same targets — 149, not `MacroTargets.defaults`.
-    await tapAt(tester, find.byKey(const Key('add_meal_fab')));
+    await openAddMeal(tester);
     await enterInto(tester, 'meal_name_field', 'ביצה קשה');
     await enterInto(tester, 'fat_field', '5');
     await enterInto(tester, 'carbs_field', '1');

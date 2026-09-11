@@ -217,6 +217,24 @@ Future<void> tapAt(WidgetTester tester, Finder finder) async {
   await settle(tester);
 }
 
+/// Opens the add-meal sheet: taps the FAB, then picks a mode from the
+/// chooser that now sits behind it (#322).
+///
+/// A helper rather than two lines repeated in six flows, because the chooser
+/// is one tap that every write path in the app has to make and a flow that
+/// forgot it would fail somewhere confusing. [fabKey] is `add_meal_fab` on
+/// the dashboard and `add_meal_fab_diary` on the diary — the tab shell keeps
+/// the outgoing screen mounted during a transition, so the two buttons carry
+/// different keys.
+Future<void> openAddMeal(
+  WidgetTester tester, {
+  String fabKey = 'add_meal_fab',
+  String mode = 'add_meal_mode_manual',
+}) async {
+  await tapAt(tester, find.byKey(Key(fabKey)));
+  await tapAt(tester, find.byKey(Key(mode)));
+}
+
 /// Enters [text] into the field keyed [key].
 Future<void> enterInto(WidgetTester tester, String key, String text) async {
   final finder = find.byKey(Key(key));
