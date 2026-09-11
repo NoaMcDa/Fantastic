@@ -24,7 +24,12 @@ abstract interface class MacroEstimator {
   /// hope.
   ///
   /// Returns [EstimateFailed] with [EstimateFailureReason.emptyInput] when
-  /// both arguments are null or the description is blank.
+  /// **both** are missing — a blank description and no path.
+  ///
+  /// A photograph alone is a complete input: the model can see the food
+  /// without being told what it is. A description alone is too. Only nothing
+  /// at all is refused, and it is refused locally so an empty submit costs
+  /// nothing against a 50-requests-a-day quota.
   ///
   /// One method with two optional arguments rather than two methods: the photo
   /// mode sends an image *and* an optional description in a single call, and

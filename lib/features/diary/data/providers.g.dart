@@ -299,9 +299,14 @@ String _$llmChatClientHash() => r'21a8e5e47514333775d167fc8858870586260f42';
 /// A backend that owns the prompt as well becomes a second `MacroEstimator`
 /// implementation selected here — no edit anywhere above this line. Returns
 /// the interface for the same reason every repository provider does.
+/// Reads a picked photo's bytes.
+///
+/// A provider of its own, rather than a `const` inside the estimator, so a
+/// test can supply bytes without a file system and the browser build never
+/// needs `dart:io` to be conditionally exported.
 
-@ProviderFor(macroEstimator)
-const macroEstimatorProvider = MacroEstimatorProvider._();
+@ProviderFor(photoBytesReader)
+const photoBytesReaderProvider = PhotoBytesReaderProvider._();
 
 /// The composition root for estimation, and the only place a concrete
 /// estimator is named.
@@ -309,16 +314,72 @@ const macroEstimatorProvider = MacroEstimatorProvider._();
 /// A backend that owns the prompt as well becomes a second `MacroEstimator`
 /// implementation selected here — no edit anywhere above this line. Returns
 /// the interface for the same reason every repository provider does.
+/// Reads a picked photo's bytes.
+///
+/// A provider of its own, rather than a `const` inside the estimator, so a
+/// test can supply bytes without a file system and the browser build never
+/// needs `dart:io` to be conditionally exported.
 
-final class MacroEstimatorProvider
-    extends $FunctionalProvider<MacroEstimator, MacroEstimator, MacroEstimator>
-    with $Provider<MacroEstimator> {
+final class PhotoBytesReaderProvider
+    extends
+        $FunctionalProvider<
+          PhotoBytesReader,
+          PhotoBytesReader,
+          PhotoBytesReader
+        >
+    with $Provider<PhotoBytesReader> {
   /// The composition root for estimation, and the only place a concrete
   /// estimator is named.
   ///
   /// A backend that owns the prompt as well becomes a second `MacroEstimator`
   /// implementation selected here — no edit anywhere above this line. Returns
   /// the interface for the same reason every repository provider does.
+  /// Reads a picked photo's bytes.
+  ///
+  /// A provider of its own, rather than a `const` inside the estimator, so a
+  /// test can supply bytes without a file system and the browser build never
+  /// needs `dart:io` to be conditionally exported.
+  const PhotoBytesReaderProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'photoBytesReaderProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$photoBytesReaderHash();
+
+  @$internal
+  @override
+  $ProviderElement<PhotoBytesReader> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  PhotoBytesReader create(Ref ref) {
+    return photoBytesReader(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(PhotoBytesReader value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<PhotoBytesReader>(value),
+    );
+  }
+}
+
+String _$photoBytesReaderHash() => r'4a8ccd760e813ad8b4d2536891c85df4cb0146c0';
+
+@ProviderFor(macroEstimator)
+const macroEstimatorProvider = MacroEstimatorProvider._();
+
+final class MacroEstimatorProvider
+    extends $FunctionalProvider<MacroEstimator, MacroEstimator, MacroEstimator>
+    with $Provider<MacroEstimator> {
   const MacroEstimatorProvider._()
     : super(
         from: null,
@@ -352,4 +413,4 @@ final class MacroEstimatorProvider
   }
 }
 
-String _$macroEstimatorHash() => r'96cbd0835c439b2cc4b26c1028f1691b90d0262e';
+String _$macroEstimatorHash() => r'd88776d0e5a45d0188f2b16862f2eb3477d7f5f7';
