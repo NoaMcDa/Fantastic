@@ -1,11 +1,17 @@
 # M6 platform handoff — Keto Lens on six targets
 
-**Status:** code-complete on all six Flutter targets. **Verified end to end on
-two of them** (web and Linux). **iOS compiles** — unsigned, on a macOS CI
-runner — but has never been run. Android, macOS and Windows are configured and
-analysed and nothing more, because this repository has no Android SDK, no macOS
-host and no Windows machine. §"What is verified" is the honest line, and it is
-the first thing to read.
+**Status:** code-complete on all six Flutter targets, and **every one of them
+now builds on a CI runner of its own OS.**
+
+**Two are verified end to end** — web and Linux, both driven, both scanning
+Hebrew. **Four compile and only compile**: Android, iOS, macOS and Windows have
+a green build job and nothing more. No window has opened on any of them and no
+scan has ever run there. That distinction is the whole point of §"What is
+verified", which is the first thing to read.
+
+Getting those four to compile found **one real defect per platform**, none of
+them visible to `analyze`, to the test suite, or to the `build web` gate — see
+§"What compiling on real runners found".
 
 Supersedes the *engine* recommendation in `design/m6_platform_research.md`,
 which is otherwise still accurate. Three of that document's specifics turned out
@@ -26,10 +32,16 @@ unchanged `TextRecognitionService` interface.
 |---|---|---|---|
 | **Web** | tesseract.js 7 (wasm), self-hosted in `web/tesseract/` | `camera_web`, `image_picker_for_web` | ✅ built **and driven in Chromium** |
 | **Linux** | `libtesseract` via `dart:ffi` | gallery (`image_picker_linux`) | ✅ built **and run** |
-| **macOS** | same FFI adapter | gallery (`image_picker_macos`) | ✗ no macOS host |
-| **Windows** | same FFI adapter | gallery (`image_picker_windows`) | ✗ no Windows host |
-| **Android** | `flutter_tesseract_ocr` (ships prebuilt libs) | `camera`, `image_picker` | ✗ no Android SDK |
+| **macOS** | same FFI adapter | gallery (`image_picker_macos`) | ⚠️ **compiled** on a macOS CI runner (`build-macos.yml`, ad-hoc signed) — never run |
+| **Windows** | same FFI adapter | gallery (`image_picker_windows`) | ⚠️ **compiled** on a Windows CI runner (`build-windows.yml`) — never run |
+| **Android** | `flutter_tesseract_ocr` (ships prebuilt libs) | `camera`, `image_picker` | ⚠️ **compiled** on a CI runner (`build-android.yml`, debug keystore) — never run |
 | **iOS** | `flutter_tesseract_ocr` | `camera`, `image_picker` | ⚠️ **compiled** on a macOS CI runner (`build-ios.yml`, unsigned) — never run |
+
+**"Compiled" is not "works".** Five of the six now have a CI job that builds
+them on a real runner of that OS, which means a regression turns a check red.
+It does not mean anyone has launched the app: on Android, iOS, macOS and
+Windows **no window has ever opened and no scan has ever run**. Only web and
+Linux have been driven.
 
 **The lens tab scans in a browser.** That reverses M6's central product
 decision — *"Keto Lens cannot scan in a browser, and the tab says so"* — which
@@ -187,16 +199,32 @@ section.
   (`tesseract_js_text_recognizer_test.dart`, `flutter test --platform chrome`).
 - **The pure-Dart pipeline handles genuine engine output**
   (`real_ocr_pipeline_test.dart`, against `RealOcrFixture`).
-- 1110 VM tests and 5 browser tests pass; `analyze` and `format` clean; `web`
-  and `linux` release builds succeed.
+- **Every target assembles on a real runner of its own OS**, and both OCR
+  libraries open by their shipped names on macOS and Windows — proven by
+  `tool/tesseract_dylib_probe.dart` against the app's own candidate list, not
+  against a copy of it.
+- **The Linux smoke test catches a startup failure**, validated by negative
+  control: the `path_provider` fault and a notification-shaped fault were each
+  injected and each turned the job red for the right reason. A smoke test
+  nobody has watched fail is not a smoke test.
+- **`tesseract_ffi_recognizer_test.dart` now actually runs in CI.** It
+  self-skips wherever libtesseract is absent and had therefore never once
+  executed on a runner; `build-linux.yml` installs Tesseract and treats a
+  self-skip as a failure.
+- The suite, `analyze` and `format` stay clean, and the `web` and `linux`
+  release builds succeed.
 
 **Not verified, and nobody should read this document as claiming otherwise:**
 
-- **Android, macOS and Windows have never been built.** No SDK, no host. They
-  are compiled by the analyzer and configured by hand. `flutter_tesseract_ocr`
-  has still never *executed* anywhere — it is the one dependency here chosen
-  for a capability this repo cannot exercise.
-- **iOS now compiles, and only compiles.** `.github/workflows/build-ios.yml`
+- **Android, iOS, macOS and Windows compile, and only compile.** Each has a CI
+  job that builds it on a real runner of that OS — see §"What compiling on real
+  runners found" for the five defects that surfaced, one per platform. A green
+  check means the target assembles and a regression will turn it red. **It does
+  not mean the app runs**: no window has opened, no database has been created
+  on any of those four, and `flutter_tesseract_ocr` has still never *executed*
+  anywhere. It remains the one dependency here chosen for a capability this
+  repo cannot exercise.
+- **What the iOS build settled specifically.** `.github/workflows/build-ios.yml`
   builds it unsigned on a macOS runner, which is where the `Podfile` this
   repository never had now lives and where CocoaPods now runs. Measured on
   Xcode 26.6 / CocoaPods 1.17.0: pods resolve in 10 s, the Xcode build takes
@@ -233,6 +261,64 @@ section.
 - **Desktop ships gallery-import-only.** The `camera` plugin declares
   android/ios/web and nothing else; that is a real product limitation, not an
   environment one.
+
+---
+
+## What compiling on real runners found
+
+Five platform build jobs were added after this document's first draft. Every
+single platform this repository created blind carried a defect that **only a
+real toolchain of that OS could surface** — none of them were visible to
+`flutter analyze`, to `flutter test`, or to the existing `build web` gate.
+
+| Platform | Defect | Would have shipped as |
+|---|---|---|
+| **Android** | `flutter_tesseract_ocr`'s `build.gradle` calls `jcenter()`, removed in Gradle 9. The `flutter create` template pinned Gradle 9.3.1, so the plugin's script could not be *evaluated* | The Android build dying in configuration, before compiling a line |
+| **iOS** | `assets/tessdata` was declared in `pubspec.yaml` but not added to `Runner.xcodeproj`. The iOS plugin reads `Bundle.main.bundleURL/tessdata`, **not** the Flutter asset bundle | Every scan on every device failing at Tesseract init |
+| **macOS** | Every bare dylib leaf name missed. dyld resolves unqualified names against `DYLD_FALLBACK_LIBRARY_PATH`, which excludes `/opt/homebrew`; the real file is `libleptonica.6.dylib`, not the guessed `liblept.5.dylib` | A user with Tesseract correctly installed being told to install Tesseract |
+| **Windows** | Every Leptonica DLL candidate was wrong. Chocolatey's tesseract 5.5.3 ships `libleptonica-6.dll` | The same: `isAvailable` is false if *either* library fails |
+| **Linux** | Three fatal startup bugs (§"What running it changed" item 4), found by running the app rather than by any test | The app dying on its error screen before the first real frame |
+
+The Android and Linux fixes were to the *toolchain and the app*; the macOS and
+Windows fixes were to a **list of library names written by guessing**, which is
+the part worth remembering. Those names analysed clean, compiled clean and were
+wrong on every entry that mattered. A guess that compiles is indistinguishable
+from a fact until something runs it.
+
+### Three traps the runs recorded
+
+- **The shell changes the answer on Windows.** `libtesseract-5.dll` fails with
+  error 127 (`ERROR_PROC_NOT_FOUND`) when launched from Git Bash: Git for
+  Windows puts its MSYS2 `mingw64\bin` ahead on `PATH` and libtesseract's
+  imports bind there. Absolute paths do not help — Dart calls plain
+  `LoadLibraryW`. A real user-facing trap, not a CI artefact, and the probe now
+  distinguishes 126 (wrong name) from 127 (right name, hostile `PATH`).
+- **The Windows notification path silently drops `matchDateTimeComponents`.**
+  The "daily" reminder schedules exactly one toast. `main` reschedules on every
+  launch, so a user who opens the app stays reminded and one who does not,
+  stops.
+- **macOS plugins integrate via SwiftPM, not CocoaPods** — so the Podfile
+  trouble this document and `cicd_plan.md` §10 both predicted for macOS may
+  never arrive. iOS is the opposite: `flutter_tesseract_ocr` is the only plugin
+  there still on CocoaPods, and Flutter already warns that non-SPM plugins
+  *"will become an error in a future version"*.
+
+### The macOS App Sandbox question is open
+
+`Release.entitlements` sets `com.apple.security.app-sandbox`. The sandbox denies
+reads outside the container bar a fixed set of system paths, and `/opt/homebrew`
+is not among them — **so the shipped app may be unable to open the dylib CI has
+just proved is present.** An attempt to settle it by codesigning a probe with
+the app's own entitlements died at `SIGTRAP` (a bare executable has no container
+for `libsystem_secinit`), which is inconclusive rather than evidence, so the
+step was removed rather than left answering nothing forever.
+
+Settling it needs the real `.app` on a real Mac. The fix, if one is needed, is a
+product decision with a distribution consequence — ship unsandboxed and lose the
+Mac App Store, bundle libtesseract inside the `.app`, or accept no OCR on macOS
+— and wants its own issue. Hardened runtime is a separate second problem:
+notarisation enables library validation, which would reject an ad-hoc-signed
+Homebrew dylib on its own terms.
 
 ---
 
