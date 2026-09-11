@@ -10,6 +10,18 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+/// The prefix on the one log line a failed startup leaves behind.
+///
+/// [StartupFailureApp] is real evidence, but only for somebody looking at the
+/// screen — and that is literally how all three Linux startup faults in this
+/// app were found, because nothing was written to a log at all. A headless run
+/// saw a process that was alive and quiet, and called it healthy.
+///
+/// This line is what makes the same failure visible without a screen.
+/// `tool/linux_smoke_test.sh` reads the string out of this file and fails the
+/// build on it, so renaming the constant cannot silently disarm the check.
+const String startupFailureLogPrefix = 'FANTASTIC STARTUP FAILURE:';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Hebrew month and day names for the dashboard's date header. `DateFormat`
@@ -76,7 +88,14 @@ Future<void> main() async {
         child: const FantasticApp(),
       ),
     );
-  } on Object catch (error) {
+  } on Object catch (error, stack) {
+    // Logged as well as rendered — see [startupFailureLogPrefix]. Printed
+    // rather than reported through `FlutterError`, because this is the one
+    // failure that must stay distinguishable from every other error the app
+    // reports: a notification that will not initialise is a nuisance, a
+    // database that will not open is the app not running.
+    debugPrint('$startupFailureLogPrefix $error');
+    debugPrintStack(stackTrace: stack);
     runApp(StartupFailureApp(error: error));
   }
 }
