@@ -3,7 +3,7 @@ import 'package:fantastic/features/adaptation/presentation/screens/phase_detail_
 import 'package:fantastic/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:fantastic/features/diary/presentation/screens/diary_screen.dart';
 import 'package:fantastic/features/directory/presentation/directory_placeholder.dart';
-import 'package:fantastic/features/keto_lens/presentation/keto_lens_placeholder.dart';
+import 'package:fantastic/features/keto_lens/presentation/screens/camera_screen.dart';
 import 'package:fantastic/features/onboarding/presentation/onboarding_placeholder.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
 import 'package:fantastic/features/onboarding/domain/models/onboarding_data.dart';
@@ -41,7 +41,7 @@ GoRouter appRouter(Ref ref) => GoRouter(
       builder: (context, state, child) => AppShell(child: child),
       routes: [
         GoRoute(path: '/', builder: (_, _) => const DashboardScreen()),
-        GoRoute(path: '/lens', builder: (_, _) => const KetoLensPlaceholder()),
+        GoRoute(path: '/lens', builder: (_, _) => const CameraScreen()),
         GoRoute(path: '/diary', builder: (_, _) => const DiaryScreen()),
         GoRoute(
           path: '/adaptation',
