@@ -19,6 +19,17 @@
 #
 # Generated files are excluded: `.g.dart` is riverpod boilerplate nobody writes
 # or reviews, and letting it into the denominator measures the generator.
+#
+# **Expect the number to differ by a line or two between machines.** Measured
+# on the same container twice it is identical, but a CI runner reported
+# 472/473 where a dev box reported 470/472 on the same commit — the two
+# differing files were `streak_notification_service.dart` and
+# `text_recognition_service.dart`. `flutter test` shards by CPU count and
+# collects coverage across those isolates, so exactly which lines get recorded
+# shifts slightly with the machine. File *presence* was identical, which is
+# what `check_coverage_files.sh` keys on. The practical consequence: keep real
+# headroom between the gate and the measured number, and do not chase a
+# one-line disagreement between your terminal and the run.
 set -euo pipefail
 
 LCOV="${1:-coverage/lcov.info}"

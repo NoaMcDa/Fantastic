@@ -357,6 +357,17 @@ of headroom over the gate**, which is the argument for raising the threshold
 later rather than now: a gate set just under the current number fails on the
 first honest refactor.
 
+**The number is environment-dependent by a line or two, and that is expected.**
+The same commit measured 470/472 = 99.58% on a dev container and 472/473 =
+99.79% on the CI runner; the two files that differed were
+`streak_notification_service.dart` (21/21 vs 22/22) and
+`text_recognition_service.dart` (2/3 vs 3/3). Two consecutive runs on one
+machine were byte-identical, so this is not run-to-run flake — `flutter test`
+shards by CPU count and collects coverage across those isolates, so which
+lines get recorded shifts slightly with the host. **File presence did not
+drift**, which is the only thing `check_coverage_files.sh` depends on. This is
+the second reason the gate sits at 80 rather than just under the measurement.
+
 The gate was verified to fail, not just to pass — below-threshold, a vacuous
 report with no gated records, a missing file, a gated file dropped from the
 ignore list, and a brand-new untested gated file all exit 1.
