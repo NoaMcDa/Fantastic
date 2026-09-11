@@ -1,0 +1,27 @@
+# tool/coverage_ignore.txt — gated files lcov correctly emits no record for.
+#
+# `flutter test --coverage` writes an `SF:` record only for files that contain
+# executable statements AND are imported by some test. The files below are the
+# first kind of absence: there is nothing in them to execute, so no test could
+# ever cover them and lcov is right to stay silent.
+#
+# This list exists because `tool/check_coverage_files.sh` cannot tell that
+# absence apart from "nobody wrote a test". Every entry is reviewed on the way
+# in — if a file here ever grows a method body, a constant with an initialiser,
+# or an enum with fields, it stops being declaration-only and must come off.
+#
+# Reviewed against the tree at the M4/M5 post-milestone fix pass.
+
+# Bare enums — values only, no fields, no members.
+lib/features/adaptation/domain/models/adaptation_phase.dart
+lib/features/onboarding/domain/models/biological_sex.dart
+lib/features/onboarding/domain/models/keto_goal.dart
+
+# `abstract interface class` — method signatures, no bodies.
+lib/features/adaptation/domain/repositories/streak_repository.dart
+lib/features/dashboard/domain/repositories/daily_log_repository.dart
+lib/features/diary/domain/repositories/meal_repository.dart
+lib/features/diary/domain/repositories/symptom_log_repository.dart
+lib/features/onboarding/domain/repositories/user_profile_repository.dart
+lib/features/keto_lens/domain/services/ingredient_classifier.dart
+lib/features/keto_lens/domain/services/label_parser.dart
