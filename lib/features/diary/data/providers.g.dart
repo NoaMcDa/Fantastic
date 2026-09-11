@@ -174,3 +174,121 @@ final class EstimationSettingsRepositoryProvider
 
 String _$estimationSettingsRepositoryHash() =>
     r'7deaba295733e6c5919d03947b0f34609b88c47a';
+
+@ProviderFor(estimationCredentials)
+const estimationCredentialsProvider = EstimationCredentialsProvider._();
+
+final class EstimationCredentialsProvider
+    extends
+        $FunctionalProvider<
+          EstimationCredentials,
+          EstimationCredentials,
+          EstimationCredentials
+        >
+    with $Provider<EstimationCredentials> {
+  const EstimationCredentialsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'estimationCredentialsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$estimationCredentialsHash();
+
+  @$internal
+  @override
+  $ProviderElement<EstimationCredentials> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  EstimationCredentials create(Ref ref) {
+    return estimationCredentials(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(EstimationCredentials value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<EstimationCredentials>(value),
+    );
+  }
+}
+
+String _$estimationCredentialsHash() =>
+    r'a07d858276222660e9f33d60828bf8127d7540f7';
+
+/// The composition root for the estimator's transport, and **the only place
+/// besides `open_router_client.dart` where a concrete provider is named**.
+///
+/// Adding our own backend later means a new implementation file and a new
+/// branch here — never an edit anywhere above this line. Epic #312's OCP
+/// invariant, enforced by the return type: this hands back the interface.
+///
+/// `ref.onDispose` closes the socket, so a test that overrides this with a
+/// `MockClient` leaks nothing and a disposed container holds no connection.
+
+@ProviderFor(llmChatClient)
+const llmChatClientProvider = LlmChatClientProvider._();
+
+/// The composition root for the estimator's transport, and **the only place
+/// besides `open_router_client.dart` where a concrete provider is named**.
+///
+/// Adding our own backend later means a new implementation file and a new
+/// branch here — never an edit anywhere above this line. Epic #312's OCP
+/// invariant, enforced by the return type: this hands back the interface.
+///
+/// `ref.onDispose` closes the socket, so a test that overrides this with a
+/// `MockClient` leaks nothing and a disposed container holds no connection.
+
+final class LlmChatClientProvider
+    extends $FunctionalProvider<LlmChatClient, LlmChatClient, LlmChatClient>
+    with $Provider<LlmChatClient> {
+  /// The composition root for the estimator's transport, and **the only place
+  /// besides `open_router_client.dart` where a concrete provider is named**.
+  ///
+  /// Adding our own backend later means a new implementation file and a new
+  /// branch here — never an edit anywhere above this line. Epic #312's OCP
+  /// invariant, enforced by the return type: this hands back the interface.
+  ///
+  /// `ref.onDispose` closes the socket, so a test that overrides this with a
+  /// `MockClient` leaks nothing and a disposed container holds no connection.
+  const LlmChatClientProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'llmChatClientProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$llmChatClientHash();
+
+  @$internal
+  @override
+  $ProviderElement<LlmChatClient> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  LlmChatClient create(Ref ref) {
+    return llmChatClient(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(LlmChatClient value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<LlmChatClient>(value),
+    );
+  }
+}
+
+String _$llmChatClientHash() => r'21a8e5e47514333775d167fc8858870586260f42';
