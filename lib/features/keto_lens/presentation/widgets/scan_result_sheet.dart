@@ -162,7 +162,7 @@ class ScanResultSheet extends StatelessWidget {
   /// Exposed so the tests assert the same strings the sheet renders.
   @visibleForTesting
   static String failureTitle(ScanFailureReason reason) => switch (reason) {
-    ScanFailureReason.unavailable => 'הסריקה זמינה באפליקציה לאייפון',
+    ScanFailureReason.unavailable => 'הסורק אינו זמין במכשיר הזה',
     ScanFailureReason.recognitionFailed => 'הסריקה נכשלה',
     ScanFailureReason.noTextFound => 'לא זוהה טקסט בתמונה',
     ScanFailureReason.notALabel => 'זו לא נראית תווית תזונה',
@@ -173,7 +173,7 @@ class ScanResultSheet extends StatelessWidget {
   @visibleForTesting
   static String failureAdvice(ScanFailureReason reason) => switch (reason) {
     ScanFailureReason.unavailable =>
-      'זיהוי הטקסט פועל על המכשיר בלבד, ולכן אינו זמין בדפדפן.',
+      'מנוע זיהוי הטקסט לא זמין כאן. שאר האפליקציה עובדת כרגיל.',
     ScanFailureReason.recognitionFailed =>
       'משהו השתבש בזיהוי הטקסט. נסו לצלם שוב.',
     ScanFailureReason.noTextFound =>

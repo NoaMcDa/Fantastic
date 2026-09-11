@@ -36,18 +36,39 @@ Future<void> main() async {
 
     // Before runApp, so a notification tapped from a cold start has a plugin
     // to be delivered to. A no-op on web — see NotificationService.
-    final notifications = await container
-        .read(notificationServiceProvider)
-        .initialise();
-    if (notifications) {
-      // Rescheduled on every launch rather than once ever: the id is stable
-      // so this replaces rather than accumulates, and it is the only thing
-      // that re-arms the reminder after an OS upgrade or a restore has
-      // dropped pending notifications. Scheduling before permission is
-      // granted is harmless — the OS simply delivers nothing until it is.
-      await container
-          .read(streakNotificationServiceProvider)
-          .scheduleDailyReminder();
+    //
+    // Guarded separately from the database, and this is the point of the
+    // nesting: a reminder is a convenience, a database is the app. Three
+    // different platform failures here were each taking down startup and
+    // rendering the *database* error screen — a missing session D-Bus on
+    // Linux, a settings object absent for a newly added platform, and
+    // `zonedSchedule` being unimplemented. None of them is a reason the user
+    // cannot log a meal, so none of them reaches StartupFailureApp any more.
+    try {
+      final notifications = await container
+          .read(notificationServiceProvider)
+          .initialise();
+      if (notifications) {
+        // Rescheduled on every launch rather than once ever: the id is stable
+        // so this replaces rather than accumulates, and it is the only thing
+        // that re-arms the reminder after an OS upgrade or a restore has
+        // dropped pending notifications. Scheduling before permission is
+        // granted is harmless — the OS simply delivers nothing until it is.
+        await container
+            .read(streakNotificationServiceProvider)
+            .scheduleDailyReminder();
+      }
+    } on Object catch (error, stack) {
+      // Reported, not swallowed silently: a reminder that stops working is a
+      // real bug, it just is not a fatal one.
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'fantastic',
+          context: ErrorDescription('setting up the daily reminder'),
+        ),
+      );
     }
     runApp(
       UncontrolledProviderScope(

@@ -659,5 +659,16 @@ skipped.
 - **Branch protection** — `e2e flows` should join `analyze · format · test`
   as a required check once it has one green run on `main` (§4.4). Needs repo
   admin; not something this PR can do.
-- The Chrome tier (§5) and everything in §0.4 are unchanged: still the honest
-  limits of what any of this proves.
+- The Chrome tier (§5) is unchanged. **§0.4's first row needs rereading,
+  though:** `main` replaced ML Kit with Tesseract while this branch was in
+  flight (#274), so "no Hebrew OCR off-device" is no longer why the lens is
+  uncovered here. The engine now reaches every target, including the browser
+  — but the desktop arm is `dart:ffi` against a system `libtesseract` that CI
+  does not install (its own FFI suite skips when the library is absent), and
+  the flutter-tester has no camera or gallery either way. So the row still
+  holds; its reason is now "the engine is not installed and there is nothing
+  to point it at", not "there is no engine". If CI ever installs
+  `libtesseract-dev`, an OCR-through-the-real-engine flow becomes possible
+  here for the first time, and that is worth revisiting before F9.
+- Everything else in §0.4 stands: still the honest limits of what any of this
+  proves.

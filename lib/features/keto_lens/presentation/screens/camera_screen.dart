@@ -8,6 +8,7 @@ import 'package:fantastic/features/keto_lens/presentation/camera/camera_session.
 import 'package:fantastic/features/keto_lens/presentation/camera/image_picker_photo_picker.dart';
 import 'package:fantastic/features/keto_lens/presentation/camera/photo_picker.dart';
 import 'package:fantastic/features/keto_lens/presentation/widgets/scan_result_sheet.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -20,9 +21,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// almost entirely loading and error states, so the order below is
 /// deliberate and the failure tests assert the spinner is **absent**:
 ///
-/// 1. **OCR unavailable** — the browser. Checked first and before the
-///    camera is even opened: there is no point asking for a camera
-///    permission to run a scanner that cannot run. #85 has no such state.
+/// 1. **OCR unavailable** — a desktop with no Tesseract installed, or a
+///    deploy missing its OCR assets. Checked first and before the camera is
+///    even opened: there is no point asking for a camera permission to run a
+///    scanner that cannot run. #85 has no such state.
+///
+///    This used to mean "the browser", and was the reason the lens tab was
+///    inert on web. It is not any more — the browser scans through
+///    tesseract.js. See `design/m6_platform_research.md`.
 /// 2. **Camera problem** — refused, refused permanently, none present, or
 ///    a platform failure. #85 had only "denied", and its
 ///    `if (cameras.isEmpty) return;` left the screen on a spinner forever
@@ -40,6 +46,30 @@ class CameraScreen extends ConsumerStatefulWidget {
   const CameraScreen({super.key});
 
   /// The headline for a camera problem.
+  /// What to tell a user whose build cannot run OCR, in Hebrew.
+  ///
+  /// Only two things reach this state now that every platform has an engine,
+  /// and they want opposite advice — so the copy is chosen rather than
+  /// generic. Desktop is the one case the user can actually fix, so it is the
+  /// one that names a fix.
+  ///
+  /// Deliberately *not* read off the recogniser's `reason`: those are English,
+  /// written for a log or a bug report, and this is a Hebrew-first UI.
+  /// `defaultTargetPlatform` rather than `dart:io` — `Platform` does not
+  /// compile for the browser, and this file is in the web bundle.
+  @visibleForTesting
+  static String unavailableAdvice() {
+    if (kIsWeb) {
+      return 'רכיבי הסורק לא נטענו. רעננו את העמוד ונסו שוב.';
+    }
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.linux || TargetPlatform.macOS || TargetPlatform.windows =>
+        'הסורק זקוק לספריית Tesseract. התקינו אותה והפעילו את האפליקציה מחדש. '
+            'שאר האפליקציה עובדת כרגיל.',
+      _ => 'לא הצלחנו להפעיל את מנוע זיהוי הטקסט. שאר האפליקציה עובדת כרגיל.',
+    };
+  }
+
   @visibleForTesting
   static String problemTitle(CameraProblem problem) => switch (problem) {
     CameraProblem.permissionDenied ||
@@ -144,13 +174,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     if (_ocrUnavailable) {
-      return const _MessageState(
-        key: Key('lens_unavailable'),
+      return _MessageState(
+        key: const Key('lens_unavailable'),
         icon: Icons.no_photography_outlined,
-        title: 'הסורק זמין באפליקציה לאייפון',
-        body:
-            'זיהוי הטקסט פועל על המכשיר בלבד ואינו נתמך בדפדפן. שאר '
-            'האפליקציה עובדת כרגיל.',
+        title: 'הסורק אינו זמין במכשיר הזה',
+        body: CameraScreen.unavailableAdvice(),
       );
     }
     if (_problem != null) {

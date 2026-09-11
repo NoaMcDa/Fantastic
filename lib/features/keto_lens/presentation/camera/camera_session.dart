@@ -17,7 +17,7 @@ import 'package:flutter/widgets.dart';
 /// widget test is the only thing that can see this screen at all.
 ///
 /// It also keeps `package:camera` in one file, the same way
-/// `ml_kit_text_recognizer.dart` keeps ML Kit in one file.
+/// `tesseract_plugin_recognizer.dart` keeps the OCR binding in one file.
 abstract interface class CameraSession {
   /// Opens the camera and makes [buildPreview] valid.
   ///

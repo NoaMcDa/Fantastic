@@ -87,24 +87,42 @@ dependencies:
   # On-device Hebrew OCR. No network call is made during a scan, which is
   # Epic #10's first architectural invariant and CLAUDE.md's OCR rule.
   #
-  # A native-only plugin: its pubspec declares android and ios and nothing
-  # else, and google_mlkit_commons' input_image.dart carries a bare
-  # `import 'dart:io'`. That was expected to break CI's web build. It does
-  # not - dart2js ships dart:io as a library of throwing stubs, so the
-  # import compiles and fails only when called. design/m6_preflight.md
-  # Part 0 records the three spike builds that established this.
+  # google_mlkit_text_recognition was here until the platform audit. It was
+  # chosen on the rationale in design/technology.md 1 - "Hebrew is a
+  # first-class supported script" - which is false. Its script enum is
+  # latin/chinese/devanagiri/japanese/korean, there is no Hebrew model, and
+  # MlKitTextRecognizer called the bare TextRecognizer(), which defaults to
+  # latin. Apple Vision, Windows.Media.Ocr, PaddleOCR and EasyOCR have no
+  # Hebrew model either. Tesseract is the only on-device engine that does,
+  # and it is the only one that reaches every target - which is why fixing
+  # the engine and porting the feature turned out to be one change.
+  # design/m6_platform_research.md.
   #
-  # The hazard is therefore a runtime MissingPluginException in a browser,
-  # not a red gate, and #80 puts the plugin behind a conditional export on
-  # `dart.library.io` anyway - the same firewall shape as
-  # lib/core/database/database_factory.dart.
+  # Three bindings, one per platform family, each behind
+  # TextRecognitionService so no consumer names any of them:
   #
-  # There is no Hebrew script model: TextRecognitionScript is
-  # latin/chinese/devanagiri/japanese/korean, and Hebrew rides on the Latin
-  # recogniser. 0.17.1 exists; 0.13.x is what the issue specified, it
-  # resolves cleanly against riverpod 3, and nothing in M6 needs a newer
-  # API.
-  google_mlkit_text_recognition: ^0.13.0
+  #   desktop (linux/macos/windows)  dart:ffi against libtesseract  -> `ffi`
+  #   mobile  (android/ios)          flutter_tesseract_ocr
+  #   web                            tesseract.js, self-hosted in web/
+  #
+  # `ffi` is the desktop half. Nothing bundles libtesseract for desktop -
+  # TesseractFfiRecognizer opens the system library by soname and reports a
+  # missing one as ScanFailed rather than crashing, so a desktop build
+  # without Tesseract installed degrades instead of dying.
+  ffi: ^2.1.0
+
+  # The mobile half. The only published binding that ships prebuilt
+  # libtesseract for android and ios, which is the part this repo cannot
+  # build for itself.
+  #
+  # Its pubspec declares a malformed web entry
+  # (`web: default_package: FlutterTesseractOcrPlugin` - a class name where
+  # a package name belongs). That is why it is `dependency_overrides`-free
+  # but must be proven against CI step 6; see design/m6_platform_research.md
+  # for the build that settled it. The web half of our firewall never
+  # imports it - web goes through tesseract.js - so only the declaration
+  # itself can matter.
+  flutter_tesseract_ocr: ^0.4.31
 
   # Live viewfinder. Has a first-party web implementation (camera_web is a
   # declared default_package), so the tab still renders in a browser even
@@ -178,6 +196,16 @@ flutter:
   # The OFL requires the licence to travel with the font.
   assets:
     - assets/fonts/OFL.txt
+    # The Hebrew OCR model, shared by every native target: the desktop
+    # FFI half unpacks it through TessdataBundle, and flutter_tesseract_ocr
+    # reads this directory plus tessdata_config.json directly. The browser
+    # does not use it - it fetches web/tesseract/heb.traineddata instead,
+    # because tesseract.js loads over HTTP, not from the asset bundle.
+    #
+    # tessdata_fast: 961 KB integer model. tessdata_best is 3.5 MB for
+    # accuracy nobody has measured yet. design/m6_platform_research.md.
+    - assets/tessdata/heb.traineddata
+    - assets/tessdata_config.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
