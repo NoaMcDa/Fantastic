@@ -2,6 +2,7 @@ import 'package:fantastic/features/keto_lens/application/scan_orchestrator.dart'
 import 'package:fantastic/features/keto_lens/data/classifiers/ingredient_classifier_impl.dart';
 import 'package:fantastic/features/keto_lens/data/parsers/hebrew_label_parser.dart';
 import 'package:fantastic/features/keto_lens/domain/models/scan_result.dart';
+import 'package:fantastic/features/keto_lens/domain/models/serving_basis.dart';
 import 'package:fantastic/features/keto_lens/domain/models/verdict_badge.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -74,21 +75,108 @@ void main() {
           .scan('');
 
       // Tesseract returns the vowel points rather than dropping them —
-      // `שוּמֶן`, `פחמִימות` — so `HebrewTextNormaliser` is still doing real
-      // work on real output, not only on hand-written fixtures. It strips
-      // U+0591–U+05C7 and the keywords then match.
-      //
-      // **Known sensitivity, deliberately not asserted:** the same label
-      // rendered smaller came back as `שוּמֶ|` — a final nun read as a pipe —
-      // and that row is then lost entirely. Niqqud the normaliser can strip;
-      // a wrong letter it cannot. The row going missing is the *safe* failure
-      // (fat is null, never 0), but it is a failure, and it is why
-      // `design/m6_platform_research.md` Part 6 puts image pre-processing
-      // ahead of any further platform work.
+      // `שוּמֶן` — so `HebrewTextNormaliser` is still doing real work on real
+      // output, not only on hand-written fixtures. It strips U+0591–U+05C7
+      // and the keywords then match.
       final success = result as ScanSucceeded;
       expect(success.label.fatG, 24);
-      expect(success.label.netCarbsG, closeTo(62 - 2, 0.001));
       expect(success.label.proteinG, 6);
+    });
+
+    test('the carbohydrate row of a pointed label is lost, not guessed', () {
+      // **This is a deliberate, measured regression, recorded rather than
+      // hidden.** Loading `eng` beside `heb` is what makes the digit column
+      // of a real bordered nutrition table readable at all — see
+      // `wholeWheatRyeBread` below and `TessdataBundle` for the numbers. On
+      // *pointed* Hebrew it costs: the English model wins `פחמִימות` and
+      // returns `Nin nnd`, so the carbohydrate keyword is not there to match.
+      //
+      // What matters is the shape of the failure. The value is **null** —
+      // `ParsedLabel` documents null as "not found" — so `ScanResultSheet`
+      // asks the user instead of stating a figure. It is never 0, which would
+      // save silently and vanish from the day's totals.
+      //
+      // A second `heb`-only pass to fill the gap was considered and rejected:
+      // it would fill a safe null from a pass measured to be unreliable on
+      // digits, turning "the app asks" into "the app guesses". #257 is why
+      // that direction is closed. Do not "fix" this by reintroducing it.
+      expect(RealOcrFixture.pointedWafer, contains('Nin nnd'));
+
+      const parser = HebrewLabelParser();
+      expect(parser.parse(RealOcrFixture.pointedWafer).netCarbsG, isNull);
+    });
+
+    group('the whole wheat + rye bread label — issue regression', () {
+      // The label a user actually scanned, and the reason this fix exists.
+      //
+      // A bordered two-column table: numbers in the left column, Hebrew
+      // labels in the right, header `ערך תזונתי ל-100 גר' מוצר`. Under the
+      // settings that shipped before this change — `-l heb --psm 6`, no
+      // declared DPI, no pre-scaling — Tesseract returned six of its nine
+      // rows as punctuation rubble (`%- |`, `|`, `היווה`), every macro parsed
+      // to null, and `ScanOrchestrator` correctly reported
+      // `ScanFailed(notALabel)`. The pipeline was not at fault; the engine
+      // configuration was.
+      //
+      // Three independent causes, each measured on tesseract 5.3.4 against
+      // the models this app bundles:
+      //
+      //  * `psm 6` flattens a bordered table. `psm 4` keeps each row whole.
+      //  * `heb` alone cannot read an isolated column of Latin digits — it
+      //    returned 218/9/2/43/9/308 for 238/10.9/41.2/7/3.3/368, and was no
+      //    better at 4x or 6x the resolution.
+      //  * With no DPI in the file Tesseract *estimated* 631 and downscaled
+      //    internally on the strength of it.
+      //
+      // Fixing any two of the three still fails. This group is the test that
+      // would have caught the bug.
+
+      test('every macro parses, and the basis is per 100 g', () async {
+        final result = await orchestratorReturning(
+          RealOcrFixture.wholeWheatRyeBread,
+        ).scan('');
+
+        final success = result as ScanSucceeded;
+        // The label prints fat 3.3 g, carbs 41.2 g, fibre 7 g, protein 10.9 g.
+        // `ParsedLabel` carries net carbs rather than the two figures it is
+        // derived from, so 34.2 is the assertion that covers both.
+        expect(success.label.fatG, 3.3);
+        expect(success.label.netCarbsG, closeTo(41.2 - 7, 0.001));
+        expect(success.label.proteinG, 10.9);
+
+        // Without this the sheet would log per-100 g figures as if they were
+        // one serving, which is what #257 was.
+        expect(success.label.basis, ServingBasis.per100g);
+      });
+
+      test('the saturated-fat sub-row is not mistaken for total fat', () {
+        // `מתוכם שומן רווי (גרם) 0.9` sits directly below
+        // `שומנים (גרם) 3.3` and uses the same word. A parser taking the
+        // first or the nearest match without the `_fatSubRow` guard reports
+        // 0.9 — a plausible wrong number, which is the worst kind.
+        const parser = HebrewLabelParser();
+        expect(parser.parse(RealOcrFixture.wholeWheatRyeBread).fatG, 3.3);
+      });
+
+      test(
+        'a panel with no ingredient list still succeeds on macros',
+        () async {
+          // This crop is the nutrition panel only — there is no `רכיבים`
+          // heading anywhere in it. `hasMacros` is what carries the scan, and
+          // an empty ingredient list must not be read as "nothing bad here".
+          final result = await orchestratorReturning(
+            RealOcrFixture.wholeWheatRyeBread,
+          ).scan('');
+
+          final success = result as ScanSucceeded;
+          expect(success.label.ingredients, isEmpty);
+          // Nothing was readable, so nothing may be approved. The verdict
+          // records that it recognised nothing rather than showing a green
+          // tick — the distinction `IngredientVerdict.recognisedNothing`
+          // exists for.
+          expect(success.verdict.recognisedNothing, isTrue);
+        },
+      );
     });
   });
 }

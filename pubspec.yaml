@@ -147,6 +147,17 @@ dependencies:
   # 2.1.
   image_picker: ^1.1.0
 
+  # Image decode + resample, for the OCR preprocessing step in
+  # ScalingTextRecognizer. Pure Dart with no platform channels, so it adds
+  # nothing to any native build and does not need a firewall of its own; the
+  # browser half does the same job with a canvas instead and never imports it.
+  #
+  # Here because Tesseract could not read a 580x498 crop of a real nutrition
+  # panel that a user actually scanned: the rows are too short for the LSTM
+  # until the image is scaled up. OcrImagePrep holds the rule and the
+  # measurements behind it.
+  image: ^4.3.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -202,9 +213,17 @@ flutter:
     # does not use it - it fetches web/tesseract/heb.traineddata instead,
     # because tesseract.js loads over HTTP, not from the asset bundle.
     #
-    # tessdata_fast: 961 KB integer model. tessdata_best is 3.5 MB for
-    # accuracy nobody has measured yet. design/m6_platform_research.md.
+    # tessdata_fast integer models: 961 KB Hebrew, 4.0 MB English.
+    #
+    # English is loaded *beside* Hebrew, not instead of it. The Hebrew model
+    # cannot reliably read a column of bare Latin digits - on a real Israeli
+    # nutrition panel it returned 218/9/2/43/9/308 where the label printed
+    # 238/10.9/41.2/7/3.3/368, and was no better at 4x or 6x the resolution.
+    # tessdata_best/heb (3.7 MB) was measured too and is also wrong. See
+    # TessdataBundle for the full reasoning and what it costs on pointed
+    # Hebrew. design/m6_platform_research.md.
     - assets/tessdata/heb.traineddata
+    - assets/tessdata/eng.traineddata
     - assets/tessdata_config.json
 
   # An image asset can refer to one or more resolution-specific "variants", see

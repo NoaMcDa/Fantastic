@@ -285,6 +285,14 @@ fast Hebrew model. Roughly 6.6 MB if the non-SIMD core ships as a fallback.
 Note `eng.traineddata` is *larger* than `heb.traineddata` in the same repository. If labels need
 `heb+eng` (Part 6), English is the expensive half.
 
+> **[r5] Labels do need `heb+eng`, and English is indeed the expensive half.** Both models now
+> ship: 0.92 MB Hebrew + 3.92 MB English. The Hebrew model cannot read a column of bare Latin
+> digits — on a real panel it returned 218/9/2/43/9/308 where the label printed
+> 238/10.9/41.2/7/3.3/368, and more resolution did not help. `tessdata_best/heb` was measured as
+> an alternative and is also wrong, *and* drops the geresh in `גר'`, which would break
+> serving-basis detection. The browser therefore fetches ~4 MB more, same-origin. What it costs on
+> pointed Hebrew is recorded in `TessdataBundle` and in the handoff.
+
 ### Decisions this forces
 
 - **SIMD or not.** wasm SIMD needs Chrome ≥ 91, Firefox ≥ 90, **Safari ≥ 16.4**. Shipping only the
@@ -400,11 +408,25 @@ Cheaper than any port, and it helps whichever engine wins.
   reopens the `image` package decision, which `m6_preflight.md` §2.1 refused on sound grounds
   (*"Add it when something crops"*). Something would now crop.
 
+  > **[r5] Confirmed the hard way, and `image` is now a dependency.** "Materially more sensitive to
+  > input quality" turned out to understate it. Two properties of the *input*, with no bearing on
+  > the parser, were enough to make a clean label unreadable: it was small (580 px wide), and it was
+  > in colour. **Greyscale is not a nicety — handed a 4-channel or even a 3-channel buffer,
+  > Tesseract read every Hebrew row of the test label and not one digit.** `OcrImagePrep` and
+  > `ScalingTextRecognizer` are the result.
+
 - **Page-segmentation tuning.** A nutrition table is a specific layout. `--psm 6` (assume a single
   uniform block) and `--psm 4` (variable-size columns) are the two candidates, with
   `preserve_interword_spaces=1`. `flutter_tesseract_ocr` exposes these through its `args` map.
   Untuned Tesseract on a two-column label is a known weak spot, and `HebrewLabelParser` already
   handles a two-column split — so the parser and the PSM setting must be chosen together.
+
+  > **[r5] Settled, and this bullet called it.** M6 shipped `--psm 6`; a user then scanned a real
+  > bordered Israeli panel and six of its nine rows came back as punctuation. **`--psm 4` is now
+  > the setting on all three adapters.** `preserve_interword_spaces=1` was *not* adopted — see §1
+  > of the handoff, it is a regression on RTL. The "known weak spot" above was exactly right and
+  > cost a user a failed scan before it was acted on. See `m6_platform_handoff.md` §"The scan that
+  > read nothing".
 
 - **Bidi in the engine's output.** Tesseract emits Hebrew in logical order. `HebrewTextNormaliser`
   already strips U+200E/U+200F and normalises geresh variants and the decimal comma. Verify it

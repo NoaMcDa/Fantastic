@@ -1,6 +1,7 @@
 @TestOn('vm')
 library;
 
+import 'package:fantastic/features/keto_lens/data/adapters/scaling_text_recognizer.dart';
 import 'package:fantastic/features/keto_lens/data/adapters/tesseract_ffi_recognizer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -35,6 +36,42 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   const recognizer = TesseractFfiRecognizer();
   final available = recognizer.isAvailable;
+
+  // A skip is silent by design, and silence is the wrong default *here*.
+  //
+  // This is the only test in the repository that runs an OCR engine, so it is
+  // the only one that can observe what the engine actually reads. Everything
+  // else stubs the recogniser. When it skips — which it does on CI, and on
+  // any machine without libtesseract — a fully green suite says nothing
+  // whatever about whether desktop or mobile OCR works.
+  //
+  // That is not hypothetical. A change that left the prepared image in colour
+  // made Tesseract drop every digit on a label while keeping every Hebrew
+  // row, and the suite stayed green because these tests skipped. The
+  // pure-Dart guards in `scaling_text_recognizer_test.dart` now cover that
+  // specific shape, but they assert the *buffer*, not the reading, and no
+  // amount of them substitutes for running an engine.
+  //
+  // So say so, loudly, in the output of every run that does not run one.
+  if (!available) {
+    // ignore: avoid_print
+    print(
+      '\n'
+      '  ==========================================================\n'
+      '  NATIVE OCR NOT EXERCISED — libtesseract is not installed.\n'
+      '\n'
+      '  Every test in tesseract_ffi_recognizer_test.dart is being\n'
+      '  SKIPPED. A green run therefore proves NOTHING about\n'
+      '  desktop or mobile text recognition: not the page-seg mode,\n'
+      '  not the language pair, not user_defined_dpi, and not the\n'
+      '  image preparation step.\n'
+      '\n'
+      '  To actually check them:\n'
+      '    sudo apt-get install libtesseract-dev libleptonica-dev\n'
+      '    brew install tesseract leptonica\n'
+      '  ==========================================================\n',
+    );
+  }
 
   group('TesseractFfiRecognizer', () {
     // `rootBundle` needs a binding: the model is an asset, and reading it is
@@ -87,5 +124,53 @@ void main() {
       },
       skip: available ? false : 'libtesseract is not installed',
     );
+  });
+
+  group('ScalingTextRecognizer over a real engine', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+
+    // The whole native stack as the app assembles it: the scaling decorator
+    // wrapping the FFI binding, over a real libtesseract, on the real label a
+    // user could not scan. This is the only test that exercises the
+    // preprocessing step, the two-model unpack, `psm 4` and
+    // `user_defined_dpi` together — every other test stubs one of them.
+    const wrapped = ScalingTextRecognizer(TesseractFfiRecognizer());
+
+    test('reads the bordered two-column label that used to fail', () async {
+      final text = await wrapped.recognise(
+        'test/fixtures/images/whole_wheat_rye_bread_label.png',
+      );
+
+      // Substrings, not the whole string, for the reason the tahini test
+      // gives: pinning exact output turns a Tesseract upgrade into a
+      // regression. What must hold is that each row arrives with its own
+      // number — which is exactly what `psm 6` destroyed.
+      expect(text, contains('חלבונים'));
+      expect(text, contains('10.9'));
+      expect(text, contains('פחמימות'));
+      expect(text, contains('41.2'));
+      expect(text, contains('שומנים'));
+      expect(text, contains('3.3'));
+      expect(text, contains('נתרן'));
+      expect(text, contains('368'));
+    }, skip: available ? false : 'libtesseract is not installed');
+
+    test('the serving-basis header survives with its geresh', () async {
+      final text = await wrapped.recognise(
+        'test/fixtures/images/whole_wheat_rye_bread_label.png',
+      );
+
+      // `ערך תזונתי ל-100 גר' מוצר`. Two ways this has been seen to break:
+      // the old settings read `100` as `106`, and `tessdata_best/heb` drops
+      // the geresh and returns a bare `גר`. Either one leaves
+      // `HebrewLabelParser._basisPer100g` unmatched, the basis `unknown`, and
+      // the per-100 g figures unscaled — which is what #257 was.
+      expect(text, contains('100'));
+      expect(RegExp("100\\s*גר").hasMatch(text), isTrue);
+    }, skip: available ? false : 'libtesseract is not installed');
+
+    test('delegates availability rather than deciding for itself', () {
+      expect(wrapped.isAvailable, recognizer.isAvailable);
+    });
   });
 }
