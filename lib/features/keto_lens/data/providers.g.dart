@@ -124,3 +124,83 @@ final class IngredientClassifierProvider
 
 String _$ingredientClassifierHash() =>
     r'3fe5ce50504009c24ec565adeb6f45d7b488aad8';
+
+/// On-device OCR, or the stub that says it is unavailable.
+///
+/// Which one is decided at compile time by the conditional export in
+/// `adapters/text_recognizer_factory.dart`, not here and not at run time.
+/// This provider cannot name either concrete class — that is the point of
+/// the firewall.
+///
+/// `keepAlive` because it is stateless: the native recogniser it wraps is
+/// created and closed inside each `recognise` call, so nothing is held
+/// between scans.
+
+@ProviderFor(textRecognitionService)
+const textRecognitionServiceProvider = TextRecognitionServiceProvider._();
+
+/// On-device OCR, or the stub that says it is unavailable.
+///
+/// Which one is decided at compile time by the conditional export in
+/// `adapters/text_recognizer_factory.dart`, not here and not at run time.
+/// This provider cannot name either concrete class — that is the point of
+/// the firewall.
+///
+/// `keepAlive` because it is stateless: the native recogniser it wraps is
+/// created and closed inside each `recognise` call, so nothing is held
+/// between scans.
+
+final class TextRecognitionServiceProvider
+    extends
+        $FunctionalProvider<
+          TextRecognitionService,
+          TextRecognitionService,
+          TextRecognitionService
+        >
+    with $Provider<TextRecognitionService> {
+  /// On-device OCR, or the stub that says it is unavailable.
+  ///
+  /// Which one is decided at compile time by the conditional export in
+  /// `adapters/text_recognizer_factory.dart`, not here and not at run time.
+  /// This provider cannot name either concrete class — that is the point of
+  /// the firewall.
+  ///
+  /// `keepAlive` because it is stateless: the native recogniser it wraps is
+  /// created and closed inside each `recognise` call, so nothing is held
+  /// between scans.
+  const TextRecognitionServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'textRecognitionServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$textRecognitionServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<TextRecognitionService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  TextRecognitionService create(Ref ref) {
+    return textRecognitionService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(TextRecognitionService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<TextRecognitionService>(value),
+    );
+  }
+}
+
+String _$textRecognitionServiceHash() =>
+    r'ade4b940c7ee8811b441d03b91df22d029e70ec5';
