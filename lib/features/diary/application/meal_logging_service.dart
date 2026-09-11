@@ -47,7 +47,7 @@ class MealLoggingService {
   /// totals permanently wrong with nothing to detect it.
   Future<MealEntry> logMeal(MealEntry entry) async {
     final saved = await mealRepository.save(entry);
-    await _recalculateDailyLog(entry.timestamp);
+    await _recalculateDailyLog(entry.timestamp, evaluatedAt: entry.timestamp);
     return saved;
   }
 
@@ -55,12 +55,22 @@ class MealLoggingService {
   ///
   /// [date] is passed in because the entry is gone by the time the totals are
   /// recomputed — there is nothing left to read a timestamp from.
+  ///
+  /// **The streak is evaluated at the wall clock, not at [date].** Callers
+  /// pass a date-only value here — the diary holds its selected date stripped
+  /// to midnight — and handing that to the state machine dated the breach to
+  /// 00:00, so a deletion at 22:00 opened a grace period expiring at midnight
+  /// tomorrow: two hours to recover instead of twenty-four. `logMeal` has a
+  /// real instant of its own and keeps using it.
   Future<void> deleteMeal(int id, DateTime date) async {
     await mealRepository.delete(id);
-    await _recalculateDailyLog(date);
+    await _recalculateDailyLog(date, evaluatedAt: DateTime.now());
   }
 
-  Future<void> _recalculateDailyLog(DateTime date) async {
+  Future<void> _recalculateDailyLog(
+    DateTime date, {
+    required DateTime evaluatedAt,
+  }) async {
     final meals = await mealRepository.findByDate(date);
     final existing = await dailyLogRepository.findByDate(date);
 
@@ -87,7 +97,7 @@ class MealLoggingService {
     );
 
     await dailyLogRepository.save(updated);
-    await _evaluateStreak(date, updated);
+    await _evaluateStreak(date, updated, evaluatedAt);
   }
 
   /// Feeds the day's ratio to the adaptation state machine.
@@ -108,7 +118,15 @@ class MealLoggingService {
   ///   Treating that 0 as a breach would open a grace period on the most
   ///   ordinary keto morning there is, a coffee with butter and nothing
   ///   else. See `design/m3_preflight.md` §1.3.
-  Future<void> _evaluateStreak(DateTime date, DailyLog log) async {
+  ///
+  /// [evaluatedAt] is the instant the state machine reasons from: it decides
+  /// the grace-period window, which [date] alone cannot once [date] has been
+  /// stripped to midnight.
+  Future<void> _evaluateStreak(
+    DateTime date,
+    DailyLog log,
+    DateTime evaluatedAt,
+  ) async {
     if (!_isToday(date)) {
       return;
     }
@@ -119,7 +137,7 @@ class MealLoggingService {
     // The ratio the log already carries, not a second calculation — the two
     // could otherwise drift and the streak would disagree with the dashboard.
     await adaptationPhaseService.evaluateToday(
-      date,
+      evaluatedAt,
       compliant: log.ketoRatioAvg >= KetoConstants.targetKetoRatioIdeal,
     );
   }

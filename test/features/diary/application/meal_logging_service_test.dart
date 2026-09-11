@@ -529,6 +529,36 @@ void main() {
       expect(evaluated, at);
     });
 
+    // The delete path has no timestamp to read: the entry is gone, and the
+    // caller passes the diary's selected date, which is stripped to midnight.
+    // Handing *that* to the state machine dated the breach to 00:00 — so a
+    // meal deleted at 22:00 opened a grace period expiring two hours later
+    // instead of twenty-four.
+    test('a deletion is evaluated at the wall clock', () async {
+      dayHolds([
+        MealEntryFixture.fixture(
+          timestamp: todayAt(12),
+          fatG: 10,
+          netCarbsG: 30,
+          proteinG: 20,
+        ),
+      ]);
+      final before = DateTime.now();
+
+      await service.deleteMeal(1, todayAt(0));
+
+      final evaluated =
+          verify(
+                () => adaptationPhaseService.evaluateToday(
+                  captureAny(),
+                  compliant: any(named: 'compliant'),
+                ),
+              ).captured.single
+              as DateTime;
+      expect(evaluated.isBefore(before), isFalse);
+      expect(evaluated.isAfter(DateTime.now()), isFalse);
+    });
+
     // §4.1: the issue's snippet rebuilt DailyLog without ketoRatioAvg, which
     // MacroSummaryCard reads. Evaluation must not have cost the field.
     test('the saved log still carries its keto ratio', () async {

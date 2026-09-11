@@ -3,10 +3,12 @@ import 'package:fantastic/features/adaptation/data/providers.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
 import 'package:fantastic/features/adaptation/presentation/widgets/streak_ring_widget.dart';
+import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
 import 'package:fantastic/features/dashboard/data/providers.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
 import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -251,6 +253,28 @@ void main() {
         tester.getSize(find.byType(StreakRingWidget)).width,
         StreakRingWidget.diameter,
       );
+    });
+
+    // A refresh is `isLoading` with the previous value still attached, and
+    // every meal write produces one: `AddMealBottomSheet` invalidates
+    // `todaysDailyLogProvider` as soon as the save returns. Checking
+    // `isLoading` alone swapped the ring for a spinner on each save and then
+    // replayed the sweep from zero.
+    testWidgets('keeps the ring painted while it refreshes', (tester) async {
+      await pumpRing(
+        tester,
+        streak: StreakStateFixture.withStreak(4),
+        log: dayWithRatio(2),
+      );
+
+      ProviderScope.containerOf(
+        tester.element(find.byType(StreakRingWidget)),
+        listen: false,
+      ).invalidate(todaysDailyLogProvider(date));
+      await tester.pump();
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(painters(tester), isNotEmpty);
     });
   });
 }
