@@ -220,6 +220,15 @@ explicit if anyone ever formats a grace deadline.
   "Defects found after closure" below: both branches now notice an expired
   window, so the reset lands on the next evaluation whatever it is. The banner
   still reads "פחות מדקה" until then.)*
+  **[Post-M5 audit] The other half of the same gap: nothing checked
+  contiguity either.** A skipped day did not break the streak at all, so
+  `currentStreak` was a lifetime count of compliant days — three in January
+  and one in February read as four. Fixed by
+  `AdaptationPhaseService.reconcile`, which both write paths now run first and
+  which folds the expired-window rule above into the same question. **What
+  remains is only the display half**: reconciliation is applied on write, not
+  on read, so a stale number can sit on the ring until the user's next logged
+  meal.
 - **Water and electrolytes still have no logging flow** (inherited from M2), so
   the gauges read zero and every electrolyte shows a deficit.
 - **`/diary/<date>` does not exist**, so #67's calendar days are not tappable.
