@@ -319,4 +319,43 @@ void main() {
     expect(find.byKey(const Key('carbs_field')), findsOneWidget);
     expect(find.byKey(const Key('protein_field')), findsOneWidget);
   });
+
+  group('prefilled macros (#304)', () {
+    /// The sheet as the scan result opens it, with a scaled macro that carries
+    /// binary floating-point noise.
+    Future<void> pumpPrefilled(WidgetTester tester, double fatG) => pumpApp(
+      tester,
+      AddMealBottomSheet(date: date, initialFatG: fatG),
+      overrides: [mealLoggingServiceProvider.overrideWithValue(loggingService)],
+    );
+
+    String fieldText(WidgetTester tester, String key) =>
+        tester.widget<TextFormField>(find.byKey(Key(key))).controller!.text;
+
+    // The regression. `ScanResultSheet`'s macro strip displayed `0.2`, and the
+    // prefill wrote `0.17999999999999988` into the field beneath it — so the
+    // number in front of the user when they pressed save was not the number
+    // that got saved.
+    testWidgets('show the figure the sheet displayed, not float noise', (
+      tester,
+    ) async {
+      await pumpPrefilled(tester, 0.17999999999999988);
+
+      expect(fieldText(tester, 'fat_field'), '0.2');
+    });
+
+    testWidgets('keep dropping a pointless trailing .0', (tester) async {
+      await pumpPrefilled(tester, 12);
+
+      expect(fieldText(tester, 'fat_field'), '12');
+    });
+
+    testWidgets('an absent macro stays empty, never zero', (tester) async {
+      // A zero-macro meal saves without complaint and is invisible in the
+      // day's totals; empty makes the form's validator ask.
+      await pumpPrefilled(tester, 0);
+
+      expect(fieldText(tester, 'carbs_field'), '');
+    });
+  });
 }

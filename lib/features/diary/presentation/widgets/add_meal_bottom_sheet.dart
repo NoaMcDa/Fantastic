@@ -2,6 +2,7 @@ import 'package:fantastic/features/dashboard/application/providers/daily_log_pro
 import 'package:fantastic/features/diary/application/meal_logging_service.dart';
 import 'package:fantastic/features/diary/application/providers/meal_providers.dart';
 import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
+import 'package:fantastic/core/utils/numeric_input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -85,26 +86,15 @@ class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName ?? '');
-    _fatController = TextEditingController(text: _grams(widget.initialFatG));
+    _fatController = TextEditingController(
+      text: GramsText.format(widget.initialFatG),
+    );
     _carbsController = TextEditingController(
-      text: _grams(widget.initialNetCarbsG),
+      text: GramsText.format(widget.initialNetCarbsG),
     );
     _proteinController = TextEditingController(
-      text: _grams(widget.initialProteinG),
+      text: GramsText.format(widget.initialProteinG),
     );
-  }
-
-  /// A prefilled macro as the form's own validator would accept it.
-  ///
-  /// Empty for null, and without a trailing `.0` — a scanned `12` should
-  /// appear as `12`, which is what the label said.
-  static String _grams(double? value) {
-    if (value == null) {
-      return '';
-    }
-    return value == value.roundToDouble() && value.abs() < 1e9
-        ? value.toStringAsFixed(0)
-        : '$value';
   }
 
   @override
