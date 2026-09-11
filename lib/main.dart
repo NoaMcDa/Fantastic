@@ -1,4 +1,5 @@
 import 'package:fantastic/core/database/database_factory.dart';
+import 'package:fantastic/core/observers/global_error_observer.dart';
 import 'package:fantastic/core/database/database_provider.dart';
 import 'package:fantastic/core/providers/notification_providers.dart';
 import 'package:fantastic/core/router/app_router.dart';
@@ -36,6 +37,15 @@ Future<void> main() async {
     final db = await openAppDatabase();
     final container = ProviderContainer(
       overrides: [databaseProvider.overrideWithValue(db)],
+      // On the container, not on a `ProviderScope`: this app builds its
+      // container by hand and mounts it with `UncontrolledProviderScope`
+      // below, so `ProviderScope(observers:)` is not a place that exists
+      // here (#89).
+      //
+      // Constructed before `seedOnboardingGate`, so a gate-seeding failure
+      // is covered — though that call swallows its own, deliberately, for
+      // the reason stated below.
+      observers: [GlobalErrorObserver(scaffoldMessengerKey)],
     );
     // Before runApp, so the router's very first redirect already knows
     // whether this is a first launch. The one asynchronous read the gate
@@ -100,6 +110,19 @@ Future<void> main() async {
   }
 }
 
+/// The messenger [GlobalErrorObserver] raises its snackbar through.
+///
+/// A key rather than a `BuildContext`, because an observer has none: it is
+/// notified by the provider container, which knows nothing about the widget
+/// tree.
+///
+/// **`StartupFailureApp` deliberately does not carry it.** That widget is
+/// dependency-free on purpose — whatever failed in `main` must not be able to
+/// fail again there — and an error reporter is the last thing to make an
+/// exception for. The key's `currentState` is then null, which the observer
+/// treats as a silent no-op.
+final scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 class FantasticApp extends ConsumerWidget {
   const FantasticApp({super.key});
 
@@ -108,6 +131,7 @@ class FantasticApp extends ConsumerWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: MaterialApp.router(
+        scaffoldMessengerKey: scaffoldMessengerKey,
         routerConfig: ref.watch(appRouterProvider),
         theme: AppTheme.dark,
         locale: const Locale('he'),

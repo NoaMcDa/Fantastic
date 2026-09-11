@@ -123,6 +123,23 @@ void main() {
       reason: 'ElectrolytesCard skeletoned instead of reporting the failure',
     );
 
+    // The global error snackbar (#89). A unit test cannot make this
+    // assertion: riverpod 3 retries a failed provider on an exponential
+    // backoff, so over a dead store several providers fail repeatedly and a
+    // naive one-snackbar-per-failure observer queues a backlog that outlives
+    // the problem. **Exactly one, after the retries have had time to run.**
+    await pumpUntil(
+      tester,
+      find.byKey(const Key('global_error_snackbar')),
+      reason: 'no snackbar was raised for the failing providers',
+    );
+    await pumpFrames(tester, count: 60);
+    expect(
+      find.byType(SnackBar),
+      findsOneWidget,
+      reason: 'the retry backoff queued a snackbar per attempt',
+    );
+
     // The add-meal button is still there over a dead store. It is the only
     // way to log a meal from this screen, so it must not be behind any
     // provider — least of all one that is retrying.

@@ -1,4 +1,5 @@
 import 'package:fantastic/core/database/database_provider.dart';
+import 'package:fantastic/core/observers/global_error_observer.dart';
 import 'package:fantastic/features/onboarding/application/providers/onboarding_gate.dart';
 import 'package:fantastic/features/onboarding/data/providers.dart';
 import 'package:fantastic/features/onboarding/domain/models/user_profile.dart';
@@ -86,6 +87,12 @@ Future<AppUnderTest> bootApp({
 
   final container = ProviderContainer(
     overrides: [databaseProvider.overrideWithValue(db), ...overrides],
+    // `main` registers this on its container, and the harness has to as
+    // well or the global error snackbar is the one thing `main` does that no
+    // flow can reach (#89). It is not plugin-bound, so it is not one of the
+    // three steps this harness leaves out. The key is the same top-level one
+    // `FantasticApp` hands to `MaterialApp.router`.
+    observers: [GlobalErrorObserver(scaffoldMessengerKey)],
   );
   addTearDown(container.dispose);
   await seedOnboardingGate(container);
