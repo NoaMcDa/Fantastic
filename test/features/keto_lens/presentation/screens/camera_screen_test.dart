@@ -5,6 +5,8 @@ import 'package:fantastic/features/keto_lens/domain/models/scan_result.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
 import 'package:fantastic/features/keto_lens/presentation/camera/camera_controller_session.dart';
 import 'package:fantastic/features/keto_lens/presentation/camera/camera_session.dart';
+import 'package:fantastic/features/keto_lens/presentation/camera/image_picker_photo_picker.dart';
+import 'package:fantastic/features/keto_lens/presentation/camera/photo_picker.dart';
 import 'package:fantastic/features/keto_lens/presentation/screens/camera_screen.dart';
 import 'package:fantastic/features/keto_lens/presentation/widgets/scan_result_sheet.dart';
 import 'package:flutter/material.dart';
@@ -90,13 +92,34 @@ class _FakeRecognizer implements TextRecognitionService {
   Future<String> recognise(String imagePath) async => text;
 }
 
+/// A gallery that returns whatever the test put in it.
+class _FakePicker implements PhotoPicker {
+  String? path;
+  PhotoPickerException? error;
+  int calls = 0;
+
+  @override
+  Future<String?> pickFromGallery() async {
+    calls++;
+    if (error != null) {
+      throw error!;
+    }
+    return path;
+  }
+}
+
 void main() {
   late _FakeSession session;
+  late _FakePicker picker;
 
-  setUp(() => session = _FakeSession());
+  setUp(() {
+    session = _FakeSession();
+    picker = _FakePicker();
+  });
 
   List<Override> overrides({bool ocrAvailable = true, String ocrText = ''}) => [
     cameraSessionBuilderProvider.overrideWithValue(() => session),
+    photoPickerProvider.overrideWithValue(picker),
     textRecognitionServiceProvider.overrideWithValue(
       _FakeRecognizer(isAvailable: ocrAvailable, text: ocrText),
     ),
@@ -347,6 +370,104 @@ void main() {
       expect(find.text('הצילום נכשל, נסו שוב'), findsOneWidget);
       expect(find.byKey(const Key('capture_button')), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('CameraScreen gallery import', () {
+    testWidgets('the viewfinder offers a gallery button', (tester) async {
+      await pumpScreen(tester);
+
+      expect(find.byKey(const Key('gallery_button')), findsOneWidget);
+    });
+
+    testWidgets('an imported photo runs the same pipeline as a capture', (
+      tester,
+    ) async {
+      picker.path = '/tmp/from-gallery.jpg';
+      await pumpScreen(tester, ocrText: HebrewLabelFixture.tahini);
+
+      await tester.tap(find.byKey(const Key('gallery_button')));
+      await tester.pumpAndSettle();
+
+      expect(picker.calls, 1);
+      // The identical sheet a capture produces, from the identical code
+      // path - scanFile is shared, not copied.
+      expect(find.byType(ScanResultSheet), findsOneWidget);
+      expect(find.text('53.8 ג'), findsOneWidget);
+      // And the camera was not used for it.
+      expect(session.captures, 0);
+    });
+
+    testWidgets('backing out of the picker does nothing at all', (
+      tester,
+    ) async {
+      picker.path = null;
+      await pumpScreen(tester);
+
+      await tester.tap(find.byKey(const Key('gallery_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ScanResultSheet), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a refused gallery permission is reported, not thrown', (
+      tester,
+    ) async {
+      picker.error = const PhotoPickerException('denied');
+      await pumpScreen(tester);
+
+      await tester.tap(find.byKey(const Key('gallery_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('לא ניתן לפתוח את הגלריה'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the gallery button is disabled while a scan is running', (
+      tester,
+    ) async {
+      final gate = Completer<void>();
+      session.captureGate = gate;
+      await pumpScreen(tester, ocrText: HebrewLabelFixture.tahini);
+
+      await tester.tap(find.byKey(const Key('capture_button')));
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<IconButton>(find.byKey(const Key('gallery_button')))
+            .onPressed,
+        isNull,
+      );
+
+      gate.complete();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('a camera that will not open still offers the gallery', (
+      tester,
+    ) async {
+      // The real value of the fallback, and what #85's noCamera advice
+      // promises the user.
+      session.startError = const CameraSessionException(CameraProblem.noCamera);
+      picker.path = '/tmp/from-gallery.jpg';
+      await pumpScreen(tester, ocrText: HebrewLabelFixture.tahini);
+
+      expect(find.byKey(const Key('gallery_fallback_button')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('gallery_fallback_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ScanResultSheet), findsOneWidget);
+    });
+
+    testWidgets('a browser is offered no gallery either', (tester) async {
+      // OCR cannot run on a gallery photo any more than on a live one.
+      await pumpScreen(tester, ocrAvailable: false);
+
+      expect(find.byKey(const Key('gallery_fallback_button')), findsNothing);
+      expect(find.byKey(const Key('gallery_button')), findsNothing);
     });
   });
 }
