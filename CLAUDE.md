@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Fantastic** is an all-in-one keto companion app built with Flutter, targeting **all six Flutter platforms** — iOS, Android, web, macOS, Windows and Linux. Only web and Linux have been built and run in this repository; see `design/m6_platform_handoff.md` for what that means. It features on-device Hebrew label OCR, keto ratio & electrolyte tracking, adaptation phase tracking, restaurant menu analysis, recipe conversion, a biomarker/symptom diary, and a curated Israeli keto directory.
+**Fantastic** is an all-in-one keto companion app built with Flutter, targeting **all six Flutter platforms** — iOS, Android, web, macOS, Windows and Linux. All six build on CI; only **web and Linux have ever been run**. See `design/m6_platform_handoff.md` — the distinction matters, and one real defect per platform surfaced only when a real toolchain touched it. It features on-device Hebrew label OCR, keto ratio & electrolyte tracking, adaptation phase tracking, restaurant menu analysis, recipe conversion, a biomarker/symptom diary, and a curated Israeli keto directory.
 
 ## Design Documents
 
@@ -661,3 +661,41 @@ Write flows against `integration_test/helpers/app_harness.dart` — `bootApp`,
 `pumpAndSettle()`: its timeout is the **third** positional argument, not the
 first, and a screen over a broken store never settles at all because riverpod
 3 retries failed providers on a backoff.
+
+### Per-platform build workflows
+
+`ci.yml` is the gate every PR must pass; it builds **web** and nothing else.
+Five sibling workflows build the other five targets on a runner of their own
+OS, each in its own file so that changing one cannot conflict with another:
+
+| Workflow | Runner | Builds | Trigger |
+|---|---|---|---|
+| `build-android.yml` | `ubuntu-latest` | `flutter build apk` | PR + push to main |
+| `build-linux.yml` | `ubuntu-latest` | `flutter build linux` **+ a headless smoke test** | PR + push to main |
+| `build-windows.yml` | `windows-latest` (2x minutes) | `flutter build windows` | PR (paths-filtered) + push to main |
+| `build-ios.yml` | `macos-latest` (**10x minutes**) | `flutter build ios --no-codesign` | PR (paths-filtered) only |
+| `build-macos.yml` | `macos-latest` (**10x minutes**) | `flutter build macos` | PR (paths-filtered) only |
+
+**The macOS-runner jobs are deliberately not on `push`.** `design/cicd_plan.md`
+§8 records an earlier plan exceeding the free Actions tier 3x on macOS minutes
+alone; path filters plus `cancel-in-progress` are what keep that from
+recurring. Note a `paths` filter matches the **whole PR diff, not the newest
+push**, so a docs-only commit on a PR that already touched `ios/` still re-runs
+the job — `concurrency` is the per-push control, not `paths`.
+
+These are not redundant with `analyze`. Every one of the five found a defect
+that analysed clean and compiled clean on every *other* platform: a `jcenter()`
+call Gradle 9 removed, a model declared in `pubspec.yaml` but absent from the
+iOS `.app`, and library names that were simply wrong on macOS and Windows. See
+`design/m6_platform_handoff.md` §"What compiling on real runners found".
+
+**A green build job means the target assembles. It does not mean the app runs** —
+only web and Linux have ever been launched.
+
+`build-linux.yml` does go further than a compile: `tool/linux_smoke_test.sh`
+launches the built binary under `xvfb` and asserts it is alive, that the
+database file was created, and that the log has no fatal line. That last check
+needs `main` to *log* a startup failure, because all three Linux startup bugs
+were caught by `main`'s own `try/catch` and rendered as `StartupFailureApp` —
+the process stays alive and quiet, so a naive liveness check calls a dead app
+healthy.
