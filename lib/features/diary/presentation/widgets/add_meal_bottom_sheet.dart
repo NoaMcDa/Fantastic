@@ -10,23 +10,62 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Opened from the dashboard FAB. On a valid submit it logs the meal, refreshes
 /// the day's providers and closes.
 class AddMealBottomSheet extends ConsumerStatefulWidget {
-  const AddMealBottomSheet({required this.date, super.key});
+  const AddMealBottomSheet({
+    required this.date,
+    this.initialName,
+    this.initialFatG,
+    this.initialNetCarbsG,
+    this.initialProteinG,
+    super.key,
+  });
 
   /// The day the meal is logged against — today from the dashboard, the
   /// selected day from the diary.
   final DateTime date;
+
+  /// A name to open the form with, or null for an empty field.
+  ///
+  /// Added for Keto Lens (#84), which opens this sheet with the macros it
+  /// read off a label. Every prefill is optional and defaults to null, so
+  /// the dashboard and diary call sites are unchanged.
+  final String? initialName;
+
+  /// Fat in grams to open the form with, or null for an empty field.
+  ///
+  /// **Null is not zero.** A macro the scanner did not find is unknown, and
+  /// prefilling it as zero would have the user save a fat-free tahini
+  /// without noticing. An empty field makes the form's own validator ask.
+  final double? initialFatG;
+
+  /// Net carbs in grams to open the form with, or null for an empty field.
+  final double? initialNetCarbsG;
+
+  /// Protein in grams to open the form with, or null for an empty field.
+  final double? initialProteinG;
 
   /// Opens the sheet as a modal over [context].
   ///
   /// Lives here rather than at the call site so the sheet owns how it is
   /// presented: `isScrollControlled` is required for the keyboard-avoidance
   /// below to have anywhere to expand into.
-  static Future<void> show(BuildContext context, {required DateTime date}) =>
-      showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        builder: (_) => AddMealBottomSheet(date: date),
-      );
+  static Future<void> show(
+    BuildContext context, {
+    required DateTime date,
+    String? initialName,
+    double? initialFatG,
+    double? initialNetCarbsG,
+    double? initialProteinG,
+  }) => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => AddMealBottomSheet(
+      date: date,
+      initialName: initialName,
+      initialFatG: initialFatG,
+      initialNetCarbsG: initialNetCarbsG,
+      initialProteinG: initialProteinG,
+    ),
+  );
 
   @override
   ConsumerState<AddMealBottomSheet> createState() => _AddMealBottomSheetState();
@@ -34,13 +73,39 @@ class AddMealBottomSheet extends ConsumerStatefulWidget {
 
 class _AddMealBottomSheetState extends ConsumerState<AddMealBottomSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _fatController = TextEditingController();
-  final _carbsController = TextEditingController();
-  final _proteinController = TextEditingController();
+  late final TextEditingController _nameController;
+  late final TextEditingController _fatController;
+  late final TextEditingController _carbsController;
+  late final TextEditingController _proteinController;
 
   bool _saving = false;
   String? _saveError;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialName ?? '');
+    _fatController = TextEditingController(text: _grams(widget.initialFatG));
+    _carbsController = TextEditingController(
+      text: _grams(widget.initialNetCarbsG),
+    );
+    _proteinController = TextEditingController(
+      text: _grams(widget.initialProteinG),
+    );
+  }
+
+  /// A prefilled macro as the form's own validator would accept it.
+  ///
+  /// Empty for null, and without a trailing `.0` — a scanned `12` should
+  /// appear as `12`, which is what the label said.
+  static String _grams(double? value) {
+    if (value == null) {
+      return '';
+    }
+    return value == value.roundToDouble() && value.abs() < 1e9
+        ? value.toStringAsFixed(0)
+        : '$value';
+  }
 
   @override
   void dispose() {

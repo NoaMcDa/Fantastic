@@ -1,10 +1,16 @@
 import 'package:fantastic/core/router/app_shell.dart';
-import 'package:fantastic/features/adaptation/presentation/adaptation_placeholder.dart';
+import 'package:fantastic/features/adaptation/presentation/screens/phase_detail_screen.dart';
 import 'package:fantastic/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:fantastic/features/diary/presentation/screens/diary_screen.dart';
 import 'package:fantastic/features/directory/presentation/directory_placeholder.dart';
-import 'package:fantastic/features/keto_lens/presentation/keto_lens_placeholder.dart';
+import 'package:fantastic/features/keto_lens/presentation/screens/camera_screen.dart';
 import 'package:fantastic/features/onboarding/presentation/onboarding_placeholder.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
+import 'package:fantastic/features/onboarding/application/providers/onboarding_gate.dart';
+import 'package:fantastic/features/onboarding/domain/models/onboarding_data.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen2.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen3.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen4.dart';
 import 'package:fantastic/features/profile/presentation/profile_placeholder.dart';
 import 'package:fantastic/features/recipe/presentation/recipe_placeholder.dart';
 import 'package:fantastic/features/restaurant/presentation/restaurant_placeholder.dart';
@@ -31,17 +37,48 @@ const int kOnboardingStepCount = 4;
 
 @Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) => GoRouter(
+  // '/' and not '#74''s `initialLocation: '/dashboard'`: the tab shell
+  // registers the dashboard at '/', `kTabPaths` lists it, and AppShell's
+  // active-tab matching keys on it. '/dashboard' exists only as an alias
+  // that redirects here (`design/m4_preflight.md` §5.2).
   initialLocation: '/',
+  // The first-launch gate (#74). Synchronous, and reading a value seeded
+  // before `runApp` — see `OnboardingGate` for why an awaited redirect
+  // cannot ship.
+  //
+  // The second clause is not in the issue and is needed: without it a
+  // returning user who deep-links into the flow runs it again and
+  // overwrites the targets they already set.
+  redirect: (_, state) {
+    final completed = ref.read(onboardingGateProvider);
+    final onOnboarding = state.matchedLocation.startsWith('/onboarding');
+    if (!completed && !onOnboarding) {
+      return '/onboarding/1';
+    }
+    if (completed && onOnboarding) {
+      return '/';
+    }
+    return null;
+  },
   routes: [
     ShellRoute(
       builder: (context, state, child) => AppShell(child: child),
       routes: [
         GoRoute(path: '/', builder: (_, _) => const DashboardScreen()),
-        GoRoute(path: '/lens', builder: (_, _) => const KetoLensPlaceholder()),
+        GoRoute(path: '/lens', builder: (_, _) => const CameraScreen()),
         GoRoute(path: '/diary', builder: (_, _) => const DiaryScreen()),
         GoRoute(
           path: '/adaptation',
-          builder: (_, _) => const AdaptationPlaceholder(),
+          builder: (_, _) => const PhaseDetailScreen(),
+          routes: [
+            // #64's badge pushes '/adaptation/phase'. The tab already *is*
+            // the phase screen, so rather than registering a second copy
+            // outside the shell — which would lose the tab bar and stack a
+            // duplicate on top of itself — the child path redirects onto the
+            // tab. Kept as a child route so AppShell's prefix matching still
+            // resolves it to the adaptation tab.
+            GoRoute(path: 'phase', redirect: (_, _) => '/adaptation'),
+          ],
         ),
         GoRoute(
           path: '/profile',
@@ -67,8 +104,20 @@ GoRouter appRouter(Ref ref) => GoRouter(
     // tab bar. #69–#72 replace the placeholder with the real screens.
     GoRoute(
       path: '/onboarding/:step',
+      // Screens 3 and 4 are pushed with the previous screens' answers in
+      // `extra`, and a step reached without them cannot render. Rather than
+      // crash on a deep link — or on a browser reload, which drops `extra`
+      // because it is not serialisable — the flow restarts at step 1. Same
+      // policy as `onboardingStep`'s clamp, for the same reason.
+      redirect: (_, state) =>
+          onboardingStepHasData(
+            onboardingStep(state.pathParameters),
+            state.extra,
+          )
+          ? null
+          : '/onboarding/1',
       builder: (_, state) =>
-          OnboardingPlaceholder(step: onboardingStep(state.pathParameters)),
+          onboardingScreen(onboardingStep(state.pathParameters), state.extra),
     ),
     // Downstream issues address the dashboard as '/dashboard' (see #74's
     // `initialLocation`), while the tab shell registers it as '/'. Keep '/'
@@ -92,6 +141,38 @@ int onboardingStep(Map<String, String> pathParameters) {
   }
   return parsed;
 }
+
+/// Whether [step] can be rendered with the [extra] it was navigated with.
+///
+/// Screens 3 and 4 take the previous screens' answers as required
+/// constructor arguments, so a step reached without them has nothing to
+/// build. The route redirects such a step to the start of the flow.
+@visibleForTesting
+bool onboardingStepHasData(int step, Object? extra) => switch (step) {
+  3 => extra is PartialOnboardingData,
+  4 => extra is OnboardingData,
+  _ => true,
+};
+
+/// The screen for a 1-based onboarding [step], given its navigation [extra].
+///
+/// A switch rather than four `GoRoute`s because the flow is one route with a
+/// path parameter, which is what `#69`-`#72` were written against. Steps the
+/// milestone has not replaced yet still render `OnboardingPlaceholder`, so
+/// the flow stays reachable end to end while it is being built.
+///
+/// A step whose `extra` is missing or of the wrong type falls through to the
+/// placeholder here, but the route's `redirect` means it is never actually
+/// reached — the two are kept consistent by
+/// `onboardingStepHasData`.
+@visibleForTesting
+Widget onboardingScreen(int step, Object? extra) => switch (step) {
+  1 => const OnboardingScreen1(),
+  2 => const OnboardingScreen2(),
+  3 when extra is PartialOnboardingData => OnboardingScreen3(partial: extra),
+  4 when extra is OnboardingData => OnboardingScreen4(data: extra),
+  _ => OnboardingPlaceholder(step: step),
+};
 
 class _NotFoundScreen extends StatelessWidget {
   const _NotFoundScreen();

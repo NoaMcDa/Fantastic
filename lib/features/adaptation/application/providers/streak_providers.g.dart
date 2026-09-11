@@ -94,8 +94,7 @@ String _$streakStateHash() => r'4e9494aaec2de53b731142bd121ad4d82855669f';
 /// in, not a placeholder.
 ///
 /// Chained off [streakStateProvider] rather than subscribing to the repository
-/// again: one subscription, one source of truth, and re-emitting on every
-/// write comes for free.
+/// a second time, so both read one stream and cannot disagree.
 
 @ProviderFor(currentPhase)
 const currentPhaseProvider = CurrentPhaseProvider._();
@@ -112,8 +111,7 @@ const currentPhaseProvider = CurrentPhaseProvider._();
 /// in, not a placeholder.
 ///
 /// Chained off [streakStateProvider] rather than subscribing to the repository
-/// again: one subscription, one source of truth, and re-emitting on every
-/// write comes for free.
+/// a second time, so both read one stream and cannot disagree.
 
 final class CurrentPhaseProvider
     extends
@@ -135,8 +133,7 @@ final class CurrentPhaseProvider
   /// in, not a placeholder.
   ///
   /// Chained off [streakStateProvider] rather than subscribing to the repository
-  /// again: one subscription, one source of truth, and re-emitting on every
-  /// write comes for free.
+  /// a second time, so both read one stream and cannot disagree.
   const CurrentPhaseProvider._()
     : super(
         from: null,
@@ -163,4 +160,4 @@ final class CurrentPhaseProvider
   }
 }
 
-String _$currentPhaseHash() => r'f816e1b72479e15e94956447ea2d314a7a360d92';
+String _$currentPhaseHash() => r'b61cc2f443eb5a5d2efc0fdbab8fd1356e8f41ea';

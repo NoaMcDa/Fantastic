@@ -137,4 +137,26 @@ void main() {
       );
     });
   });
+
+  // `CLAUDE.md` §Local Persistence: every number is decoded through `num`.
+  // IndexedDB hands JSON numbers back without the int/double distinction the
+  // VM keeps, and sembast validates nothing on write — so a codec mistake
+  // surfaces on *read*, in a browser, on a record already stored.
+  group('SymptomLogMapper.fromRecord number decoding', () {
+    test('decodes scores that come back as doubles', () {
+      final log = SymptomLogMapper.fromRecord(20260909, {
+        'date': DateTime(2026, 9, 9).millisecondsSinceEpoch.toDouble(),
+        'energyScore': 1.0,
+        'clarityScore': 2.0,
+        'hungerScore': 3.0,
+        'physicalScore': 4.0,
+        'moodScore': 5.0,
+        'notes': null,
+      });
+
+      expect(log.energyScore, 1);
+      expect(log.moodScore, 5);
+      expect(log.date, DateTime(2026, 9, 9));
+    });
+  });
 }

@@ -2,6 +2,7 @@ import 'package:fantastic/features/adaptation/data/repositories/sembast_streak_r
 import 'package:fantastic/features/dashboard/data/repositories/sembast_daily_log_repository.dart';
 import 'package:fantastic/features/diary/data/repositories/sembast_meal_repository.dart';
 import 'package:fantastic/features/diary/data/repositories/sembast_symptom_log_repository.dart';
+import 'package:fantastic/features/onboarding/data/repositories/sembast_user_profile_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The successor to the `appIsarSchemas` registration assertions.
@@ -19,6 +20,7 @@ void main() {
       'daily_logs': dailyLogsStore,
       'symptom_logs': symptomLogsStore,
       'streak_state': streakStateStore,
+      'user_profile': userProfileStore,
     };
 
     test('every feature store has its expected name', () {

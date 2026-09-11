@@ -123,6 +123,32 @@ void main() {
         throwsA(isA<AssertionError>()),
       );
     });
+
+    // The trap `StreakState.copyWith` and `UserProfile.copyWith` both carry
+    // a flag for: `notes ?? this.notes` resolves a null argument to the
+    // existing value, so a bare null cannot clear the field.
+    test('a bare null does not clear notes', () {
+      expect(_log(notes: 'tired').copyWith(notes: null).notes, 'tired');
+    });
+
+    test('clearNotes clears them', () {
+      expect(_log(notes: 'tired').copyWith(clearNotes: true).notes, isNull);
+    });
+
+    test('clearNotes wins over a value passed alongside it', () {
+      final original = _log(notes: 'tired');
+      final copy = original.copyWith(notes: 'fresh', clearNotes: true);
+
+      expect(copy.notes, isNull);
+    });
+
+    test('clearNotes leaves every other field alone', () {
+      final original = _log(moodScore: 2, notes: 'tired');
+      final copy = original.copyWith(clearNotes: true);
+
+      expect(copy.moodScore, 2);
+      expect(copy.date, _date);
+    });
   });
 
   group('SymptomLog equality', () {

@@ -298,31 +298,32 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## Milestone 4 — Onboarding Flow
 
-- [ ] **Build `OnboardingScreen1` — Welcome with app illustration and CTA**
+- [x] **Build `OnboardingScreen1` — Welcome with app illustration and CTA**
   - "בואו נתחיל" CTA navigates to screen 2
   - Acceptance: renders in RTL; CTA is tappable
 
-- [ ] **Build `OnboardingScreen2` — About You (sex, age, weight, height)**
+- [x] **Build `OnboardingScreen2` — About You (sex, age, weight, height)**
   - Hebrew labels; numeric keyboards for weight/height
   - "כבר בקטו?" toggle — if yes, shows date picker to seed streak
   - Acceptance: widget test — all fields validate; toggle shows/hides date picker
 
-- [ ] **Build `OnboardingScreen3` — Goal selection (3 cards, single-select)**
+- [x] **Build `OnboardingScreen3` — Goal selection (3 cards, single-select)**
   - Weight loss / Energy & focus / Medical condition management
   - Acceptance: widget test — exactly one card selected at a time
 
-- [ ] **Build `OnboardingScreen4` — Calculated targets (editable)**
+- [x] **Build `OnboardingScreen4` — Calculated targets (editable)**
   - Auto-computes fat/carb/protein targets from body stats; fields are editable
   - "התחל את המסע" CTA saves profile and navigates to dashboard
   - Acceptance: widget test — defaults populated; editable; saves correctly
 
-- [ ] **Implement `OnboardingService` in `dashboard/application/`**
+- [x] **Implement `OnboardingService` in `onboarding/application/`**
   - Computes macro targets from sex, age, weight, height, goal
   - Seeds `StreakState` from past keto start date if provided
   - Acceptance: unit tests — target calculation correct for male/female, different goals
 
-- [ ] **Gate app entry — show onboarding on first launch; skip on subsequent launches**
-  - Use a `hasCompletedOnboarding` flag persisted in Isar (or `shared_preferences`)
+- [x] **Gate app entry — show onboarding on first launch; skip on subsequent launches**
+  - The first-launch flag is the existence of the `user_profile` sembast record —
+    no `shared_preferences`, no second store. See `design/m4_preflight.md` §4
   - Acceptance: onboarding shown exactly once; removed on reinstall
 
 ---
@@ -499,11 +500,11 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ### M10 — Recipe Converter (#265) — *ready now*
 - [ ] Define substitution rule engine with common Hebrew/English ingredient mappings
-- [ ] Build `RecipeConverterScreen` — paste-only input (scan deferred with M6); side-by-side output
+- [ ] Build `RecipeConverterScreen` — paste input; side-by-side output. Scan input is now possible (M6 shipped) but stays out of M10's scope
 - [ ] Build `RecipeLibraryScreen` — saved converted recipes grid
 
-### M12 — Menu Analyzer (#267) — *blocked: M6 Keto Lens*
-- [ ] Implement `MenuAnalyzerService` — OCR → dish extraction → keto suitability per dish
+### M12 — Menu Analyzer (#267) — *unblocked: M6 shipped, but re-spec needed*
+- [ ] Implement `MenuAnalyzerService` — OCR → dish extraction → keto suitability per dish. **Re-spec first:** #121/#122 are written against `MlKitTextRecognizer`, which no longer exists — ML Kit was removed and Tesseract now backs every platform (`design/m6_platform_handoff.md`)
 - [ ] Build `MenuAnalyzerScreen` — camera input → dish list with badges and modification tips
 
 ### M14 — Backup & Restore (#269) — *needs re-spec for sembast + web*

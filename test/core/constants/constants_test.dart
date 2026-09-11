@@ -79,4 +79,80 @@ void main() {
       }
     });
   });
+
+  group('IngredientRules Hebrew lists', () {
+    const hebrewLists = [
+      IngredientRules.forbiddenSeedOilsHebrew,
+      IngredientRules.insulinSpikingSweetenersHebrew,
+      IngredientRules.cleanApprovedFatsHebrew,
+      IngredientRules.cleanSweetenersHebrew,
+      IngredientRules.unspecifiedVegetableOils,
+      IngredientRules.cleanOilSources,
+    ];
+
+    test('every Hebrew list is non-empty and free of duplicates', () {
+      for (final list in hebrewLists) {
+        expect(list, isNotEmpty);
+        expect(list.toSet().length, list.length);
+      }
+    });
+
+    test('no entry is blank or carries surrounding whitespace', () {
+      for (final list in hebrewLists) {
+        for (final entry in list) {
+          expect(entry.trim(), entry, reason: 'untrimmed entry: "\$entry"');
+          expect(entry, isNotEmpty);
+        }
+      }
+    });
+
+    test('every entry is lowercase', () {
+      // A no-op for Hebrew, which is caseless, but the Latin entries in
+      // `unspecifiedVegetableOils` and `cleanOilSources` are matched
+      // against lowercased input like every other rule.
+      for (final list in hebrewLists) {
+        for (final entry in list) {
+          expect(entry, entry.toLowerCase());
+        }
+      }
+    });
+
+    test('the combined lists hold every entry from both languages', () {
+      expect(
+        IngredientRules.allForbiddenSeedOils,
+        hasLength(
+          IngredientRules.forbiddenSeedOils.length +
+              IngredientRules.forbiddenSeedOilsHebrew.length,
+        ),
+      );
+      expect(
+        IngredientRules.allInsulinSpikingSweeteners,
+        hasLength(
+          IngredientRules.insulinSpikingSweeteners.length +
+              IngredientRules.insulinSpikingSweetenersHebrew.length,
+        ),
+      );
+      expect(
+        IngredientRules.allCleanIngredients,
+        hasLength(
+          IngredientRules.cleanApprovedFats.length +
+              IngredientRules.cleanApprovedFatsHebrew.length +
+              IngredientRules.cleanSweeteners.length +
+              IngredientRules.cleanSweetenersHebrew.length,
+        ),
+      );
+    });
+
+    test('no rule appears in more than one combined list', () {
+      // Overlap would make the classifier's severity order observable, and
+      // the order is an implementation detail.
+      final forbidden = IngredientRules.allForbiddenSeedOils.toSet();
+      final caution = IngredientRules.allInsulinSpikingSweeteners.toSet();
+      final clean = IngredientRules.allCleanIngredients.toSet();
+
+      expect(forbidden.intersection(caution), isEmpty);
+      expect(forbidden.intersection(clean), isEmpty);
+      expect(caution.intersection(clean), isEmpty);
+    });
+  });
 }

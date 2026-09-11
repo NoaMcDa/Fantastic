@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Fantastic** is an all-in-one keto companion app built with Flutter, targeting iOS and the web. It features on-device Hebrew label OCR, keto ratio & electrolyte tracking, adaptation phase tracking, restaurant menu analysis, recipe conversion, a biomarker/symptom diary, and a curated Israeli keto directory.
+**Fantastic** is an all-in-one keto companion app built with Flutter, targeting **all six Flutter platforms** — iOS, Android, web, macOS, Windows and Linux. Only web and Linux have been built and run in this repository; see `design/m6_platform_handoff.md` for what that means. It features on-device Hebrew label OCR, keto ratio & electrolyte tracking, adaptation phase tracking, restaurant menu analysis, recipe conversion, a biomarker/symptom diary, and a curated Israeli keto directory.
 
 ## Design Documents
 
@@ -23,6 +23,16 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/m2_preflight.md` | **M2 pre-flight corrections** — riverpod-2 `Ref` types, a `DailyLog.empty` factory that does not exist, and the `DailyLog` dashboard move that M2's text never picked up. Also lists the shipped model fields and repository methods M2 must code against. **Read before picking up any M2 issue** |
 | `design/m2_handoff.md` | **M2 handoff** — M2 shipped and the app became usable; the five conventions M3 inherits (the `pump_app` widget-test harness, date-only family keys held in state, parameters over un-overridable providers); **the RTL traps that cost the most time** (a horizontal `ListView` already starts right; `endToStart` drags *rightward*); Flutter/riverpod gotchas (`Dismissible` vs async delete, `AnimatedCrossFade` keeping both children, `Override` unexported by `flutter_riverpod`); coverage at closure; the gaps M3/M4/M5 inherit. **Read before picking up M3** |
 | `design/m3_preflight.md` | **M3 pre-flight corrections** — all twelve M3 issues audited. Four defects that compile and ship wrong behaviour: `copyWith(gracePeriodEnd: null)` silently does not clear, the streak increments per *meal* not per day, a fat-only first meal registers as a breach, and the phase boundary is off by one. Plus the canonical phase thresholds (8 and 28), two routes that do not exist, and the two places the issue text would regress M2. **Read before picking up any M3 issue** |
+| `design/m3_handoff.md` | **M3 handoff** — M3 is code-complete and was driven end-to-end in a browser; **the riverpod-3 async-error fact that cost three issues** (a provider that fails before producing a value is `AsyncLoading` *with* an error, so `isLoading`-first checks hang forever); the eight conventions M4 inherits (phase thresholds 8/28, never `null` to clear a `StreakState` field, Sunday-first weeks, `TextDirection.ltr` on digit runs); why every notification call is a no-op on web; and the gaps M4/M5/M7 inherit. **Read before picking up M4** |
+| `design/m4_preflight.md` | **M4 pre-flight corrections** — all six M4 issues audited. Three defects that compile and ship broken behaviour: the flow's last screen bounces straight back into onboarding forever, an `await ...future` inside a go_router redirect can hang the app on a blank screen, and seeding `StreakState.initial()` destroys the null first-launch sentinel. Plus **why `shared_preferences` is not added** (a `user_profile` sembast store replaces it), the seven symbols no issue defines, the corrected build order (#73 first), and the two Epic #8 DoD items no child issue covers. **Read before picking up any M4 issue** |
+| `design/m4_handoff.md` | **M4 handoff** — M4 is code-complete and the app has a first launch. What the audit found (the flow's own last screen bounced the user back into onboarding forever; `await provider.future` inside a go_router redirect can hang the app on a blank screen; why `shared_preferences` was refused). The eight conventions M5–M7 inherit (record-existence as the first-launch flag, a synchronous gate seeded in `main`, one numeric parse for the whole flow, whole-day arithmetic through UTC midnights). Gotchas that cost the most: **a conflicted PR gets no CI run at all**, and **sembast futures never complete inside `testWidgets`**. Epic #8's DoD, two of whose six items had no child issue. **Read before picking up M7** |
+| `design/m5_preflight.md` | **M5 pre-flight corrections** — all four M5 issues audited. The fifth symptom scale is **`moodScore` / מצב רוח**, not the brain fog every issue names — a rename alone ships a mood score under a brain-fog label. Also: `.when(loading:)` hides a failed read forever, the save sheet silently erases the user's note, `#75`'s two failure tests cannot be written as specified, the feature directory is `diary/` not `symptom_diary/`, and the build order is #75 → #77 → #76 → #78. **Read before picking up any M5 issue** |
+| `design/m5_handoff.md` | **M5 handoff** — M5 is code-complete and was driven end-to-end in a browser, including a page reload and a past-date check. What the audit found (a field the model does not have, whose label the compiler cannot catch; a save that erased the user's note). The eight conventions M6/M7 inherit (one enum owns the five scales; `hasError` before `isLoading`; a failed read and an empty day must not look alike; assert against what is *painted*). Gotchas: `AsyncValue.when` is loading-first, a sliver child below the fold has no element at all, Flutter web's RTL semantics rects are offset from the viewport. **Epic #9's DoD is fully met and the Epic is closed.** Known gaps M7 and v1.1 inherit. **Read before picking up M7** |
+| `design/m6_preflight.md` | **M6 pre-flight corrections** — all nine M6 issues audited. **Part 0 settles the ML Kit / web-build question empirically**: `dart:io` compiles for dart2js as throwing stubs, so the naive import does *not* break CI — the hazard is a runtime `MissingPluginException`, and the conditional-export firewall is built anyway (and why). Five defects that compile and ship wrong behaviour, the worst being a failed scan reported as **Clean Keto**; the five reasons #81's Hebrew regexes never match a real Israeli label; `permission_handler` and `image` decisions; a circular dependency graph. **Read before picking up any M6 issue** |
+| `design/m6_handoff.md` | **M6 handoff** — Keto Lens shipped; **why the ML Kit / web risk was real but mis-located** (`dart:io` compiles for dart2js as throwing stubs; the hazard is a runtime `MissingPluginException`) and the product decision that follows: **the lens tab cannot scan in a browser and says so**. The nine conventions M7 inherits (one plugin per adapter behind an interface, failure as a sealed value, a clean badge is not evidence); the gotchas that cost the most (**an indeterminate spinner on a tab screen hangs `widget_test.dart`**, clearing a busy flag after awaiting a modal, a stale `build_runner` cache skipping a file silently); and an explicit list of **what is unverified** — there is no camera, device or browser here, so no accuracy claim has been measured. **Read before picking up M7** |
+| `design/m6_platform_research.md` | **M6 platform research** — what it would take to run Keto Lens on all six Flutter targets, and **the finding that reframes the question: ML Kit has no Hebrew script model** (the enum is `latin, chinese, devanagiri, japanese, korean`), so the shipped iOS scanner asks a Latin recogniser to read Hebrew and most likely returns `ScanFailed(notALabel)` on every real label. Apple Vision, WinRT OCR, PaddleOCR and EasyOCR have no Hebrew either; **Tesseract + `heb.traineddata` is the only Hebrew-capable engine, and it reaches every target** — so fixing the engine and porting the feature are one change. Measured asset budget, correcting `technology.md`'s "~50 MB" Hebrew model by ~50x (the handoff has the figures that actually shipped), why cloud OCR stays rejected, why desktop's blocker is the camera and not OCR, and **the prerequisite for all of it: a corpus of real Israeli labels, which needs no app and no device**. **Read before any M6 engine or platform work** |
+| `design/m6_platform_handoff.md` | **M6 platform handoff** — what shipped when the research was implemented: ML Kit removed, **Tesseract on all six targets**, and **the lens tab now scans in a browser** (0.5 s, zero external requests) — reversing M6's central product decision. The six things only running it revealed: **`preserve_interword_spaces=1` destroys RTL Hebrew spacing** (the research doc had recommended setting it), three fatal Linux startup bugs that all rendered the *database* error screen, `flutter create` dropping `ios`+`web` from `.metadata` again, and a Dart `'''` literal that cannot hold geresh-terminated OCR output. The seven conventions inherited, and **an explicit verified/not-verified line** — four platforms are configured but have never been built. **Read before any further platform or OCR work** |
+| `design/mvp_handoff.md` | **MVP handoff** — the cross-milestone view. **All five MVP features ship (M0–M6 complete).** The audit pattern that defined the project (the issue text was never right, once, in seven milestones) and the worst defect each audit caught; **the riverpod-3 async-error fact that cost four milestones in four disguises**; the consolidated open-defect list (#257 is the highest-value fix); what has never been verified — no device, no camera, and **nothing has ever read a real Hebrew label**; and the four M7 issues that are already done or obsolete. **Read before M7 or M8** |
 | `design/v1_1_split.md` | **v1.1 split proposal** — why the single `v1.1 — Post-MVP Backlog` milestone fails the project's own milestone definition, the seven capability groups it should become, the stale content it carries (Isar references after the sembast swap, an iOS-only backup design after web shipped, a mis-identified map SDK), and the work required to execute. **Executed** — labels, seven Epic issues (#264–#270), all 26 issues
 re-filed and rewritten. GitHub milestone objects were **deliberately not created** — labels + Epic
 issues + sub-issues carry the grouping, and the 26 issues still show the stale `v1.1` milestone, so
@@ -126,6 +136,15 @@ flutter run -d <device-id>
 # Build for iOS release
 flutter build ios --release
 
+# Desktop. Linux and Windows need a system Tesseract for the lens to scan;
+# without it the tab says so and the rest of the app works normally.
+#   sudo apt-get install libtesseract-dev libleptonica-dev   # Debian/Ubuntu
+#   brew install tesseract leptonica                          # macOS
+flutter build linux --release
+flutter build macos --release
+flutter build windows --release
+flutter build apk --release
+
 # Run all tests
 flutter test
 
@@ -137,6 +156,16 @@ flutter test test/path/to/test_file.dart
 
 # Run tests with coverage
 flutter test --coverage
+
+# Run the browser-only tests (the dart:js_interop binding for web OCR).
+# These are @TestOn('browser') and are skipped by a plain `flutter test`.
+CHROME_EXECUTABLE=/path/to/chrome flutter test --platform chrome \
+  test/features/keto_lens/data/adapters/tesseract_js_text_recognizer_test.dart
+
+# Regenerate the captured real-OCR fixtures. Needs tesseract on PATH and a
+# Pillow built with Raqm. Never hand-edit real_ocr_fixture.dart - its whole
+# value is that no hand touched it.
+./tool/capture_ocr_fixtures.sh
 
 # Analyze code (lint)
 flutter analyze
@@ -183,12 +212,21 @@ Shared code (constants, utilities, theming) lives in `lib/core/`.
 - No widget reads the database directly — always through a repository interface
 - No new provider calls the database directly — always through a service
 - **No storage error escapes `data/`** — every repository method wraps its storage call in `guardPersistence`, so failures leave as `PersistenceException`. A layer above catching a `DatabaseException` is the same leak as importing one
-- **No `dart:io` and no `path_provider` outside `lib/core/database/database_factory_io.dart`** — that file is the web build's only firewall against them, and `flutter analyze` cannot catch a breach. CI's `flutter build web` step is what does
+- **Native-only code stays behind a conditional-export firewall.** There are two, and
+  nothing outside them may import what they wrap: `lib/core/database/database_factory.dart`
+  (`path_provider`, the io/web sembast factories) and
+  `lib/features/keto_lens/data/adapters/text_recognizer_factory.dart` (ML Kit).
+  Each exports an `_io` and a `_web` implementation on `dart.library.io`.
+  **`dart:io` itself is not the hazard** — M6 established empirically that dart2js
+  compiles it as a library of throwing stubs, so a naive import builds cleanly and
+  then throws `MissingPluginException` in the browser at run time. `flutter analyze`
+  catches neither. See `design/m6_preflight.md` Part 0
 
 ### Features
 | Feature | Directory |
 |---|---|
 | Dashboard & macro tracking | `lib/features/dashboard/` |
+| Onboarding & user profile | `lib/features/onboarding/` |
 | Keto Lens (Hebrew OCR scanner) | `lib/features/keto_lens/` |
 | Diary (meals, symptoms, biomarkers) | `lib/features/diary/` |
 | Adaptation phase & streak | `lib/features/adaptation/` |
@@ -196,7 +234,14 @@ Shared code (constants, utilities, theming) lives in `lib/core/`.
 | Recipe converter | `lib/features/recipe/` |
 | Israeli keto directory | `lib/features/directory/` |
 
+`lib/features/profile/` is still a placeholder — the Profile tab has no screen yet.
+
 ## MVP Scope
+
+**All five MVP features are shipped (M0–M6 complete).** Only M7 (polish) and
+M8 (CI & integration) remain inside the MVP boundary — see
+`design/mvp_handoff.md` for the consolidated state, the open defects and what
+has never been verified.
 
 The MVP (see `design/mvp.md`) ships exactly these 5 features:
 1. **Keto Lens** — Hebrew OCR label scanner with Clean/Caution/Non-Keto badge
@@ -239,6 +284,7 @@ in a named store, addressed by an `int` key.
 | `DailyLog` — net carbs, fats, protein, water, electrolytes (Na/K/Mg) | `daily_logs` | `dateIndex(date)` |
 | `SymptomLog` — energy, clarity, hunger, physical, mood (1–5 scales) | `symptom_logs` | `dateIndex(date)` |
 | `StreakState` — current/highest streak, phase, grace-period state | `streak_state` | `StreakStateMapper.singletonId` (0) |
+| `UserProfile` — sex, age, weight, height, goal, macro targets, keto start date | `user_profile` | `UserProfileMapper.singletonId` |
 
 **Keying a one-record-per-day collection on its own date is what makes `save` an
 upsert.** Isar needed `@Index(unique: true)` plus the generated `putByDateIndex`
@@ -276,6 +322,15 @@ sembast is schemaless: nothing validates a record on the way in, so a codec
 mistake surfaces as a runtime failure on *read*. That is why every `toRecord`
 test asserts the emitted map is sembast-legal.
 
+**The database file lives in a different directory on mobile and desktop.**
+Mobile keeps the app-documents directory — it is what iOS backs up, and it is
+where every existing install already has its data. Desktop uses the
+application-support directory, because `path_provider_linux` implements
+`getApplicationDocumentsDirectory()` by shelling out to `xdg-user-dir`, which a
+minimal system does not have; the call then throws
+`MissingPlatformDirectoryException` and the app dies before its first real
+frame. Found by running the Linux build — no test calls it.
+
 **The database is opened once, in `main.dart`, and injected.**
 `lib/core/database/database_factory.dart` conditionally exports
 `database_factory_io.dart` (path_provider + `databaseFactoryIo`) or
@@ -292,18 +347,78 @@ The guard catches `Object`, not `Exception`. sembast's own `DatabaseException` d
 
 ## OCR & ML
 
-Uses `google_mlkit_text_recognition` for on-device Hebrew text recognition — no network call is made for OCR. Pipeline:
+**Shipped in M6, re-engined for every platform since.** On-device Hebrew text
+recognition via **Tesseract** — no network call is made during a scan, and Epic
+#10's first architectural invariant forbids adding one.
+
+**ML Kit was removed, and the reason matters: it has no Hebrew script model.**
+Its enum is `latin, chinese, devanagiri, japanese, korean`, and the adapter was
+calling the bare `TextRecognizer()`, which defaults to `latin`. Apple Vision,
+`Windows.Media.Ocr`, PaddleOCR and EasyOCR have no Hebrew either. Tesseract is
+the only on-device engine that does — and the only one that reaches every
+target, which is why fixing the engine and porting the feature were one change.
+See `design/m6_platform_research.md` and `design/m6_platform_handoff.md`.
 
 ```
-Camera capture → MlKitTextRecognizer → HebrewLabelParser → IngredientClassifier → IngredientVerdict
+CameraScreen / gallery import
+  → TextRecognitionService   (domain interface)
+      browser  → TesseractJsTextRecognizer      tesseract.js (wasm), self-hosted
+      VM       → TesseractNativeTextRecognizer  dispatches on Platform:
+                   android/ios → TesseractPluginRecognizer  (flutter_tesseract_ocr)
+                   desktop     → TesseractFfiRecognizer     (dart:ffi → libtesseract)
+                   otherwise   → UnavailableTextRecognizer
+  → LabelParser              → HebrewLabelParser + HebrewTextNormaliser
+  → IngredientClassifier     → IngredientClassifierImpl
+  → ScanResult               (sealed: ScanSucceeded | ScanFailed)
+  → ScanResultSheet          → prefills AddMealBottomSheet
 ```
 
-Ingredient classification rules:
+The firewall still has **two arms**, because `dart.library.io` is the only thing
+a conditional export can ask. The finer android-vs-desktop split happens at run
+time inside the VM half, where `Platform` is legal to reach for.
+
+`ScanOrchestrator` (`application/`) composes the three interfaces and never sees
+a plugin type — which is what makes it testable in pure Dart.
+
+**A failed scan is `ScanFailed`, never a verdict.** Issue #83 originally
+specified reporting a failed scan as `Clean Keto`; a user in a shop would have
+been told a product was keto-safe because the app could not read the label. The
+sealed result exists so that cannot be expressed.
+
+**The lens scans in a browser.** This reverses M6's original decision, which
+was correct while the only on-device option was a native-only plugin. Tesseract
+compiled to WebAssembly runs in a Web Worker on the user's machine, so the
+no-network invariant survives: everything is served from `web/tesseract/`, and
+a scan was measured in Chromium at 0.5 s with **zero external requests**. Never
+let tesseract.js fall back to its CDN defaults for `workerPath`, `corePath` or
+`langPath` — that would both break the invariant and regress the
+zero-external-requests property `design/web_support.md` §7 records as verified.
+
+**`preserve_interword_spaces` must stay unset.** It reads like the safe choice
+and is, for Latin — but on RTL Hebrew it *removes* spaces: `53.8 גרם` comes back
+as `53.8גרם`. Measured identically on libtesseract and on the wasm build.
+
+Ingredient rules live in `lib/core/constants/ingredient_rules.dart` in both
+Hebrew and English — **never redeclared in a classifier**:
 - **Forbidden seed oils:** canola, soybean, corn, sunflower, cottonseed, safflower
 - **Insulin-spiking sweeteners:** maltitol, sorbitol, dextrose, maltodextrin, HFCS
 - **Clean approvals:** olive oil, avocado oil, coconut oil, butter, ghee, tallow, monk fruit, stevia, allulose, erythritol
 
 Output badges: `Clean Keto` / `Caution / Quantity Dependent` / `Non-Keto`.
+Worst badge wins. An unrecognised token is *not* flagged, so
+`IngredientVerdict.recognisedNothing` distinguishes "nothing here is bad" from
+"nothing here was readable" — without it the UI would put a green tick on an
+unreadable label.
+
+**Tesseract has been verified to read Hebrew labels; no *photograph* has ever
+been scanned.** `test/fixtures/real_ocr_fixture.dart` holds verbatim engine
+output captured from labels rendered in the app's own font
+(`tool/capture_ocr_fixtures.sh` regenerates it), and
+`real_ocr_pipeline_test.dart` asserts what the shipped pipeline does with it.
+That closes the gap between "a human imagined this OCR output" and "an engine
+produced it". It does not close the gap to glare, curvature and shop lighting —
+there is still no camera here, no accuracy percentage is claimed, and issue #256
+and Epic #10 stay open. See `design/m6_platform_handoff.md`.
 
 ## Keto Business Logic
 
@@ -337,6 +452,20 @@ Full testing strategy in `design/tests.md`. Summary:
 - The data-layer suite is now pure Dart: no `dart:io`, no `dart:ffi`, no library to dlopen. That makes `flutter test --platform chrome` possible, though CI does not run it yet
 - In a test file that imports both `flutter_test` and `package:sembast/sembast.dart`, **`Finder` is ambiguous** — both packages export one. Prefix the sembast import where you need its `Finder`
 - Beware a fixture whose fields all share one value (`SymptomLogFixture` defaults every scale to 3): a mapper that crosses two fields still passes. Use distinct values where a model has several same-typed fields
+- **Two suites need something the default run does not have.**
+  `tesseract_ffi_recognizer_test.dart` runs a real OCR engine and **skips** when
+  libtesseract is absent (as on CI) rather than failing — a red suite people
+  learn to ignore is worse than a skip that says what is unchecked.
+  `tesseract_js_text_recognizer_test.dart` is `@TestOn('browser')` and needs
+  `--platform chrome`; it covers the `dart:js_interop` boundary, which fails
+  silently — a mismatched `extension type` member compiles and then throws in a
+  browser only, and neither `analyze` nor `build web` catches it
+- **`RealOcrFixture` is generated, not written.** Every other fixture here was
+  written by hand, which `design/m6_handoff.md` warns is "exactly the kind of
+  test that passes and then fails on a real label". That one is verbatim
+  Tesseract output. Regenerate with `tool/capture_ocr_fixtures.sh`; do not edit
+- **Hebrew OCR output cannot go in a `'''` Dart literal.** Grams are abbreviated
+  with a geresh, so captured text routinely ends in an apostrophe. Use `"""`
 - CI gate: 80% line coverage on `application/` and `domain/` layers
 
 ## UI & Localisation
@@ -391,7 +520,7 @@ the accurate view.
 | M12 — Menu Analyzer | `epic:m12-menu-analyzer` | #121–#122 | 2 |
 | M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |
 | M14 — Backup & Restore | `epic:m14-backup` | #123–#124 | 2 |
-| Login (not yet milestoned) | `epic:login` | #206–#221 | 16 |
+| Login — accounts & identity | `epic:login` | #206–#226 | 16 |
 
 **M9–M14 are numbered by recommended build order, not by dependency** — they are
 parallel peers and `milestone_conventions.md` §1.2's sequential gate applies to
@@ -419,7 +548,7 @@ M0–M8 only. **`epic:release-v1` ships the MVP**, so it runs before M9, not aft
 | M13 Apple Health Sync | #268 |
 | M14 Backup & Restore | #269 |
 | ~~v1.1 Post-MVP~~ | ~~#13~~ — closed, split into the seven above |
-| Login | *none yet — see `design/v1_1_split.md`* |
+| Login (unscheduled) | #226 |
 
 ### Label taxonomy
 
@@ -433,6 +562,12 @@ M0–M8 only. **`epic:release-v1` ships the MVP**, so it runs before M9, not aft
 labels (`epic:m0-foundation`–`epic:m8-ci-integration`, plus `epic` on tracking
 issues), six post-MVP milestones (`epic:m9-biomarkers`–`epic:m14-backup`),
 `epic:release-v1`, and `epic:login`. **`epic:post-mvp` is retired.**
+
+**The Login milestone (#206–#226) sits outside the M0–M8 MVP boundary** and is
+unscheduled: no MVP issue depends on it, and the MVP can ship without it. Its
+issue text was authored before M4 merged and has since been reconciled against
+the shipped `UserProfile` — read `#226`'s Interaction-with-M4 section before
+picking up anything in it.
 
 Every issue carries exactly **3 labels**: one `type:*`, one `layer:*`, one `epic:*`.
 

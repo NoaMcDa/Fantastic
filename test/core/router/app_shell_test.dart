@@ -1,9 +1,18 @@
 import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/core/router/app_shell.dart';
 import 'package:fantastic/main.dart';
+import 'package:fantastic/features/onboarding/presentation/onboarding_placeholder.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen2.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen3.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen4.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../helpers/onboarding_gate_override.dart';
+
+import '../../fixtures/fixtures.dart';
 
 void main() {
   group('AppShell.activeIndexForLocation', () {
@@ -34,7 +43,12 @@ void main() {
 
   group('AppShell widget', () {
     testWidgets('renders a NavigationBar with 5 destinations', (tester) async {
-      await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [completedOnboardingGate()],
+          child: const FantasticApp(),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final navigationBar = tester.widget<NavigationBar>(
@@ -47,7 +61,12 @@ void main() {
     testWidgets('tapping the already-active tab does not change the route', (
       tester,
     ) async {
-      await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [completedOnboardingGate()],
+          child: const FantasticApp(),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final routerBefore = ProviderScope.containerOf(
@@ -87,6 +106,53 @@ void main() {
     test('falls back to step 1 for a non-numeric or missing step', () {
       expect(onboardingStep({'step': 'abc'}), 1);
       expect(onboardingStep(const {}), 1);
+    });
+  });
+
+  group('onboardingScreen', () {
+    test('every step is a real screen', () {
+      expect(onboardingScreen(1, null), isA<OnboardingScreen1>());
+      expect(onboardingScreen(2, null), isA<OnboardingScreen2>());
+      expect(
+        onboardingScreen(3, UserProfileFixture.partial()),
+        isA<OnboardingScreen3>(),
+      );
+      expect(
+        onboardingScreen(4, UserProfileFixture.data()),
+        isA<OnboardingScreen4>(),
+      );
+    });
+
+    // Unreachable through the route, which redirects such a step to the
+    // start of the flow — but the fall-through must still be a screen
+    // rather than a crash.
+    test('a step with the wrong data falls through to the placeholder', () {
+      expect(onboardingScreen(3, null), isA<OnboardingPlaceholder>());
+      expect(
+        onboardingScreen(4, UserProfileFixture.partial()),
+        isA<OnboardingPlaceholder>(),
+      );
+    });
+  });
+
+  // A deep link, or a browser reload — `extra` is not serialisable, so a
+  // reload mid-flow arrives at step 3 or 4 with nothing.
+  group('onboardingStepHasData', () {
+    test('steps 1 and 2 need nothing', () {
+      expect(onboardingStepHasData(1, null), isTrue);
+      expect(onboardingStepHasData(2, null), isTrue);
+    });
+
+    test('step 3 needs the screen-2 answers', () {
+      expect(onboardingStepHasData(3, null), isFalse);
+      expect(onboardingStepHasData(3, 'nonsense'), isFalse);
+      expect(onboardingStepHasData(3, UserProfileFixture.partial()), isTrue);
+    });
+
+    test('step 4 needs the complete answers, not the partial ones', () {
+      expect(onboardingStepHasData(4, null), isFalse);
+      expect(onboardingStepHasData(4, UserProfileFixture.partial()), isFalse);
+      expect(onboardingStepHasData(4, UserProfileFixture.data()), isTrue);
     });
   });
 }

@@ -79,6 +79,73 @@ dependencies:
   # via flutter_lints) flags the undeclared import, and the domain layer may
   # not import package:flutter/foundation.dart to get the annotation instead.
   meta: ^1.15.0
+  flutter_local_notifications: ^22.3.0
+  timezone: ^0.11.1
+
+  # --- Keto Lens (M6) ---
+
+  # On-device Hebrew OCR. No network call is made during a scan, which is
+  # Epic #10's first architectural invariant and CLAUDE.md's OCR rule.
+  #
+  # google_mlkit_text_recognition was here until the platform audit. It was
+  # chosen on the rationale in design/technology.md 1 - "Hebrew is a
+  # first-class supported script" - which is false. Its script enum is
+  # latin/chinese/devanagiri/japanese/korean, there is no Hebrew model, and
+  # MlKitTextRecognizer called the bare TextRecognizer(), which defaults to
+  # latin. Apple Vision, Windows.Media.Ocr, PaddleOCR and EasyOCR have no
+  # Hebrew model either. Tesseract is the only on-device engine that does,
+  # and it is the only one that reaches every target - which is why fixing
+  # the engine and porting the feature turned out to be one change.
+  # design/m6_platform_research.md.
+  #
+  # Three bindings, one per platform family, each behind
+  # TextRecognitionService so no consumer names any of them:
+  #
+  #   desktop (linux/macos/windows)  dart:ffi against libtesseract  -> `ffi`
+  #   mobile  (android/ios)          flutter_tesseract_ocr
+  #   web                            tesseract.js, self-hosted in web/
+  #
+  # `ffi` is the desktop half. Nothing bundles libtesseract for desktop -
+  # TesseractFfiRecognizer opens the system library by soname and reports a
+  # missing one as ScanFailed rather than crashing, so a desktop build
+  # without Tesseract installed degrades instead of dying.
+  ffi: ^2.1.0
+
+  # The mobile half. The only published binding that ships prebuilt
+  # libtesseract for android and ios, which is the part this repo cannot
+  # build for itself.
+  #
+  # Its pubspec declares a malformed web entry
+  # (`web: default_package: FlutterTesseractOcrPlugin` - a class name where
+  # a package name belongs). That is why it is `dependency_overrides`-free
+  # but must be proven against CI step 6; see design/m6_platform_research.md
+  # for the build that settled it. The web half of our firewall never
+  # imports it - web goes through tesseract.js - so only the declaration
+  # itself can matter.
+  flutter_tesseract_ocr: ^0.4.31
+
+  # Live viewfinder. Has a first-party web implementation (camera_web is a
+  # declared default_package), so the tab still renders in a browser even
+  # though the OCR behind it cannot run there.
+  #
+  # `permission_handler`, which issue #85 imports and #79 never listed, is
+  # deliberately NOT added: `controller.initialize()` already triggers the
+  # iOS prompt and throws CameraException('CameraAccessDenied') when
+  # refused, so catching that costs one clause and avoids a second
+  # native-only plugin on the one screen that has to degrade cleanly on
+  # web. design/m6_preflight.md 2.2.
+  camera: ^0.11.0
+
+  # Gallery import, the fallback for a photo already taken. Has a web
+  # implementation (image_picker_for_web).
+  #
+  # The `image` package issue #79 also lists is deliberately NOT added:
+  # nothing in M6 crops, greyscales or otherwise pre-processes - #85 and
+  # #87 both hand a file path straight to InputImage.fromFilePath - so it
+  # would be ~2.6 MB of unused Dart that `depend_on_referenced_packages`
+  # cannot even flag, because nothing imports it. design/m6_preflight.md
+  # 2.1.
+  image_picker: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -119,6 +186,16 @@ flutter:
   # The OFL requires the licence to travel with the font.
   assets:
     - assets/fonts/OFL.txt
+    # The Hebrew OCR model, shared by every native target: the desktop
+    # FFI half unpacks it through TessdataBundle, and flutter_tesseract_ocr
+    # reads this directory plus tessdata_config.json directly. The browser
+    # does not use it - it fetches web/tesseract/heb.traineddata instead,
+    # because tesseract.js loads over HTTP, not from the asset bundle.
+    #
+    # tessdata_fast: 961 KB integer model. tessdata_best is 3.5 MB for
+    # accuracy nobody has measured yet. design/m6_platform_research.md.
+    - assets/tessdata/heb.traineddata
+    - assets/tessdata_config.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

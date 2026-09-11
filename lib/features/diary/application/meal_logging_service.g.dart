@@ -55,4 +55,4 @@ final class MealLoggingServiceProvider
 }
 
 String _$mealLoggingServiceHash() =>
-    r'3c60bd7b5a370ac5c7bca1648629c302306b4e2d';
+    r'cc8b5d05febb2f52a91ecc1c9b578f54e455e61c';

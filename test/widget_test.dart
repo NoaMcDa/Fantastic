@@ -1,11 +1,15 @@
 import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen2.dart';
 import 'package:fantastic/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+
+import 'helpers/onboarding_gate_override.dart';
 
 /// Which tab the shell currently shows as active.
 ///
@@ -20,7 +24,12 @@ int activeTabIndex(WidgetTester tester) =>
 void main() {
   testWidgets('sets RTL direction at the app root, inherited by nested '
       'Scaffolds', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [completedOnboardingGate()],
+        child: const FantasticApp(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(
@@ -32,7 +41,12 @@ void main() {
   testWidgets('applies the dark theme with AppTheme colour tokens', (
     tester,
   ) async {
-    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [completedOnboardingGate()],
+        child: const FantasticApp(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
@@ -43,7 +57,12 @@ void main() {
   });
 
   testWidgets('renders the dashboard tab at the initial route', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [completedOnboardingGate()],
+        child: const FantasticApp(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(activeTabIndex(tester), 0);
@@ -53,7 +72,12 @@ void main() {
   testWidgets('every one of the 5 tab routes navigates without error', (
     tester,
   ) async {
-    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [completedOnboardingGate()],
+        child: const FantasticApp(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     final router = GoRouter.of(tester.element(find.text('בית').first));
@@ -82,7 +106,12 @@ void main() {
 
   testWidgets('an unknown route falls through to the error screen, not a '
       'crash', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [completedOnboardingGate()],
+        child: const FantasticApp(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     final router = GoRouter.of(tester.element(find.text('בית').first));
@@ -96,7 +125,12 @@ void main() {
     'the 3 deferred-feature routes (outside the tab shell) render their '
     'placeholders',
     (tester) async {
-      await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [completedOnboardingGate()],
+          child: const FantasticApp(),
+        ),
+      );
       await tester.pumpAndSettle();
 
       final router = GoRouter.of(tester.element(find.text('בית').first));
@@ -117,18 +151,53 @@ void main() {
     },
   );
 
-  testWidgets('each of the 4 onboarding routes renders its placeholder', (
-    tester,
-  ) async {
+  // These three pump the app with the *default* gate — a first launch, with
+  // no stored profile — because a returning user is redirected out of the
+  // flow by design (#74).
+  testWidgets('a first launch lands in the onboarding flow', (tester) async {
     await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
     await tester.pumpAndSettle();
 
-    final router = GoRouter.of(tester.element(find.text('בית').first));
+    expect(find.byType(OnboardingScreen1), findsOneWidget);
+    expect(find.byType(DashboardScreen), findsNothing);
+  });
 
-    for (var step = 1; step <= kOnboardingStepCount; step++) {
+  testWidgets('the onboarding routes render their screens', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(tester.element(find.byType(OnboardingScreen1)));
+
+    // Steps 1 and 2 are real screens (#69, #70) and need no navigation
+    // data. Every step must resolve to *something* — a step that fell
+    // through to the error screen would break the flow for a deep link.
+    expect(find.byType(OnboardingScreen1), findsOneWidget);
+
+    router.go('/onboarding/2');
+    await tester.pumpAndSettle();
+    expect(find.byType(OnboardingScreen2), findsOneWidget);
+  });
+
+  // Screens 3 and 4 take the earlier answers as required arguments, and
+  // `extra` does not survive a browser reload or a cold deep link. Rather
+  // than crash, the flow restarts — the same policy `onboardingStep`
+  // already applies to an out-of-range step.
+  testWidgets('a later onboarding step reached with no data restarts the '
+      'flow', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(tester.element(find.byType(OnboardingScreen1)));
+
+    for (var step = 3; step <= kOnboardingStepCount; step++) {
       router.go('/onboarding/$step');
       await tester.pumpAndSettle();
-      expect(find.text('אונבורדינג — שלב $step'), findsOneWidget);
+
+      expect(find.byType(OnboardingScreen1), findsOneWidget);
+      expect(
+        router.routerDelegate.currentConfiguration.uri.toString(),
+        '/onboarding/1',
+      );
     }
   });
 
@@ -137,15 +206,17 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
     await tester.pumpAndSettle();
 
-    final router = GoRouter.of(tester.element(find.text('בית').first));
-    router.go('/onboarding/1');
-    await tester.pumpAndSettle();
-
+    expect(find.byType(OnboardingScreen1), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
   });
 
   testWidgets('/dashboard redirects to the dashboard tab at /', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [completedOnboardingGate()],
+        child: const FantasticApp(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     final router = GoRouter.of(tester.element(find.text('בית').first));

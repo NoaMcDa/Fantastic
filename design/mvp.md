@@ -77,7 +77,8 @@ Everything in the MVP serves one of those two goals. Features that don't serve t
 **Scope:**
 - 4-screen flow: Welcome → About You (sex, age, weight, height) → Goals (weight loss / energy / medical) → Calculated Targets (editable)
 - "Already on keto?" toggle → seed streak from a past start date
-- Skippable (defaults used if skipped)
+- Skippable (defaults used if skipped) — **not shipped in M4**; no child issue asked for it
+  and Epic #8's scope list does not carry the line either. Tracked by #262.
 
 ---
 
