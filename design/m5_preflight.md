@@ -279,6 +279,13 @@ service costs nothing: `symptomLogProvider` watches
 `symptomLoggingServiceProvider` and calls `symptomsForDate(date)`. Widget tests
 then override one provider rather than mocking a repository.
 
+That also moves the provider's home. #76 is labelled `layer:presentation`, yet
+its Step 1 creates `application/providers/symptom_providers.dart` — an
+application-layer file. **The provider ships with #75**, next to the service
+it wraps and in the layer both belong to, which is also what #77 needs: the
+sheet invalidates the provider and is built before the strip (§5.6). #76 keeps
+its widget.
+
 ### 4.3 #78's bare `Column` in a screen of cards
 
 `DiaryDayScreen` stacks `MacroSummaryCard`, `MealListSection` and a `Card`
