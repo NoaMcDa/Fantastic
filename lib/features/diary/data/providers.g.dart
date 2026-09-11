@@ -10,7 +10,7 @@ part of 'providers.dart';
 // ignore_for_file: type=lint, type=warning
 /// The diary feature's repository wiring.
 ///
-/// Both providers return the **domain interface**, not the sembast class, so
+/// Every provider returns the **domain interface**, not the sembast class, so
 /// a consumer cannot reach past the abstraction to a store-specific method —
 /// the layer rule enforced by the type system rather than by review.
 ///
@@ -23,7 +23,7 @@ const mealRepositoryProvider = MealRepositoryProvider._();
 
 /// The diary feature's repository wiring.
 ///
-/// Both providers return the **domain interface**, not the sembast class, so
+/// Every provider returns the **domain interface**, not the sembast class, so
 /// a consumer cannot reach past the abstraction to a store-specific method —
 /// the layer rule enforced by the type system rather than by review.
 ///
@@ -36,7 +36,7 @@ final class MealRepositoryProvider
     with $Provider<MealRepository> {
   /// The diary feature's repository wiring.
   ///
-  /// Both providers return the **domain interface**, not the sembast class, so
+  /// Every provider returns the **domain interface**, not the sembast class, so
   /// a consumer cannot reach past the abstraction to a store-specific method —
   /// the layer rule enforced by the type system rather than by review.
   ///
@@ -125,3 +125,52 @@ final class SymptomLogRepositoryProvider
 
 String _$symptomLogRepositoryHash() =>
     r'f4e1b6a4f16b7f1f6f1c2499dd3bbe41a22a5227';
+
+@ProviderFor(estimationSettingsRepository)
+const estimationSettingsRepositoryProvider =
+    EstimationSettingsRepositoryProvider._();
+
+final class EstimationSettingsRepositoryProvider
+    extends
+        $FunctionalProvider<
+          EstimationSettingsRepository,
+          EstimationSettingsRepository,
+          EstimationSettingsRepository
+        >
+    with $Provider<EstimationSettingsRepository> {
+  const EstimationSettingsRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'estimationSettingsRepositoryProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$estimationSettingsRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<EstimationSettingsRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  EstimationSettingsRepository create(Ref ref) {
+    return estimationSettingsRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(EstimationSettingsRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<EstimationSettingsRepository>(value),
+    );
+  }
+}
+
+String _$estimationSettingsRepositoryHash() =>
+    r'7deaba295733e6c5919d03947b0f34609b88c47a';

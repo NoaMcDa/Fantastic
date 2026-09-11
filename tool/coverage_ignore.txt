@@ -28,6 +28,7 @@ lib/features/diary/domain/models/estimate_failure_reason.dart
 # `abstract interface class` — method signatures, no bodies.
 lib/features/adaptation/domain/repositories/streak_repository.dart
 lib/features/dashboard/domain/repositories/daily_log_repository.dart
+lib/features/diary/domain/repositories/estimation_settings_repository.dart
 lib/features/diary/domain/repositories/meal_repository.dart
 lib/features/diary/domain/repositories/symptom_log_repository.dart
 lib/features/onboarding/domain/repositories/user_profile_repository.dart

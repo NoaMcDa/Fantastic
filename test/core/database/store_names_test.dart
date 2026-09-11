@@ -1,5 +1,6 @@
 import 'package:fantastic/features/adaptation/data/repositories/sembast_streak_repository.dart';
 import 'package:fantastic/features/dashboard/data/repositories/sembast_daily_log_repository.dart';
+import 'package:fantastic/features/diary/data/repositories/sembast_estimation_settings_repository.dart';
 import 'package:fantastic/features/diary/data/repositories/sembast_meal_repository.dart';
 import 'package:fantastic/features/diary/data/repositories/sembast_symptom_log_repository.dart';
 import 'package:fantastic/features/onboarding/data/repositories/sembast_user_profile_repository.dart';
@@ -21,6 +22,7 @@ void main() {
       'symptom_logs': symptomLogsStore,
       'streak_state': streakStateStore,
       'user_profile': userProfileStore,
+      'estimation_settings': estimationSettingsStore,
     };
 
     test('every feature store has its expected name', () {
