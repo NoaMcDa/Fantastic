@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      The app's own background, `AppTheme.primary` in lib/core/theme/app_theme.dart.
+      The same value web/index.html and web/manifest.json already hard-code.
+
+      Declared as a colour rather than inherited from a theme parent, because
+      `Theme.Black.NoTitleBar` resolves `?android:colorBackground` to pure
+      #000000 — closer to right than white, but not the colour the first frame
+      paints, so a cold start would still step once on startup.
+    -->
+    <color name="launch_background">#1C1C1E</color>
+</resources>
