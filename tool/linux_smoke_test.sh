@@ -53,7 +53,12 @@ readonly RUN_SECONDS="${SMOKE_RUN_SECONDS:-20}"
 readonly LOG="${SMOKE_LOG:-build/linux_smoke_test.log}"
 
 # Lines that are expected on a headless runner and mean nothing is wrong.
-readonly BENIGN_NOISE='libEGL|DRI3|Atk-CRITICAL|Impeller|fl_gnome_settings|Gtk-WARNING|Gdk-|MESA|dbus|Failed to connect to the bus'
+# Every entry here has been observed on a green run — `Atk-CRITICAL`,
+# `fl_gnome_settings` and the `libEGL` DRI3 pair in a container, and the AT-SPI
+# accessibility-bus warning on a GitHub runner, which has no a11y bus. A notice
+# that fires on every healthy run is noise people learn to scroll past, which
+# is the same way a warning stops being read.
+readonly BENIGN_NOISE='libEGL|DRI3|Atk-CRITICAL|Impeller|fl_gnome_settings|Gtk-WARNING|Gdk-|MESA|dbus|dbind-WARNING|AT-SPI|org\.a11y\.Bus|Failed to connect to the bus'
 
 fail() {
   echo "::error::linux smoke test: $*" >&2
