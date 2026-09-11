@@ -17,7 +17,7 @@ by #257 — it is simply not reachable from the add-meal affordance. What is
 actually missing is **an estimator: free Hebrew text, or a photographed plate →
 macros**, plus a chooser in front of the three, plus the provenance the diary
 needs once a number in it may be a guess. This document records what was
-measured, the decision taken on which engine to build, and the twelve issues
+measured, the decision taken on which engine to build, and the fourteen issues
 that follow from it.
 
 ---
@@ -442,9 +442,17 @@ app never presenting a guess as a measurement.
 
 ---
 
-## 9. The twelve issues, in build order
+## 9. The fourteen issues, in build order
 
 Dependencies point backwards only. Every issue leaves `main` green on its own.
+
+> **Two issues were added after this section was first written.** §11's third
+> open decision — whether a saved meal can be edited — was settled *in*, before
+> the milestone started, which added #327 and #328 and widened the North Star
+> from "add" to "add and correct". Issue #312 carries the decision and the
+> scoping argument for taking it at that moment rather than mid-milestone.
+> **Issue #312's list is authoritative**; this table is the research trail
+> behind it.
 
 | # | Issue | Layer | Depends on |
 |---|---|---|---|
@@ -459,7 +467,9 @@ Dependencies point backwards only. Every issue leaves `main` green on its own.
 | 9 | Description mode — input → estimate → itemised editable review → prefilled `AddMealBottomSheet`, with copy for every failure reason | presentation | 5, 8 |
 | 10 | Photo mode — capture/pick → label OCR first → remote estimate otherwise → review → prefill + `imageRef` | presentation | 6, 8, 9 |
 | 11 | Provenance in `MealCard` and the diary — an estimate reads as an estimate | presentation | 1 |
-| 12 | Three e2e flows + the docs update (`CLAUDE.md`, `design/mvp.md`, `design/technology.md`, `design/tasks.md`, this file's status line) | test / docs | 9, 10, 11 |
+| 12 | `MealLoggingService.updateMeal`, recalculating both days a moved meal touches | application | 1 |
+| 13 | Edit a saved meal from its card, re-sourcing corrected macros to `manual` | presentation | 11, 12 |
+| 14 | Four e2e flows + the docs update (`CLAUDE.md`, `design/mvp.md`, `design/technology.md`, `design/tasks.md`, this file's status line) | test / docs | 9, 10, 11, 13 |
 
 Issues 1, 2, 3 and 8 have no dependencies and can start immediately. **Issue 8
 is the cheapest useful thing in the milestone** — it makes the two other modes
@@ -491,20 +501,42 @@ different approach and a different dataset.
 
 ---
 
-## 11. Open decisions for the product owner
+## 11. Decisions taken
 
-1. **Does an estimated day count toward the streak?** Today every logged meal
-   does. Count it (simple, occasionally wrong) or require one measured meal a day
-   (safer, annoying). *Recommendation: count it, and revisit once §6.3's
-   provenance shows how often estimates are edited before saving.*
-2. **BYOK forever, or a hosted proxy later?** BYOK ships M15 with no
-   infrastructure and no login. A proxy with paid credits removes the setup step
-   and the 50/day ceiling, at the cost of running something. *Recommendation:
-   ship BYOK, revisit when someone complains about the setup step — the seam
-   makes it a swap.*
-3. **Is editing a saved meal in or out?** Out of M15 as written, and a real gap
-   — an estimate you can fix before saving but not after is a strange place to
-   stop. *Recommendation: a separate issue, right after M15.*
+All three questions this section originally left open were put to the product
+owner and **settled before any work began**. Issue #312 carries them with the
+reasoning; they are repeated here so a reader of this document does not act on
+a question that has an answer.
+
+1. **Does an estimated day count toward the streak? — Yes, like any other.**
+   No special case: a meal logged from an estimate feeds `evaluateToday`
+   exactly as a typed one does. The defence is that the user saw every number
+   on an editable form and pressed save. The cost is accepted: a model that
+   overstates carbs can put a real streak into its grace period.
+   **`MealLoggingService` is unchanged by this** — any M15 PR that adds a
+   `source`-dependent branch to the streak path is implementing something
+   nobody asked for.
+2. **BYOK forever, or a hosted proxy later? — BYOK now, our own backend
+   later, and the code must be open/closed about it.** Two seams carry the
+   swap and are introduced in #318 rather than retrofitted: `LlmChatClient`
+   (one chat-completion call behind an interface) and `EstimationCredentials`
+   (where the token comes from — a caller never passes a key, because a caller
+   must not know there is one). `lib/features/diary/data/providers.dart` is the
+   only file permitted to name a concrete transport or estimator.
+3. **Is editing a saved meal in or out? — In.** `SembastMealRepository.save`
+   has been an upsert since M1 and `_recalculateDailyLog` reads the day back
+   rather than adjusting totals incrementally, so the data layer already
+   supports it; only the service method and the way in were missing (#327,
+   #328). One design rule falls out: **an edit that changes a macro re-sources
+   the meal to `MacroSource.manual`** — the badge's job is to warn that a
+   number was guessed, and once a human has corrected it that warning is false.
+   An edit to the name alone leaves the source alone.
+
+> **Why this was legitimate to decide here.** `milestone_conventions.md` §1.3
+> forbids adding scope to an *open* milestone. M15 had no closed issue and no
+> merged PR when decision 3 was taken, which is the only point at which
+> widening a milestone is allowed. Anything discovered after the first merge
+> goes to a new milestone.
 
 ---
 
