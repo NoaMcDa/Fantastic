@@ -110,6 +110,55 @@ void main() {
 
       expect(lastPushedLocation, isNull);
     });
+
+    // The regression guard, and it is structural on purpose. A `ListView`
+    // builds lazily and disposes children it has scrolled past; a disposed
+    // `TextFormField` deregisters itself from the enclosing `Form`, so
+    // `validate()` returns true for a field nobody filled and `_onNext`
+    // parses an empty controller. Whether that reproduces depends on the
+    // viewport, the text scale and the cache extent — none of which a test
+    // at a fixed 800x600 pins down. What can be pinned down is that the
+    // fields are not under a lazy list at all.
+    testWidgets('no lazy list sits between the Form and its fields', (
+      tester,
+    ) async {
+      await pumpOnboarding(tester, const OnboardingScreen2());
+
+      expect(
+        find.descendant(
+          of: find.byType(Form),
+          matching: find.byType(ListView),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(Form),
+          matching: find.byType(SingleChildScrollView),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a scrolled-away empty field is still validated', (
+      tester,
+    ) async {
+      await pumpOnboarding(tester, const OnboardingScreen2());
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'גובה (ס״מ)'),
+        '176',
+      );
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(0, -400),
+      );
+      await tester.pump();
+
+      await tapNext(tester);
+
+      expect(find.text('יש להזין גיל'), findsOneWidget);
+      expect(lastPushedLocation, isNull);
+    });
   });
 
   group('navigation', () {

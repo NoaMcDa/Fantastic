@@ -122,6 +122,18 @@ class OnboardingService {
   /// first. The two steps after it are best-effort extras, ordered so neither
   /// can lose the profile if it fails.
   ///
+  /// **Best-effort means caught, not merely last.** Only the profile write can
+  /// fail this method. A streak seed or a permission prompt that threw used to
+  /// propagate, and screen 4 reports any throw as `השמירה נכשלה` — so a broken
+  /// `streak_state` store told the user their profile had not been saved when
+  /// it had, and left the gate shut, trapping them on the last screen of the
+  /// flow for the rest of the session. The profile was on disk the whole time,
+  /// which is why the next cold start let them straight in.
+  ///
+  /// What a swallowed seed costs is one pre-filled streak: the user starts
+  /// from zero instead of from their real start date. That is worth far less
+  /// than the flow completing.
+  ///
   /// [now] is injectable for tests; production passes nothing.
   Future<UserProfile> completeOnboarding({
     required OnboardingData data,
@@ -132,14 +144,25 @@ class OnboardingService {
       UserProfile.fromOnboarding(data, targets),
     );
 
-    await _seedStreak(data.ketoStartDate, now ?? DateTime.now());
+    try {
+      await _seedStreak(data.ketoStartDate, now ?? DateTime.now());
+    } on Object catch (_) {
+      // Deliberately swallowed — see the doc comment. The streak simply
+      // starts at zero, which is what it would have done for a user who did
+      // not report a past start date at all.
+    }
 
-    // The first moment the prompt is worth spending: the user has just told
-    // the app what they want from it. `NotificationService.initialise` sets
-    // every Darwin request flag false precisely so this can happen here
-    // instead of at launch, and nothing called it until now
-    // (`design/m3_handoff.md` §Notifications). A refusal is not an error.
-    await notificationService.requestPermission();
+    try {
+      // The first moment the prompt is worth spending: the user has just told
+      // the app what they want from it. `NotificationService.initialise` sets
+      // every Darwin request flag false precisely so this can happen here
+      // instead of at launch, and nothing called it until now
+      // (`design/m3_handoff.md` §Notifications). A refusal is not an error.
+      await notificationService.requestPermission();
+    } on Object catch (_) {
+      // Nor is an unavailable plugin. Notifications are an extra on top of a
+      // finished profile, never a reason to fail one.
+    }
 
     return saved;
   }

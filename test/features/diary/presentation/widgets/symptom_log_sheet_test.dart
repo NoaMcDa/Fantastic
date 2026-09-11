@@ -204,6 +204,77 @@ void main() {
       expect(saved.energyScore, 4);
     });
 
+    // The strip stays tappable when its read failed or is still in flight,
+    // and in both cases it opens the sheet with `existing: null`. That is
+    // "unknown", not "blank" — and `save` upserts on the date, so trusting
+    // it wiped the stored note and id. `m5_preflight.md` §1.3 on the
+    // failure path.
+    testWidgets('recovers the stored id when opened without one', (
+      tester,
+    ) async {
+      when(() => service.symptomsForDate(any())).thenAnswer(
+        (_) async =>
+            SymptomLogFixture.varied(id: 20260909, date: date, notes: 'כאב'),
+      );
+
+      await pumpSheet(tester);
+      await save(tester);
+
+      expect(savedLog().id, 20260909);
+    });
+
+    testWidgets('recovers a stored note it never showed the user', (
+      tester,
+    ) async {
+      when(() => service.symptomsForDate(any())).thenAnswer(
+        (_) async => SymptomLogFixture.varied(date: date, notes: 'כאב ראש'),
+      );
+
+      await pumpSheet(tester);
+      await save(tester);
+
+      expect(savedLog().notes, 'כאב ראש');
+    });
+
+    // Recovery must not outrank the user. A note they typed is the note.
+    testWidgets('a typed note beats the recovered one', (tester) async {
+      when(() => service.symptomsForDate(any())).thenAnswer(
+        (_) async => SymptomLogFixture.varied(date: date, notes: 'ישן'),
+      );
+
+      await pumpSheet(tester);
+      final notes = find.byKey(const Key('symptom_notes_field'));
+      await tester.ensureVisible(notes);
+      await tester.pump();
+      await tester.enterText(notes, 'חדש');
+      await save(tester);
+
+      expect(savedLog().notes, 'חדש');
+    });
+
+    // A day with genuinely nothing stored still saves as a fresh record.
+    testWidgets('saves a fresh log when nothing is stored', (tester) async {
+      await pumpSheet(tester);
+      await save(tester);
+
+      final saved = savedLog();
+      expect(saved.id, isNull);
+      expect(saved.notes, isNull);
+    });
+
+    // The write is what the user asked for; a recovery read that fails is
+    // not a reason to refuse it.
+    testWidgets('still saves when the recovery read fails', (tester) async {
+      when(() => service.symptomsForDate(any())).thenThrow(
+        const PersistenceException('SymptomLogRepository.findByDate', 'closed'),
+      );
+
+      await pumpSheet(tester);
+      await save(tester);
+
+      expect(savedLog().id, isNull);
+    });
+
     testWidgets('an emptied note is stored as null, not an empty string', (
       tester,
     ) async {

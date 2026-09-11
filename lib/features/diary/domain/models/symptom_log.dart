@@ -50,6 +50,14 @@ class SymptomLog {
 
   /// Copy with overrides. Re-runs the asserting constructor, so an
   /// out-of-range override fails just as a direct construction would.
+  ///
+  /// [clearNotes] exists because `notes ?? this.notes` cannot express "set
+  /// this back to null" — the trap `StreakState.copyWith` and
+  /// `UserProfile.copyWith` both carry an explicit flag for
+  /// (`design/m3_preflight.md` §1.1). Nothing needs it yet: the sheet builds
+  /// a fresh log through `buildSymptomLog`, so an emptied note already
+  /// stores as null. It is here so the first caller that does need it is not
+  /// the one that discovers the silent no-op.
   SymptomLog copyWith({
     int? id,
     DateTime? date,
@@ -59,6 +67,7 @@ class SymptomLog {
     int? physicalScore,
     int? moodScore,
     String? notes,
+    bool clearNotes = false,
   }) => SymptomLog(
     id: id ?? this.id,
     date: date ?? this.date,
@@ -67,7 +76,7 @@ class SymptomLog {
     hungerScore: hungerScore ?? this.hungerScore,
     physicalScore: physicalScore ?? this.physicalScore,
     moodScore: moodScore ?? this.moodScore,
-    notes: notes ?? this.notes,
+    notes: clearNotes ? null : notes ?? this.notes,
   );
 
   @override

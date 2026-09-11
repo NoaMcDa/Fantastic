@@ -47,11 +47,30 @@ class OnboardingGate extends _$OnboardingGate {
 /// existence* is the flag — there is no separate boolean, and no
 /// `shared_preferences` (`design/m4_preflight.md` §4).
 ///
+/// **A failure here leaves the gate shut rather than taking the app down.**
+/// `load()` throws for two very different reasons, and only one of them is a
+/// dead store: `UserProfileMapper.fromRecord` runs inside the same
+/// `guardPersistence`, so a record that will not decode — an enum value
+/// renamed, a field dropped — arrives as the same `PersistenceException` a
+/// broken database does. Letting it escape put the app on
+/// `StartupFailureApp` saying the database could not be opened, which was
+/// both untrue and permanent: there was no screen left to fix it from.
+///
+/// Showing onboarding instead is the only recovery path there is, and it
+/// costs nothing in the case it is wrong about. Re-running the flow
+/// overwrites the profile record — but a record that cannot be decoded is a
+/// record nothing can read anyway, and the alternative is an install that
+/// never opens again.
+///
 /// A top-level function rather than logic inside `main` so it is testable:
 /// `main` itself cannot be pumped.
 Future<void> seedOnboardingGate(ProviderContainer container) async {
-  final profile = await container.read(userProfileRepositoryProvider).load();
-  if (profile != null) {
-    container.read(onboardingGateProvider.notifier).markCompleted();
+  try {
+    final profile = await container.read(userProfileRepositoryProvider).load();
+    if (profile != null) {
+      container.read(onboardingGateProvider.notifier).markCompleted();
+    }
+  } on Object catch (_) {
+    // Left shut. `false` is already this gate's documented safe default.
   }
 }
