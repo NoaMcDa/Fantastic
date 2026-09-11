@@ -15,7 +15,20 @@ Every issue belongs to exactly one milestone. An issue that spans two milestones
 
 ### Milestone Sequence
 
-Milestones are numbered sequentially. Each milestone may only begin when all blocking issues of the previous milestone are merged and green on CI.
+**M0–M8 are a chain.** They are numbered sequentially, and each may only begin when
+all blocking issues of the previous milestone are merged and green on CI.
+
+**M9–M14 are not.** They are parallel peers, numbered by *recommended build order*
+rather than by dependency, and the sequential gate above does not apply to them.
+Applied literally it would block M13 Apple Health behind M11's restaurant content
+curation, which is a content task with no code relationship to HealthKit. A
+post-MVP milestone begins when **its own entry conditions** — recorded in its Epic
+— are met.
+
+The MVP chain still gates everything: a post-MVP milestone may declare a blocking
+dependency on an MVP milestone (M12 Menu Analyzer is gated on M6 Keto Lens, whose
+OCR pipeline it extends), and §1.4's rule that a dependency may only point at an
+*earlier* milestone is unchanged.
 
 | Milestone | Label | North Star |
 |---|---|---|
@@ -28,13 +41,19 @@ Milestones are numbered sequentially. Each milestone may only begin when all blo
 | M6 | `epic:m6-keto-lens` | Hebrew OCR pipeline, ingredient classifier, camera UI, result sheet |
 | M7 | `epic:m7-polish` | Empty states, error handling, loading skeletons, app icon, permissions |
 | M8 | `epic:m8-ci-integration` | Integration test suite, GitHub Actions CI workflow, coverage gate |
-| v1.1+ | `epic:post-mvp` | All deferred capabilities (see §1.3) |
+| Release v1.0 | `epic:release-v1` | App Store metadata, privacy labels, TestFlight beta, submission. **Ships the MVP** — runs on M0–M8's schedule, before M9 |
+| M9 | `epic:m9-biomarkers` | Ketone, glucose and weight logging with 30-day trends |
+| M10 | `epic:m10-recipe-converter` | Hebrew/English keto substitution engine, converter and saved-recipe library |
+| M11 | `epic:m11-directory` | Curated Israeli keto venue directory — search, filters, detail and map |
+| M12 | `epic:m12-menu-analyzer` | Menu OCR → per-dish keto verdicts and modification tips |
+| M13 | `epic:m13-health-sync` | HealthKit body-weight read and macro write, iOS-only behind a platform seam |
+| M14 | `epic:m14-backup` | Portable JSON backup export and atomic restore |
 
 ### Scope Discipline
 
 **In-scope** for a milestone means: required to satisfy the milestone's North Star and no more.
 
-**Adding scope** to an open milestone is prohibited. If new work is discovered mid-milestone, open a new issue, assign it to the correct milestone (or `post-mvp`), and continue. Never silently expand an existing issue.
+**Adding scope** to an open milestone is prohibited. If new work is discovered mid-milestone, open a new issue, assign it to the correct milestone (M9–M14, or a new one if it fits none), and continue. Never silently expand an existing issue.
 
 **Partial implementations are forbidden.** Every merged PR in a milestone must leave the codebase in a state where `flutter analyze`, `dart format --check`, and `flutter test` all pass. A half-wired feature that requires a subsequent PR to compile is a milestone scope violation.
 
@@ -42,21 +61,32 @@ Milestones are numbered sequentially. Each milestone may only begin when all blo
 
 The MVP consists of milestones M0 through M8. The boundary is hard.
 
-The following capabilities are **explicitly out of scope for MVP** and must be labelled `epic:post-mvp`:
+The following capabilities are **explicitly out of scope for MVP**. Each now has its
+own milestone rather than a shared `epic:post-mvp` bucket — see §1.2 and
+`design/v1_1_split.md` for why that bucket was split:
 
-| Capability | Rationale |
-|---|---|
-| Biomarker logging (ketones, glucose, weight) | Not critical to first-week retention |
-| Apple Health / HealthKit integration | Requires entitlement review; v1.1 |
-| Restaurant directory | Requires manual content curation |
-| Menu analyzer (camera → dish extraction) | Second ML pipeline; complexity deferred |
-| Recipe converter | Non-critical to core loop |
-| iCloud backup / sync | Offline-first is sufficient for v1 |
-| Food database / barcode lookup | Manual entry covers MVP |
-| Social / community features | Post-retention problem |
-| App Store submission | Follows M8 completion |
+| Capability | Milestone | Rationale for deferral |
+|---|---|---|
+| Biomarker logging (ketones, glucose, weight) | M9 | Not critical to first-week retention |
+| Recipe converter | M10 | Non-critical to core loop |
+| Restaurant directory | M11 | Requires manual content curation |
+| Menu analyzer (camera → dish extraction) | M12 | Extends M6's OCR pipeline; complexity deferred |
+| Apple Health / HealthKit integration | M13 | Requires entitlement review |
+| Backup & restore | M14 | Offline-first is sufficient for v1 |
+| App Store submission | `epic:release-v1` | **Ships the MVP** — see the note below |
+| Food database / barcode lookup | *(unplanned)* | Manual entry covers MVP |
+| Social / community features | *(unplanned)* | Post-retention problem |
 
-Any issue that touches post-MVP scope must carry the `epic:post-mvp` label and must not be referenced as a dependency by any MVP milestone issue.
+**App Store submission is not post-MVP work.** It ships v1.0 and runs on M0–M8's
+schedule. Filing it as "post-MVP" once put the release of v1.0 chronologically
+after v1.0; `epic:release-v1` is deliberately unnumbered and sits before M9.
+
+Any issue outside the MVP must carry the epic label of its milestone, and must not
+be referenced as a blocking dependency by any MVP milestone issue.
+
+**The `epic:post-mvp` label is retired.** Nothing carries it. An issue that would
+once have gone there now goes to the milestone that owns the capability, or gets a
+new milestone opened for it under §3's Epic template.
 
 ### Cross-Milestone Dependency Rules
 
@@ -84,7 +114,21 @@ One epic label per issue. These map directly to the milestone table above.
 | `epic:m6-keto-lens` | OCR pipeline, label parser, classifier, camera UI |
 | `epic:m7-polish` | Empty states, errors, loading states, icons, permissions |
 | `epic:m8-ci-integration` | Integration tests, GitHub Actions CI, coverage gate |
-| `epic:post-mvp` | All deferred v1.1+ capabilities |
+| `epic:release-v1` | App Store metadata, privacy labels, TestFlight beta, submission |
+| `epic:m9-biomarkers` | Biomarker model, store, entry sheet, trend chart, diary section |
+| `epic:m10-recipe-converter` | Substitution engine, converter screen, saved-recipe library |
+| `epic:m11-directory` | Directory data, reader, screen, detail sheet, map |
+| `epic:m12-menu-analyzer` | Menu dish extraction, per-dish verdicts, analyser screen |
+| `epic:m13-health-sync` | HealthKit seam, body-weight read, macro write |
+| `epic:m14-backup` | Backup export, validated atomic restore |
+| `epic:login` | Authentication — **not yet milestoned**; see the note below |
+
+`epic:post-mvp` is **retired** — it was split into the seven labels above
+(`design/v1_1_split.md`).
+
+`epic:login` (#206–#221) predates this split, carries no GitHub milestone and has no
+Epic tracking issue. It is effectively the eighth post-MVP capability and should be
+filed like the others — an open item, not a convention.
 
 ### Milestone Closure Conditions
 
@@ -98,7 +142,10 @@ A milestone is **closed** when all of the following are true:
 6. The milestone's Definition of Done checklist (see §3) is fully checked off.
 7. A milestone closure comment is posted on the Epic issue summarising what shipped.
 
-A milestone must not be closed with any open issue, regardless of priority. Move unfinished issues to the next milestone or to `epic:post-mvp` before closing.
+A milestone must not be closed with any open issue, regardless of priority. Move
+unfinished issues to the milestone that owns the capability before closing — or open
+a new milestone for them under §3. There is no catch-all bucket: `epic:post-mvp` was
+retired precisely because it became one (`design/v1_1_split.md`).
 
 ---
 

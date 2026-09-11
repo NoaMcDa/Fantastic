@@ -64,8 +64,8 @@ resolved in favour of the issues except the last:
   `watchDate` was dropped — the dashboard refreshes by provider invalidation
   after a meal log, which needs no stream.
 
-`BiomarkerLogRepository` is deferred with biomarker logging to v1.1 and has no
-M1 issue.
+`BiomarkerLogRepository` is deferred with biomarker logging to **M9** (#103) and
+has no M1 issue.
 
 ### Service Classes (Application Layer)
 One service per use-case group. Never mix meal-logging logic with adaptation-phase logic.

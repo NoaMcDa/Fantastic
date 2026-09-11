@@ -1,6 +1,10 @@
-# v1.1 Milestone Split — Assessment & Proposal
+# v1.1 Milestone Split — Assessment & Record
 
-**Status:** proposal, not yet executed on GitHub
+**Status:** **executed.** Labels created, seven Epic tracking issues opened
+(#264–#270), all 26 issues re-filed, re-titled where needed and rewritten to the
+`issue_conventions.md` standard, Epic #13 closed as superseded.
+**One manual step remains:** GitHub *milestone objects* for M9–M14 and the release
+do not exist — see §6.
 **Scope:** milestone `v1.1 — Post-MVP Backlog`, Epic #13, issues #103–#128
 
 ---
@@ -136,9 +140,24 @@ dependency chain, and wrong for post-MVP work, which is a set of parallel peers.
 Numbering them M9–M14 would imply a sequence that does not exist and would
 gate biomarkers behind a directory that is waiting on content curation.
 
-**Recommendation:** capability-named epic labels, matching `epic:login`, plus
+**Recommendation was:** capability-named epic labels, matching `epic:login`, plus
 an amendment to §1.2 stating explicitly that post-MVP milestones are unordered
 peers and the sequential-gating rule does not apply to them.
+
+> **Decision taken: numbered `epic:m9-*`–`epic:m14-*`**, continuing the existing
+> taxonomy rather than the capability-named scheme recommended above. That is a
+> reasonable call — it keeps one naming convention across the whole board, and
+> `epic:login` becomes the outlier rather than the precedent.
+>
+> **It makes the §1.2 amendment mandatory rather than optional.** Capability names
+> imply nothing about order; numbers do. Without the explicit carve-out, "each
+> milestone may only begin when the previous is merged" would gate M13 Apple Health
+> behind M11's restaurant *content curation* — a dependency that does not exist in
+> either direction. §1.2 now states that M0–M8 are a chain and M9–M14 are parallel
+> peers numbered by recommended build order.
+>
+> The numbers therefore encode the §4.3 build order: M9 and M10 are the two with no
+> external blocker and come first.
 
 ### 4.2 The split
 
@@ -175,32 +194,75 @@ post-MVP feature work.
 
 ---
 
-## 5. Work required to execute
+## 5. What was executed
 
-1. Create seven GitHub milestones and seven `epic:*` labels.
-2. Re-file #103–#128: swap `epic:post-mvp` for the capability label (the
-   one-type/one-layer/one-epic rule in `issue_conventions.md` §"Issue Labeling
-   Taxonomy" still holds — this is a swap, not an addition) and reassign the
-   milestone.
-3. Open six Epic tracking issues from the `milestone_conventions.md` §3
-   template, one per capability milestone, each with its own North Star,
-   scope boundaries, architectural invariants and DoD.
-4. Rewrite Epic #13 as an index pointing at the six, or close it with a comment
-   recording the split. It should not survive as a scope-bearing issue.
-5. Amend `milestone_conventions.md` §1.2 (milestone table), §1.3 (MVP boundary
-   wording, which currently routes everything deferred to a single
-   `epic:post-mvp`) and §2 (epic label list).
-6. Amend `CLAUDE.md`'s "Issue ranges by milestone" and "Epic tracking issues"
-   tables, and the label taxonomy count.
-7. Retire the `epic:post-mvp` label once nothing carries it.
+1. **Seven epic labels created** — `epic:m9-biomarkers`, `epic:m10-recipe-converter`,
+   `epic:m11-directory`, `epic:m12-menu-analyzer`, `epic:m13-health-sync`,
+   `epic:m14-backup`, `epic:release-v1`. They were auto-created by the first issue
+   assignment and carry GitHub's **default grey**; recolouring them to match the
+   existing `epic:*` palette is a manual step (there is no label-colour API in the
+   tooling used).
+2. **All 26 issues re-filed** — `epic:post-mvp` swapped for the capability label,
+   `type:*` and `layer:*` untouched. Every issue still carries exactly three labels.
+3. **Seven Epic tracking issues opened** (#264–#270) from the §3 template, each with
+   its own North Star, entry conditions, scope boundaries, architectural invariants
+   and Definition of Done.
+4. **Sub-issue hierarchy wired** — all 26 attached to their Epic, so GitHub shows
+   real per-milestone progress rather than only a manual checklist.
+5. **All 26 issue bodies rewritten** to the `issue_conventions.md` standard, against
+   the *current* codebase. Three titles changed where they named a package that no
+   longer exists (#104, #113, #123) and two where they promised capability that is
+   deferred (#114, #119).
+6. **Epic #13 closed as superseded**, its body replaced with an index of the seven
+   and a record of the four things its text got wrong.
+7. **Docs amended** — `milestone_conventions.md` §1.2/§1.3/§2, `CLAUDE.md`'s
+   project-board tables and label taxonomy, `tasks.md` §Post-MVP,
+   `issue_conventions.md`, `mvp.md`, `base_design.md`.
+8. **`epic:post-mvp` retired** — nothing carries it.
 
-Not part of the split, but surfaced by it and worth doing in the same pass:
+### Stale content fixed in place, not merely re-filed
 
-- **The Login epic has no GitHub milestone and no Epic tracking issue.**
-  #206–#221 carry `epic:login` and nothing else. It is already the eighth
-  post-MVP capability and should be filed the same way as the six above.
-- **`CLAUDE.md` does not mention the Login epic at all.** Its issue-range table
-  stops at #128 and its label taxonomy lists ten epic labels, not eleven.
-- The five stale-content items in §3 should be fixed as each milestone's
-  pre-flight pass, in the same form as `m1_preflight.md` / `m2_preflight.md` /
-  `m3_preflight.md` — written before the milestone is picked up, not during.
+All five §3 items were corrected during the rewrite rather than deferred:
+
+- The three Isar references (#104, #113, #123) now specify sembast, with the
+  `dateIndex`/`.name`/`num`-decoding rules spelled out per issue
+- #123/#124 carry the platform-destination decision explicitly, with the
+  `dart:io` firewall named as the binding constraint
+- #114 became the map-SDK **re-decision** issue, carrying the
+  `mapkit_flutter`-is-Yandex correction and a recommendation (`flutter_map`), and
+  requires `technology.md` §137 be fixed as part of it
+- #106 quotes `technology.md` §100's existing `fl_chart` choice rather than
+  re-litigating it
+
+---
+
+## 6. The one manual step left
+
+**GitHub milestone *objects* were not created** — the tooling available in this
+session exposes no milestone API and there is no `gh` CLI. The seven groupings are
+carried by the epic labels, the Epic tracking issues and the sub-issue hierarchy,
+which is how `epic:login` already works.
+
+To finish, create these seven in the GitHub UI and assign each group:
+
+| Milestone title | Issues |
+|---|---|
+| `Release v1.0 — App Store Launch` | #125–#128 |
+| `M9 — Biomarker Logging` | #103–#107 |
+| `M10 — Recipe Converter` | #118–#120 |
+| `M11 — Restaurant Directory` | #111–#117 |
+| `M12 — Menu Analyzer` | #121–#122 |
+| `M13 — Apple Health Sync` | #108–#110 |
+| `M14 — Backup & Restore` | #123–#124 |
+
+Then retire the now-empty `v1.1 — Post-MVP Backlog` milestone.
+
+---
+
+## 7. Open item, out of scope
+
+The **Login epic (#206–#221)** carries `epic:login`, has **no GitHub milestone and
+no Epic tracking issue**, and is not mentioned in `CLAUDE.md`'s issue-range table.
+It is effectively the eighth post-MVP capability and should be filed the same way
+as the seven above — under the numbered scheme, presumably `epic:m15-login`.
+Relabelling 16 issues is a separate decision and was deliberately left alone.

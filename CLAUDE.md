@@ -23,7 +23,8 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/m2_preflight.md` | **M2 pre-flight corrections** — riverpod-2 `Ref` types, a `DailyLog.empty` factory that does not exist, and the `DailyLog` dashboard move that M2's text never picked up. Also lists the shipped model fields and repository methods M2 must code against. **Read before picking up any M2 issue** |
 | `design/m2_handoff.md` | **M2 handoff** — M2 shipped and the app became usable; the five conventions M3 inherits (the `pump_app` widget-test harness, date-only family keys held in state, parameters over un-overridable providers); **the RTL traps that cost the most time** (a horizontal `ListView` already starts right; `endToStart` drags *rightward*); Flutter/riverpod gotchas (`Dismissible` vs async delete, `AnimatedCrossFade` keeping both children, `Override` unexported by `flutter_riverpod`); coverage at closure; the gaps M3/M4/M5 inherit. **Read before picking up M3** |
 | `design/m3_preflight.md` | **M3 pre-flight corrections** — all twelve M3 issues audited. Four defects that compile and ship wrong behaviour: `copyWith(gracePeriodEnd: null)` silently does not clear, the streak increments per *meal* not per day, a fat-only first meal registers as a breach, and the phase boundary is off by one. Plus the canonical phase thresholds (8 and 28), two routes that do not exist, and the two places the issue text would regress M2. **Read before picking up any M3 issue** |
-| `design/v1_1_split.md` | **v1.1 split proposal** — why the single `v1.1 — Post-MVP Backlog` milestone fails the project's own milestone definition, the seven capability groups it should become, the stale content it carries (Isar references after the sembast swap, an iOS-only backup design after web shipped, a mis-identified map SDK), and the work required to execute. **Not yet executed on GitHub** |
+| `design/v1_1_split.md` | **v1.1 split proposal** — why the single `v1.1 — Post-MVP Backlog` milestone fails the project's own milestone definition, the seven capability groups it should become, the stale content it carries (Isar references after the sembast swap, an iOS-only backup design after web shipped, a mis-identified map SDK), and the work required to execute. **Executed** — labels, seven Epic issues (#264–#270), all 26 issues
+re-filed and rewritten; GitHub milestone objects still to be created by hand |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
 | `design/architecture.md` | Layer model, persistence schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
 | `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, and the **Error Handling Contract** (repositories throw typed exceptions; §"Why not `Result<T>`" records why that pattern was dropped before M1 — do not reintroduce it) |
@@ -202,7 +203,9 @@ The MVP (see `design/mvp.md`) ships exactly these 5 features:
 4. **Onboarding** — 4-screen flow, personalised macro targets, streak seeding
 5. **Symptom Diary** — lightweight 1–5 daily ratings
 
-Everything else (restaurant directory, recipe converter, menu analyzer, biomarker logging, Apple Health) is deferred to v1.1.
+Everything else is deferred to its own post-MVP milestone: biomarker logging (M9),
+recipe converter (M10), restaurant directory (M11), menu analyzer (M12), Apple
+Health (M13), backup & restore (M14). See `design/v1_1_split.md`.
 
 ## State Management
 
@@ -350,7 +353,13 @@ Full testing strategy in `design/tests.md`. Summary:
 
 **Repository:** `NoaMcDa/Fantastic` · **Project board:** #2
 
-All 115 atomic issues are created, labelled, milestoned, and added to project board #2. Ten Epic tracking issues (#4–#13) pin the milestone scope.
+All atomic issues are created, labelled and added to project board #2. Epic tracking
+issues #4–#12 pin the MVP milestones; #264–#270 pin the post-MVP milestones and the
+v1.0 release. #13 (v1.1 Post-MVP) is closed — it was split into seven milestones,
+recorded in `design/v1_1_split.md`.
+
+**GitHub milestone objects do not yet exist for M9–M14 or the release** — the epic
+labels and the Epic issues carry the grouping. Creating them is a manual step.
 
 ### Issue ranges by milestone
 
@@ -365,7 +374,19 @@ All 115 atomic issues are created, labelled, milestoned, and added to project bo
 | M6 — Keto Lens | `epic:m6-keto-lens` | #79–#87 | 9 |
 | M7 — Polish | `epic:m7-polish` | #88–#94 | 7 |
 | M8 — CI & Integration | `epic:m8-ci-integration` | #95–#102 | 8 |
-| v1.1 — Post-MVP | `epic:post-mvp` | #103–#128 | 26 |
+| Release v1.0 — App Store | `epic:release-v1` | #125–#128 | 4 |
+| M9 — Biomarker Logging | `epic:m9-biomarkers` | #103–#107 | 5 |
+| M10 — Recipe Converter | `epic:m10-recipe-converter` | #118–#120 | 3 |
+| M11 — Restaurant Directory | `epic:m11-directory` | #111–#117 | 7 |
+| M12 — Menu Analyzer | `epic:m12-menu-analyzer` | #121–#122 | 2 |
+| M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |
+| M14 — Backup & Restore | `epic:m14-backup` | #123–#124 | 2 |
+| Login (not yet milestoned) | `epic:login` | #206–#221 | 16 |
+
+**M9–M14 are numbered by recommended build order, not by dependency** — they are
+parallel peers and `milestone_conventions.md` §1.2's sequential gate applies to
+M0–M8 only. **`epic:release-v1` ships the MVP**, so it runs before M9, not after.
+`epic:post-mvp` is retired — see `design/v1_1_split.md`.
 
 ### Epic tracking issues
 
@@ -380,7 +401,15 @@ All 115 atomic issues are created, labelled, milestoned, and added to project bo
 | M6 Keto Lens | #10 |
 | M7 Polish | #11 |
 | M8 CI & Integration | #12 |
-| v1.1 Post-MVP | #13 |
+| Release v1.0 — App Store Launch | #270 |
+| M9 Biomarker Logging | #264 |
+| M10 Recipe Converter | #265 |
+| M11 Restaurant Directory | #266 |
+| M12 Menu Analyzer | #267 |
+| M13 Apple Health Sync | #268 |
+| M14 Backup & Restore | #269 |
+| ~~v1.1 Post-MVP~~ | ~~#13~~ — closed, split into the seven above |
+| Login | *none yet — see `design/v1_1_split.md`* |
 
 ### Label taxonomy
 
@@ -390,7 +419,10 @@ All 115 atomic issues are created, labelled, milestoned, and added to project bo
 **Layer labels** (7) — prefix `layer:`:
 `layer:core` · `layer:domain` · `layer:data` · `layer:application` · `layer:presentation` · `layer:infra` · `layer:test`
 
-**Epic labels** (10) — prefix `epic:` — see milestone table above.
+**Epic labels** (17) — prefix `epic:` — see milestone table above. Ten MVP/epic
+labels (`epic:m0-foundation`–`epic:m8-ci-integration`, plus `epic` on tracking
+issues), six post-MVP milestones (`epic:m9-biomarkers`–`epic:m14-backup`),
+`epic:release-v1`, and `epic:login`. **`epic:post-mvp` is retired.**
 
 Every issue carries exactly **3 labels**: one `type:*`, one `layer:*`, one `epic:*`.
 
