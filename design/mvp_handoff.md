@@ -103,7 +103,7 @@ Scattered across six handoffs and five issues until now.
 
 | | Severity |
 |---|---|
-| **#257 — scanned macros are per 100 g but logged as the serving** | **Highest.** Scan a 30 g bar, tap through, log 100 g. Corrupts the day's macros, the keto ratio, the streak evaluation *and* the phase. Shipped with a caption asking the user to do the arithmetic |
+| ~~#257 — scanned macros are per 100 g but logged as the serving~~ | **Fixed (#281).** `ServingBasis` is parsed, the scan sheet scales the prefill to what was eaten, and a two-column label resolves to `unknown` and asks rather than guessing |
 | #234 — the 20:00 reminder fires on days already logged compliant | Noise on exactly the days the user is doing well, which is how a reminder gets switched off. Epic #7 is open on this |
 | #262 — no way to skip onboarding | `UserProfile` requires every field, so there is no path past it |
 | #256 — OCR accuracy unmeasured | Epic #10's DoD. Blocked on a device |
@@ -188,7 +188,9 @@ audit as M1 through M6 did.
 
 ## If you pick this up next
 
-1. **#257.** It silently corrupts the numbers the whole app is built on.
+1. ~~**#257.**~~ Done — see `design/m6_platform_handoff.md`. The next-highest
+   correctness item is now **image pre-processing**: nothing crops to the guide,
+   and Tesseract is far more sensitive to that than ML Kit was.
 2. **Audit M7 (#88–#94) and write `design/m7_preflight.md`** before implementing
    — the four stale issues above are what that audit is for.
 3. **M8's integration tests (#95–#101)**, which is the only verification path

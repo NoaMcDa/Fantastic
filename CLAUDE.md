@@ -31,7 +31,7 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/m6_preflight.md` | **M6 pre-flight corrections** — all nine M6 issues audited. **Part 0 settles the ML Kit / web-build question empirically**: `dart:io` compiles for dart2js as throwing stubs, so the naive import does *not* break CI — the hazard is a runtime `MissingPluginException`, and the conditional-export firewall is built anyway (and why). Five defects that compile and ship wrong behaviour, the worst being a failed scan reported as **Clean Keto**; the five reasons #81's Hebrew regexes never match a real Israeli label; `permission_handler` and `image` decisions; a circular dependency graph. **Read before picking up any M6 issue** |
 | `design/m6_handoff.md` | **M6 handoff** — Keto Lens shipped; **why the ML Kit / web risk was real but mis-located** (`dart:io` compiles for dart2js as throwing stubs; the hazard is a runtime `MissingPluginException`) and the product decision that follows: **the lens tab cannot scan in a browser and says so**. The nine conventions M7 inherits (one plugin per adapter behind an interface, failure as a sealed value, a clean badge is not evidence); the gotchas that cost the most (**an indeterminate spinner on a tab screen hangs `widget_test.dart`**, clearing a busy flag after awaiting a modal, a stale `build_runner` cache skipping a file silently); and an explicit list of **what is unverified** — there is no camera, device or browser here, so no accuracy claim has been measured. **Read before picking up M7** |
 | `design/m6_platform_research.md` | **M6 platform research** — what it would take to run Keto Lens on all six Flutter targets, and **the finding that reframes the question: ML Kit has no Hebrew script model** (the enum is `latin, chinese, devanagiri, japanese, korean`), so the shipped iOS scanner asks a Latin recogniser to read Hebrew and most likely returns `ScanFailed(notALabel)` on every real label. Apple Vision, WinRT OCR, PaddleOCR and EasyOCR have no Hebrew either; **Tesseract + `heb.traineddata` is the only Hebrew-capable engine, and it reaches every target** — so fixing the engine and porting the feature are one change. Measured asset budget, correcting `technology.md`'s "~50 MB" Hebrew model by ~50x (the handoff has the figures that actually shipped), why cloud OCR stays rejected, why desktop's blocker is the camera and not OCR, and **the prerequisite for all of it: a corpus of real Israeli labels, which needs no app and no device**. **Read before any M6 engine or platform work** |
-| `design/m6_platform_handoff.md` | **M6 platform handoff** — what shipped when the research was implemented: ML Kit removed, **Tesseract on all six targets**, and **the lens tab now scans in a browser** (0.5 s, zero external requests) — reversing M6's central product decision. The six things only running it revealed: **`preserve_interword_spaces=1` destroys RTL Hebrew spacing** (the research doc had recommended setting it), three fatal Linux startup bugs that all rendered the *database* error screen, `flutter create` dropping `ios`+`web` from `.metadata` again, and a Dart `'''` literal that cannot hold geresh-terminated OCR output. The seven conventions inherited, and **an explicit verified/not-verified line** — four platforms are configured but have never been built. **Read before any further platform or OCR work** |
+| `design/m6_platform_handoff.md` | **M6 platform handoff** — what shipped when the research was implemented: ML Kit removed, **Tesseract on all six targets**, and **the lens tab now scans in a browser** (0.5 s, zero external requests) — reversing M6's central product decision. The six things only running it revealed: **`preserve_interword_spaces=1` destroys RTL Hebrew spacing** (the research doc had recommended setting it), three fatal Linux startup bugs that all rendered the *database* error screen, `flutter create` dropping `ios`+`web` from `.metadata` again, and a Dart `'''` literal that cannot hold geresh-terminated OCR output. The seven conventions inherited; **one real defect per platform, found only when a real toolchain ran** (`jcenter()` on Android, a model absent from the iOS `.app`, wrong library names on macOS *and* Windows); the **#257 serving-basis fix**; and an explicit verified/not-verified line — all six build on CI, **only web and Linux have ever been run**. **Read before any further platform or OCR work** |
 | `design/m8_preflight.md` | **M8 pre-flight + the e2e suite** — all eight M8 issues audited, and **Part 0 settles the "where do e2e tests run?" question empirically**: `flutter test -d flutter-tester integration_test/app_test.dart` drives the real app over a real in-memory sembast database, headless on Linux, in seconds — **no simulator, no macOS runner, no nightly-only compromise**, which retires `cicd_plan.md` §7.1's Phase 3 parking. The seven flow issues carry 24 defects between them (two of five tab labels do not exist; #99 drives sliders the sheet does not have). **Part 10 is what shipped**: the harness, the `e2e flows` CI job, ten flows — and the four defects the suite found on its first runs (the dashboard shows no macro targets until the first meal is logged; `MealListSection` spins forever on a storage failure; a dismissed meal is deleted asynchronously; the scan prefill shows `0.17999999999999988` where the sheet showed one decimal). **Read before picking up any M8 issue, and before writing a flow** |
 | `design/mvp_handoff.md` | **MVP handoff** — the cross-milestone view. **All five MVP features ship (M0–M6 complete).** The audit pattern that defined the project (the issue text was never right, once, in seven milestones) and the worst defect each audit caught; **the riverpod-3 async-error fact that cost four milestones in four disguises**; the consolidated open-defect list (#257 is the highest-value fix); what has never been verified — no device, no camera, and **nothing has ever read a real Hebrew label**; and the four M7 issues that are already done or obsolete. **Read before M7 or M8** |
 | `design/v1_1_split.md` | **v1.1 split proposal** — why the single `v1.1 — Post-MVP Backlog` milestone fails the project's own milestone definition, the seven capability groups it should become, the stale content it carries (Isar references after the sembast swap, an iOS-only backup design after web shipped, a mis-identified map SDK), and the work required to execute. **Executed** — labels, seven Epic issues (#264–#270), all 26 issues
@@ -346,6 +346,15 @@ frame. Found by running the Linux build — no test calls it.
 `build_runner` is still required, but only for `@riverpod` — sembast has no
 generator.
 
+### Numeric input
+
+**`NumericInput.positiveFinite` (`lib/core/utils/numeric_input.dart`) is the one
+place a user-typed number becomes a `double`.** `double.tryParse` is not
+validation: it accepts `Infinity` and `NaN`, neither of which is null, so a
+`tryParse(...) ?? fallback` never fires for either and both propagate into a
+`NaN` keto ratio. `OnboardingValidators.positiveFinite` delegates to it. Add a
+third caller by calling it, never by copying the guard.
+
 ### Error handling
 
 Repositories **throw**; they do not return a `Result<T>`. `lib/core/error/` holds the sealed hierarchy — `RepositoryException` with `EntityNotFoundException` and `PersistenceException` — plus `guardPersistence` / `guardPersistenceStream`, which every repository method wraps its storage call in.
@@ -377,7 +386,7 @@ CameraScreen / gallery import
   → LabelParser              → HebrewLabelParser + HebrewTextNormaliser
   → IngredientClassifier     → IngredientClassifierImpl
   → ScanResult               (sealed: ScanSucceeded | ScanFailed)
-  → ScanResultSheet          → prefills AddMealBottomSheet
+  → ScanResultSheet          → scales by ServingBasis → prefills AddMealBottomSheet
 ```
 
 The firewall still has **two arms**, because `dart.library.io` is the only thing
@@ -400,6 +409,22 @@ a scan was measured in Chromium at 0.5 s with **zero external requests**. Never
 let tesseract.js fall back to its CDN defaults for `workerPath`, `corePath` or
 `langPath` — that would both break the invariant and regress the
 zero-external-requests property `design/web_support.md` §7 records as verified.
+
+**Scanned macros are scaled, and the parser will not guess what they are per.**
+A label declares its values per 100 g; logging them as the serving is what #257
+was. `ServingBasis {per100g, per100ml, perServing, unknown}` is parsed from the
+label and `ParsedLabel.basis` defaults to `unknown`, which never scales.
+
+- **Exactly one basis marker resolves to that basis; zero or more than one
+  resolves to `unknown`.** Many Israeli labels print two columns and flattened
+  OCR cannot say which column a number came from — so the sheet asks rather
+  than picking one. A plausible wrong number logged silently is the failure
+  mode this whole feature is built to avoid.
+- **The macro strip shows what will be logged, not what is printed.** The
+  number in front of the user when they save is the number that gets saved.
+- **An empty or unparseable amount falls back to the printed figures, never to
+  zero.** A zero-macro meal saves without complaint and is invisible in the
+  day's totals.
 
 **`preserve_interword_spaces` must stay unset.** It reads like the safe choice
 and is, for Latin — but on RTL Hebrew it *removes* spaces: `53.8 גרם` comes back
@@ -428,6 +453,10 @@ there is still no camera here, no accuracy percentage is claimed, and issue #256
 and Epic #10 stay open. See `design/m6_platform_handoff.md`.
 
 ## Keto Business Logic
+
+**Scanned values are per 100 g unless the label says otherwise** — see the OCR
+section. Everything below is computed from what was *eaten*, so a scan that is
+not scaled to the serving corrupts all of it at once.
 
 **Keto Ratio:** `Fat (g) / (Net Carbs (g) + Protein (g))`  
 **Net Carbs:** `Total Carbs (g) − Dietary Fiber (g)`

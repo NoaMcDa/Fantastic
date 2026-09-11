@@ -388,7 +388,7 @@ grep, not by a test — the same honest gap M6 documented.
 
 Cheaper than any port, and it helps whichever engine wins.
 
-- **#257 — scanned macros are per 100 g but logged as the serving.** Still the highest-value open
+- ~~**#257 — scanned macros are per 100 g but logged as the serving.**~~ **Fixed in #281** — was the highest-value open
   defect in the project (`mvp_handoff.md`). Independent of everything in this document; fix it
   regardless of which engine ships.
 
@@ -493,7 +493,7 @@ Ordered by value per unit of risk. Each step is shaped to become an issue under
    on-device at all — which is a product question, and one worth reaching early rather than after a
    port.
 
-2. **Fix #257.** Independent of all of it, and currently corrupting the day's macros, the keto ratio,
+2. ~~**Fix #257.**~~ Done (#281). It was independent of all of it, and was corrupting the day's macros, the keto ratio,
    the streak evaluation and the phase.
 
 3. **Swap the iOS recogniser to Tesseract**, behind the unchanged `TextRecognitionService` interface,
