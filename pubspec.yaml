@@ -79,6 +79,15 @@ dependencies:
   # via flutter_lints) flags the undeclared import, and the domain layer may
   # not import package:flutter/foundation.dart to get the annotation instead.
   meta: ^1.15.0
+
+  # SetEquality for SymptomLog's symptom set. Dart's Set inherits identity
+  # equality from Object, so a naive `other.symptoms == symptoms` compares two
+  # logs holding equal sets as unequal — breaking copyWith round-trips and
+  # every `expect(actual, equals(expected))` in the diary suite. Transitive via
+  # flutter already, but `depend_on_referenced_packages` (active through
+  # flutter_lints) rejects importing a package that is not declared.
+  collection: ^1.19.0
+
   flutter_local_notifications: ^22.3.0
   timezone: ^0.11.1
 

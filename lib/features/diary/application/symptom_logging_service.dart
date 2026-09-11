@@ -37,7 +37,7 @@ class SymptomLoggingService {
   /// Upserts [log] for its calendar date. Returns the persisted copy, which
   /// carries the record's yyyyMMdd id.
   ///
-  /// Throws [ArgumentError] if any of the five scores falls outside
+  /// Throws [ArgumentError] if any of the four scores falls outside
   /// [minScore]–[maxScore]. A storage failure surfaces as the
   /// `PersistenceException` the repository threw — this service does not
   /// catch it, per `design/base_design.md` §Error Handling Contract.
@@ -61,8 +61,9 @@ class SymptomLoggingService {
     _validateScore(log.energyScore, 'energyScore');
     _validateScore(log.clarityScore, 'clarityScore');
     _validateScore(log.hungerScore, 'hungerScore');
-    _validateScore(log.physicalScore, 'physicalScore');
     _validateScore(log.moodScore, 'moodScore');
+    // `log.symptoms` is deliberately unchecked: PhysicalSymptom is a closed
+    // enum, so an out-of-range value is not constructible.
   }
 
   static void _validateScore(int score, String name) {

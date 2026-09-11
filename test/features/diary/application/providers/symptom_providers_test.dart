@@ -2,6 +2,7 @@ import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/features/diary/application/providers/symptom_providers.dart';
 import 'package:fantastic/features/diary/application/symptom_logging_service.dart';
 import 'package:fantastic/features/diary/data/providers.dart';
+import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:fantastic/features/diary/domain/repositories/symptom_log_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,7 +40,10 @@ void main() {
         .read(symptomLogProvider(stored.date).future);
 
     expect(log, stored);
-    expect(log!.moodScore, 5, reason: 'every scale arrives as itself');
+    expect(log!.moodScore, 4, reason: 'every scale arrives as itself');
+    expect(log.symptoms, {
+      PhysicalSymptom.muscleCramps,
+    }, reason: 'the symptom set arrives with it');
   });
 
   // Null is a valid day, not a failure: the diary shows an empty state.

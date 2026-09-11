@@ -155,12 +155,17 @@ timestamp         date (indexed)    date (indexed)     date (indexed)
 fatG              totalFatG         energyScore 1-5    bloodKetones
 netCarbsG         totalNetCarbsG    clarityScore 1-5   breathKetones
 proteinG          totalProteinG     hungerScore 1-5    fastingGlucose
-ingredients[]     waterMl           physicalScore 1-5  bodyWeightKg
-imageRef          sodiumMg          moodScore 1-5      notes
+ingredients[]     waterMl           moodScore 1-5      bodyWeightKg
+imageRef          sodiumMg          symptoms[]         notes
 mealName          potassiumMg       notes
                   magnesiumMg
                   ketoRatioAvg
 ```
+
+`SymptomLog.symptoms` is a `Set<PhysicalSymptom>` stored as a list of enum
+`.name` strings, sorted by enum index so two logs with the same symptoms
+produce byte-identical records. Renaming a `PhysicalSymptom` value orphans
+every record that stored it — see `design/web_support.md` §4.
 
 `MealEntry.ketoRatio` is a **computed getter**, not a stored column — a
 persisted copy can go stale against the macros it was derived from.
