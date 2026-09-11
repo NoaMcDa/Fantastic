@@ -428,6 +428,27 @@ and Epic #10 stay open. See `design/m6_platform_handoff.md`.
 
 Streak increments on compliant days. Breach triggers a 24-hour grace period. If a compliant day is logged within the grace period, the streak resumes. If not, the streak resets to 0 and phase returns to Phase 1.
 
+**A skipped day breaks the streak, in all three phases.** Once a whole calendar
+day has passed with nothing banked, the next compliant day starts a new streak
+at 1 — `lastCompliantDate` of today or yesterday is intact (today is winnable
+until midnight), anything older is broken. `AdaptationPhaseService.reconcile`
+is the only thing that applies this, because every other transition is driven
+by a meal being logged; without it `currentStreak` was a lifetime count of
+compliant days, not a streak.
+
+**A breached day is not a skipped day.** An unexpired grace window survives the
+calendar gap it creates — that window is precisely what a breach buys, and the
+resume promise above depends on it.
+
+**Phase 3 shares the rule for now and is expected to change**, to something
+that depends on what was eaten rather than on whether anything was logged.
+
+Reconciliation runs **on write, not on read**: nothing persists it until the
+user's next logged meal, so the ring can show a stale streak until then (the
+"streak resets lazily" gap in `design/m3_handoff.md`). Applying it on read
+would put `DateTime.now()` inside a provider and make every widget test that
+stubs a streak time-dependent.
+
 ## Testing
 
 Full testing strategy in `design/tests.md`. Summary:

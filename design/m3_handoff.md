@@ -217,6 +217,17 @@ explicit if anyone ever formats a grace deadline.
 - **The streak resets lazily.** An expired grace period is only noticed on the
   next evaluation, so the banner reads "פחות מדקה" until the user logs
   something. A launch-time evaluation would fix it.
+  **[Corrected, post-M5 audit] This understated it in one direction and has
+  since been half-fixed.** "Noticed late" was not the whole story: when the
+  user did return and log a compliant day, `recordCompliantDay` never checked
+  the expiry at all, so the reset *never happened* — a breach whose window had
+  lapsed a week earlier simply resumed the streak. Worse, nothing anywhere
+  checked contiguity, so a skipped day did not break the streak either and
+  `currentStreak` was a lifetime count of compliant days. Both are fixed by
+  `AdaptationPhaseService.reconcile`, which every write path now runs first.
+  **What remains of this gap is only the display half**: reconciliation is not
+  applied on read, so a stale number can sit on the ring until the user's next
+  logged meal.
 - **Water and electrolytes still have no logging flow** (inherited from M2), so
   the gauges read zero and every electrolyte shows a deficit.
 - **`/diary/<date>` does not exist**, so #67's calendar days are not tappable.
