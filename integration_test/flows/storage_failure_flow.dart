@@ -1,5 +1,7 @@
 import 'package:fantastic/core/widgets/skeleton_box.dart';
 import 'package:fantastic/features/adaptation/presentation/screens/phase_detail_screen.dart';
+import 'package:fantastic/features/dashboard/presentation/widgets/electrolytes_card.dart';
+import 'package:fantastic/features/dashboard/presentation/widgets/electrolytes_card_skeleton.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -86,6 +88,39 @@ void main() {
       ),
       findsNothing,
       reason: 'MealListSection skeletoned instead of reporting the failure',
+    );
+
+    // The electrolytes card sits at the bottom of the dashboard, below the
+    // fold. A `SliverList` builds its children lazily even from a
+    // `SliverChildListDelegate`, so until the viewport reaches it the card
+    // has **no element at all** (`design/m5_handoff.md`) — scrolling is what
+    // makes the next three assertions about the card rather than about the
+    // scroll offset. Dragged rather than `scrollUntilVisible`, which settles
+    // internally and would time out against the retrying providers.
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+    await pumpFrames(tester);
+
+    // It reports the failure rather than vanishing. Before #302 all three of
+    // its branches rendered `SizedBox.shrink()`, so a broken store and an
+    // ordinary empty day were indistinguishable — and neither put anything
+    // on screen.
+    await waitFor(
+      tester,
+      () async => find.text('לא ניתן לטעון את המדדים').evaluate().isNotEmpty,
+      reason: 'the electrolytes card never reported the storage failure',
+    );
+    expect(
+      find.descendant(
+        of: find.byType(ElectrolytesCard),
+        matching: find.byType(CircularProgressIndicator),
+      ),
+      findsNothing,
+      reason: 'ElectrolytesCard spun instead of reporting the failure',
+    );
+    expect(
+      find.byType(ElectrolytesCardSkeleton),
+      findsNothing,
+      reason: 'ElectrolytesCard skeletoned instead of reporting the failure',
     );
 
     // The add-meal button is still there over a dead store. It is the only
