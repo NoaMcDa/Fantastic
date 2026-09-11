@@ -4,6 +4,7 @@ import 'package:fantastic/features/diary/application/meal_logging_service.dart';
 import 'package:fantastic/features/diary/application/providers/meal_providers.dart';
 import 'package:fantastic/features/diary/presentation/screens/diary_day_screen.dart';
 import 'package:fantastic/features/diary/presentation/screens/diary_screen.dart';
+import 'package:fantastic/features/diary/presentation/widgets/add_meal_bottom_sheet.dart';
 import 'package:fantastic/features/onboarding/application/providers/user_profile_providers.dart';
 import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
 import 'package:flutter/material.dart';
@@ -173,6 +174,66 @@ void main() {
           .toSet();
 
       expect(rendered.intersection(initials), isNotEmpty);
+    });
+  });
+
+  // The Diary tab is where a user goes to work on a day, and it shipped with
+  // no way to add a meal to one — while the empty state inside it read
+  // "הקש על + כדי להוסיף ארוחה". The only `+` on the screen logged symptoms.
+  group('add-meal FAB', () {
+    testWidgets('is present on a day with nothing logged', (tester) async {
+      await pumpDiary(tester);
+
+      expect(find.byKey(const Key('add_meal_fab_diary')), findsOneWidget);
+    });
+
+    testWidgets('opens the add-meal sheet', (tester) async {
+      await pumpDiary(tester);
+
+      await tester.tap(find.byKey(const Key('add_meal_fab_diary')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AddMealBottomSheet), findsOneWidget);
+    });
+
+    testWidgets('the sheet targets today when today is selected', (
+      tester,
+    ) async {
+      await pumpDiary(tester);
+
+      await tester.tap(find.byKey(const Key('add_meal_fab_diary')));
+      await tester.pumpAndSettle();
+
+      final sheet = tester.widget<AddMealBottomSheet>(
+        find.byType(AddMealBottomSheet),
+      );
+      expect(sheet.date, today());
+    });
+
+    // The whole reason this screen exists: a meal added here belongs to the
+    // day the chip strip is showing, not to today.
+    testWidgets('the sheet targets the selected past day', (tester) async {
+      await pumpDiary(tester);
+
+      await tester.tap(find.text('${dayBefore(3).day}').first);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('add_meal_fab_diary')));
+      await tester.pumpAndSettle();
+
+      final sheet = tester.widget<AddMealBottomSheet>(
+        find.byType(AddMealBottomSheet),
+      );
+      expect(sheet.date, dayBefore(3));
+    });
+
+    // It does not carry the dashboard's key: the tab shell keeps the
+    // outgoing screen mounted during a tab change, so one shared key would
+    // match twice mid-transition.
+    testWidgets('does not reuse the dashboard FAB key', (tester) async {
+      await pumpDiary(tester);
+
+      expect(find.byKey(const Key('add_meal_fab')), findsNothing);
     });
   });
 

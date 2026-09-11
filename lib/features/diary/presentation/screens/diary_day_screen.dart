@@ -1,4 +1,5 @@
 import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card.dart';
+import 'package:fantastic/features/diary/presentation/widgets/add_meal_fab.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_diary_section.dart';
 import 'package:flutter/material.dart';
@@ -19,7 +20,15 @@ class DiaryDayScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      // Extra room at the bottom clears the add-meal FAB, which floats over
+      // this body rather than displacing it — without it the symptom section
+      // ends underneath the button.
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        16 + AddMealFab.bodyClearance,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

@@ -1,5 +1,6 @@
 import 'package:fantastic/core/time/today_tracker.dart';
 import 'package:fantastic/features/diary/presentation/screens/diary_day_screen.dart';
+import 'package:fantastic/features/diary/presentation/widgets/add_meal_fab.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -73,6 +74,23 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> with TodayTracker {
           const Divider(height: 1),
           Expanded(child: DiaryDayScreen(date: _selectedDate)),
         ],
+      ),
+      // The diary is where a user comes to work on a *day*, and until this it
+      // was the one place that said "הקש על + כדי להוסיף ארוחה" without
+      // offering a `+` to tap — the only one on the screen logs symptoms.
+      //
+      // It logs against [_selectedDate], not today: the chip strip above is
+      // the whole point of this screen, so a meal added here belongs to the
+      // day the user is looking at.
+      //
+      // **A key of its own, not the dashboard's.** The tab shell keeps the
+      // outgoing screen mounted while the next one comes in
+      // (`design/m8_preflight.md` Part 10), so a shared key would make a
+      // finder match two widgets mid-transition — a test that passes until
+      // it does not.
+      floatingActionButton: AddMealFab(
+        key: const Key('add_meal_fab_diary'),
+        date: _selectedDate,
       ),
     );
   }

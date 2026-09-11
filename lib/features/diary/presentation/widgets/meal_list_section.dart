@@ -42,21 +42,36 @@ class _MealListSectionState extends ConsumerState<MealListSection> {
   Widget build(BuildContext context) {
     final mealsAsync = ref.watch(todaysMealsProvider(widget.date));
 
-    return mealsAsync.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      // Says the read failed rather than rendering nothing: an empty list and
-      // a failed load look identical otherwise, and mean opposite things.
-      error: (_, _) => const Padding(
+    // `hasError` first, and `AsyncValue.when` deliberately not used at all.
+    //
+    // riverpod 3 reports a provider that failed *before ever producing a
+    // value* as `AsyncLoading` **with an error attached** — both flags are
+    // true — and `when` is loading-first, so this section spun forever on a
+    // storage failure while the macro card and the symptom strip either side
+    // of it reported the failure correctly. That is
+    // `design/m8_preflight.md` Part 10 defect 2, and it sits directly under
+    // the add-meal button: the user was left watching a spinner with no way
+    // to tell a broken store from a slow one.
+    //
+    // Says the read failed rather than rendering nothing: an empty list and a
+    // failed load look identical otherwise, and mean opposite things.
+    if (mealsAsync.hasError) {
+      return const Padding(
         padding: EdgeInsets.all(16),
         child: Center(child: Text('לא ניתן לטעון את הארוחות')),
-      ),
-      // No empty-state widget here — MacroSummaryCard above already shows one
-      // for a day with nothing logged, and two would stack.
-      data: _buildList,
-    );
+      );
+    }
+
+    if (!mealsAsync.hasValue) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // No empty-state widget here — MacroSummaryCard above already shows one
+    // for a day with nothing logged, and two would stack.
+    return _buildList(mealsAsync.requireValue);
   }
 
   Widget _buildList(List<MealEntry> meals) {

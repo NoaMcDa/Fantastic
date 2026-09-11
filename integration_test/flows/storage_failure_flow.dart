@@ -53,20 +53,33 @@ void main() {
     // Neither shows the empty state.
     expect(find.text('לא נרשמו ארוחות להיום'), findsNothing);
 
-    // **A characterization test, not an endorsement.** `MealListSection` is
-    // one of the two widgets `design/mvp_handoff.md` lists as still using
-    // the loading-first `.when` pattern, and this is what that costs: on a
-    // storage failure it spins forever, beside two siblings that report the
-    // error correctly. Fixing it — `hasError` before `hasValue` — is M7
-    // work; when someone does, this expectation flips to `findsNothing`.
+    // This expectation has flipped. It used to assert `findsOneWidget` as a
+    // characterization of `design/m8_preflight.md` Part 10 defect 2 —
+    // `MealListSection` was the last widget still using the loading-first
+    // `.when` pattern, so on a storage failure it spun forever beside two
+    // siblings that reported the error correctly. It now checks `hasError`
+    // before `hasValue` like they do.
+    await pumpUntil(
+      tester,
+      find.descendant(
+        of: find.byType(MealListSection),
+        matching: find.text('לא ניתן לטעון את הארוחות'),
+      ),
+      reason: 'the meal list never reported the storage failure',
+    );
     expect(
       find.descendant(
         of: find.byType(MealListSection),
         matching: find.byType(CircularProgressIndicator),
       ),
-      findsOneWidget,
-      reason: 'MealListSection is loading-first; see design/mvp_handoff.md',
+      findsNothing,
+      reason: 'MealListSection spun instead of reporting the failure',
     );
+
+    // The add-meal button is still there over a dead store. It is the only
+    // way to log a meal from this screen, so it must not be behind any
+    // provider — least of all one that is retrying.
+    expect(find.byKey(const Key('add_meal_fab')), findsOneWidget);
 
     // The adaptation tab degrades the same way rather than hanging.
     //
