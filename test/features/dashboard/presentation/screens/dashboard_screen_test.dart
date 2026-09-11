@@ -10,11 +10,14 @@ import 'package:fantastic/features/dashboard/presentation/widgets/electrolytes_c
 import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card.dart';
 import 'package:fantastic/features/diary/application/meal_logging_service.dart';
 import 'package:fantastic/features/diary/application/providers/meal_providers.dart';
+import 'package:fantastic/features/diary/application/providers/symptom_providers.dart';
 import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
+import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
 import 'package:fantastic/features/diary/presentation/widgets/add_meal_bottom_sheet.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
 import 'package:fantastic/features/onboarding/application/providers/user_profile_providers.dart';
 import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
+import 'package:fantastic/features/diary/presentation/widgets/symptom_check_in_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,6 +59,7 @@ void main() {
     WidgetTester tester, {
     DailyLog? log,
     List<MealEntry> meals = const [],
+    SymptomLog? symptoms,
   }) async {
     final date = today();
     final overrides = <Override>[
@@ -68,6 +72,9 @@ void main() {
       macroTargetsProvider.overrideWith(
         (ref) => Stream.value(MacroTargets.defaults),
       ),
+      // #76 put SymptomCheckInStrip on the dashboard, so the screen now
+      // reads the day's symptom log too.
+      symptomLogProvider(date).overrideWith((ref) async => symptoms),
     ];
 
     await tester.pumpWidget(
@@ -83,6 +90,18 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  /// Scrolls until the electrolytes card — the last row — is built.
+  ///
+  /// #76's symptom strip pushed it past the fold of the default 800x600 test
+  /// window. A sliver child below the fold has no element at all, so
+  /// `find.byType` cannot see it and `skipOffstage: false` does not help.
+  Future<void> revealElectrolytes(WidgetTester tester) =>
+      tester.scrollUntilVisible(
+        find.byType(ElectrolytesCard),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
 
   group('scaffold', () {
     testWidgets('renders with a logged day', (tester) async {
@@ -107,11 +126,14 @@ void main() {
       expect(find.textContaining('${today().year}'), findsOneWidget);
     });
 
-    testWidgets('hosts all three sections', (tester) async {
+    testWidgets('hosts all four sections', (tester) async {
       await pumpDashboard(tester, log: DailyLogFixture.fixture(date: today()));
 
       expect(find.byType(MacroSummaryCard), findsOneWidget);
       expect(find.byType(MealListSection), findsOneWidget);
+      expect(find.byType(SymptomCheckInStrip), findsOneWidget);
+
+      await revealElectrolytes(tester);
       expect(find.byType(ElectrolytesCard), findsOneWidget);
     });
   });
@@ -158,12 +180,18 @@ void main() {
       final meals = tester.widget<MealListSection>(
         find.byType(MealListSection),
       );
+      final symptoms = tester.widget<SymptomCheckInStrip>(
+        find.byType(SymptomCheckInStrip),
+      );
+
+      await revealElectrolytes(tester);
       final electrolytes = tester.widget<ElectrolytesCard>(
         find.byType(ElectrolytesCard),
       );
 
       expect(macro.date, meals.date);
       expect(meals.date, electrolytes.date);
+      expect(electrolytes.date, symptoms.date);
     });
 
     testWidgets('the date it passes down is stripped to midnight', (
@@ -240,6 +268,7 @@ void main() {
       streakIs(StreakStateFixture.withStreak(12));
 
       await pumpDashboard(tester, log: DailyLogFixture.fixture(date: today()));
+      await revealElectrolytes(tester);
 
       expect(
         tester.widget<ElectrolytesCard>(find.byType(ElectrolytesCard)).phase,
@@ -253,6 +282,7 @@ void main() {
       tester,
     ) async {
       await pumpDashboard(tester, log: DailyLogFixture.fixture(date: today()));
+      await revealElectrolytes(tester);
 
       expect(
         tester.widget<ElectrolytesCard>(find.byType(ElectrolytesCard)).phase,

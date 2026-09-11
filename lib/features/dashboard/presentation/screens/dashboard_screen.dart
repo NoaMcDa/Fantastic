@@ -6,6 +6,7 @@ import 'package:fantastic/features/dashboard/presentation/widgets/electrolytes_c
 import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card.dart';
 import 'package:fantastic/features/diary/presentation/widgets/add_meal_bottom_sheet.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
+import 'package:fantastic/features/diary/presentation/widgets/symptom_check_in_strip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -56,6 +57,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const Center(child: PhaseBadgeWidget()),
                 const SizedBox(height: 16),
                 MealListSection(date: _date),
+                const SizedBox(height: 16),
+                SymptomCheckInStrip(date: _date),
                 const SizedBox(height: 16),
                 // The phase the targets are drawn from, at last: M2 shipped
                 // this card with a parameter defaulting to induction and a

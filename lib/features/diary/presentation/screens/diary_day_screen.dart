@@ -1,10 +1,11 @@
 import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
+import 'package:fantastic/features/diary/presentation/widgets/symptom_diary_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Everything recorded for one calendar date: the day's macro summary, its
-/// meals, and a placeholder for the symptom check-in M5 adds.
+/// meals, and its symptom check-in.
 ///
 /// Takes its date as a parameter and passes it straight down — no provider
 /// override, no state of its own. That is what lets the same widget serve
@@ -26,36 +27,8 @@ class DiaryDayScreen extends ConsumerWidget {
           const SizedBox(height: 16),
           MealListSection(date: date),
           const SizedBox(height: 16),
-          const _SymptomsPlaceholder(),
+          SymptomDiarySection(date: date),
         ],
-      ),
-    );
-  }
-}
-
-/// Stands in for the symptom check-in until M5 (#75–#78) builds it.
-///
-/// A named widget rather than a bare `Text` so the swap is a one-line change
-/// here, and so a test can assert the slot exists without matching on copy
-/// that is going to be replaced.
-class _SymptomsPlaceholder extends StatelessWidget {
-  const _SymptomsPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Center(
-          child: Text(
-            'תסמינים — בקרוב',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
       ),
     );
   }
