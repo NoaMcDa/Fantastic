@@ -16,8 +16,10 @@ import 'package:flutter/services.dart' show rootBundle;
 /// float model in `tessdata_best` is 3.5 MB for accuracy nobody here has
 /// measured; see `design/m6_platform_research.md` Part 6.
 ///
-/// Desktop only. The mobile plugin does its own asset copy, and the browser
-/// fetches `web/tesseract/heb.traineddata` over same-origin HTTP.
+/// Desktop only. On Android the plugin does its own asset copy; on iOS it
+/// reads a `tessdata` folder reference copied into the `.app` by
+/// `ios/Runner.xcodeproj` instead. The browser fetches
+/// `web/tesseract/heb.traineddata` over same-origin HTTP.
 abstract final class TessdataBundle {
   /// Where the asset lives in the bundle.
   static const String assetKey = 'assets/tessdata/heb.traineddata';
