@@ -20,6 +20,7 @@ import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.
 import 'package:fantastic/features/onboarding/application/providers/user_profile_providers.dart';
 import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_check_in_strip.dart';
+import 'package:fantastic/features/adaptation/presentation/widgets/grace_period_banner.dart';
 import 'package:flutter/material.dart';
 import 'package:fantastic/features/dashboard/data/providers.dart';
 import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
@@ -369,6 +370,74 @@ void main() {
       expect(
         tester.widget<ElectrolytesCard>(find.byType(ElectrolytesCard)).phase,
         AdaptationPhase.induction,
+      );
+    });
+  });
+
+  // #345: the warning that the streak is in danger belongs on the screen
+  // where the user logs the meal that endangers it. Until then
+  // `GracePeriodBanner` was mounted once in the whole app, on the
+  // adaptation tab, and the dashboard said nothing.
+  group('the grace-period banner', () {
+    testWidgets('is silent and takes no space on a healthy streak', (
+      tester,
+    ) async {
+      when(streakRepository.watch)
+          .thenAnswer((_) => Stream.value(StreakStateFixture.withStreak(5)));
+
+      await pumpDashboard(tester);
+
+      // `skipOffstage: false`: the banner is mounted and renders
+      // `SizedBox.shrink()`, and a zero-extent sliver child reads as
+      // offstage to the default finder — which is precisely the state being
+      // asserted here.
+      final banner = find.byType(GracePeriodBanner, skipOffstage: false);
+      expect(banner, findsOneWidget);
+      expect(find.textContaining('הרצף שלך בסכנה'), findsNothing);
+      // The whole reason an unconditional placement is safe: on a healthy
+      // streak it costs the dashboard nothing at all.
+      expect(tester.getSize(banner).height, 0);
+    });
+
+    testWidgets('warns on the dashboard while a window is open', (
+      tester,
+    ) async {
+      when(streakRepository.watch).thenAnswer(
+        (_) => Stream.value(
+          StreakStateFixture.inGracePeriod(
+            gracePeriodEnd: DateTime.now().add(const Duration(hours: 6)),
+          ),
+        ),
+      );
+
+      await pumpDashboard(tester);
+
+      expect(find.textContaining('הרצף שלך בסכנה'), findsOneWidget);
+      expect(
+        tester.getSize(find.byType(GracePeriodBanner)).height,
+        greaterThan(0),
+      );
+    });
+
+    // The banner is full-bleed rather than a child of the padded card list:
+    // a full-width alert inset by 16pt reads as another card, and it is not
+    // a card.
+    testWidgets('spans the full width, outside the list padding', (
+      tester,
+    ) async {
+      when(streakRepository.watch).thenAnswer(
+        (_) => Stream.value(
+          StreakStateFixture.inGracePeriod(
+            gracePeriodEnd: DateTime.now().add(const Duration(hours: 6)),
+          ),
+        ),
+      );
+
+      await pumpDashboard(tester);
+
+      expect(
+        tester.getSize(find.byType(GracePeriodBanner)).width,
+        tester.getSize(find.byType(Scaffold)).width,
       );
     });
   });

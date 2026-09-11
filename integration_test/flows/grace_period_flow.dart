@@ -128,14 +128,13 @@ void main() {
     matching: find.textContaining('הרצף שלך בסכנה'),
   );
 
-  /// Opens the adaptation tab, which is **the only screen that carries the
-  /// banner**.
+  /// Opens the adaptation tab.
   ///
-  /// Found by writing this flow: `GracePeriodBanner` is mounted once in the
-  /// whole app, in `PhaseDetailScreen`. The dashboard — where the user lands,
-  /// and where they log the meal that opens the window — never warns them
-  /// their streak is at risk. Noted in the PR rather than fixed here; #98
-  /// changes no `lib/` file.
+  /// The banner is on the dashboard now (#345), so the flow asserts it
+  /// there. This stays for the one assertion that is genuinely about the
+  /// adaptation tab: the same state has to reach both screens, and a banner
+  /// mounted twice is exactly the kind of thing that regresses on one of
+  /// them silently.
   Future<void> openAdaptationTab(WidgetTester tester) =>
       goToTab(tester, 'tab_adaptation');
 
@@ -154,9 +153,8 @@ void main() {
     await pumpApp(tester, app);
 
     expect(ringShows('5'), findsOneWidget);
-    await openAdaptationTab(tester);
+    // Nothing to warn about yet, and the banner takes no space saying so.
     expect(bannerText(), findsNothing);
-    await openHomeTab(tester);
 
     // 92 g of net carbs — well past the 50 g limit. The keto ratio these
     // macros imply is irrelevant now; #303 made net carbs the whole rule.
@@ -167,8 +165,16 @@ void main() {
     // behind it.
     expect(ringShows('5'), findsOneWidget);
 
+    // **On the dashboard, without leaving it** (#345). This is the screen
+    // the breaching meal was just logged from; before #345 the user got no
+    // warning here at all.
+    expect(bannerText(), findsOneWidget);
+
+    // And the adaptation tab still agrees. One state, two mounts — the
+    // thing most likely to regress on one screen only.
     await openAdaptationTab(tester);
     expect(bannerText(), findsOneWidget);
+    await openHomeTab(tester);
 
     final streak = await storedStreak(app);
     expect(streak.inGracePeriod, isTrue);
@@ -218,7 +224,6 @@ void main() {
     //
     // Nothing here has written; only what is painted has changed.
     expect(ringShows('0'), findsOneWidget);
-    await openAdaptationTab(tester);
     expect(bannerText(), findsNothing);
     expect(
       find.text(GracePeriodBannerText.expiredNotice),
@@ -232,7 +237,6 @@ void main() {
       reason: 'the display corrected itself by writing, which it must not do',
     );
     expect(beforeWrite.inGracePeriod, isTrue);
-    await openHomeTab(tester);
 
     await logMeal(
       tester,
@@ -251,8 +255,6 @@ void main() {
     // A literal 0 would require the reconciling write to land on a day that
     // is not compliant, which is a different scenario from this one.
     expect(ringShows('1'), findsOneWidget);
-
-    await openAdaptationTab(tester);
     expect(bannerText(), findsNothing);
 
     final streak = await storedStreak(app);
@@ -298,9 +300,7 @@ void main() {
         );
     await pumpApp(tester, app);
 
-    await openAdaptationTab(tester);
     expect(bannerText(), findsOneWidget);
-    await openHomeTab(tester);
 
     await logMeal(
       tester,
@@ -332,7 +332,6 @@ void main() {
     // picks #308 up knows a flow is watching this exact behaviour and can see
     // at a glance which half they are changing.
     expect(streak.inGracePeriod, isTrue);
-    await openAdaptationTab(tester);
     expect(bannerText(), findsOneWidget);
   });
 }

@@ -1,6 +1,7 @@
 import 'package:fantastic/core/time/today_tracker.dart';
 import 'package:fantastic/features/adaptation/application/providers/streak_providers.dart';
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
+import 'package:fantastic/features/adaptation/presentation/widgets/grace_period_banner.dart';
 import 'package:fantastic/features/adaptation/presentation/widgets/phase_badge_widget.dart';
 import 'package:fantastic/features/adaptation/presentation/widgets/streak_ring_widget.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/electrolytes_card.dart';
@@ -49,6 +50,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
+          // **Above the padded list, and full-bleed.** The warning that the
+          // streak is in danger belongs on the screen where the user logs
+          // the meal that endangers it — until #345 it was mounted only on
+          // the adaptation tab, so the dashboard never said a word and the
+          // ring's number simply dropped later with no explanation.
+          //
+          // Its own sliver rather than a child of the padded list below: a
+          // full-width alert inset by 16pt reads as another card, and this
+          // is not a card. `GracePeriodBanner` occupies no space at all when
+          // there is nothing to say, which is what makes an unconditional
+          // placement safe — most days have no grace period.
+          //
+          // Not pinned. A pinned banner would compete with the pinned date
+          // bar directly above it, and two stacked pinned headers eat a
+          // third of a phone screen for a state that is, by design, rare.
+          const SliverToBoxAdapter(child: GracePeriodBanner()),
           SliverPadding(
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
