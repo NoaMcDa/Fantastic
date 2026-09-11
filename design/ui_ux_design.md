@@ -15,6 +15,7 @@
 | `success` | `#30D158` | Clean Keto badge |
 | `caution` | `#FFD60A` | Caution badge |
 | `danger` | `#FF453A` | Non-keto badge, streak break |
+| `outline` | `#8E8E93` | The edge of an unfilled interactive control — an unselected score button, an unfilled score dot. Material's `surfaceContainerHighest` is within a few points of `surface` on this palette, so a fill alone is not an affordance (#307) |
 | `text-primary` | `#FFFFFF` | Primary text |
 | `text-secondary` | `#EBEBF5` at 60% | Supporting text |
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:fantastic/core/error/repository_exception.dart';
+import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/features/diary/application/providers/symptom_providers.dart';
 import 'package:fantastic/features/diary/application/symptom_logging_service.dart';
 import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
@@ -476,5 +477,145 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
+  });
+
+  group('unanswered affordance', () {
+    BoxDecoration dotDecoration(
+      WidgetTester tester,
+      SymptomScale scale,
+      int dot,
+    ) =>
+        tester
+                .widget<Container>(
+                  find.byKey(Key('symptom_dot_${scale.name}_$dot')),
+                )
+                .decoration!
+            as BoxDecoration;
+
+    testWidgets('an unfilled dot is a visible ring, not a near-invisible '
+        'disc', (tester) async {
+      await pumpStrip(tester);
+      await tester.pumpAndSettle();
+
+      for (var dot = 1; dot <= 5; dot++) {
+        final decoration = dotDecoration(tester, SymptomScale.energy, dot);
+        expect(
+          decoration.color,
+          Colors.transparent,
+          reason: 'dot $dot was still filled',
+        );
+        expect(
+          decoration.border,
+          Border.all(color: AppTheme.outline, width: 1.2),
+          reason: 'dot $dot had no ring',
+        );
+      }
+    });
+
+    testWidgets('a filled dot is a disc with no ring', (tester) async {
+      await pumpStrip(tester, log: SymptomLogFixture.bestDay(date: date));
+      await tester.pumpAndSettle();
+
+      final scheme = Theme.of(tester.element(find.byType(SymptomCheckInStrip)))
+          .colorScheme;
+      for (var dot = 1; dot <= 5; dot++) {
+        final decoration = dotDecoration(tester, SymptomScale.mood, dot);
+        expect(decoration.color, scheme.primary);
+        // Ring versus disc is the shape difference that carries the
+        // distinction at 6pt across, where a colour pair does not.
+        expect(decoration.border, isNull);
+      }
+    });
+
+    Color iconColour(WidgetTester tester, SymptomScale scale) => tester
+        .widget<Icon>(
+          find.descendant(
+            of: find.byKey(Key('symptom_cell_${scale.name}')),
+            matching: find.byType(Icon),
+          ),
+        )
+        .color!;
+
+    testWidgets('a logged scale cell reads as answered', (tester) async {
+      // `varied` scores energy 1, so dots 2-5 are unfilled on a *logged*
+      // scale — which is the case an unlogged cell must still differ from.
+      await pumpStrip(tester, log: SymptomLogFixture.varied(date: date));
+      await tester.pumpAndSettle();
+
+      final scheme = Theme.of(tester.element(find.byType(SymptomCheckInStrip)))
+          .colorScheme;
+
+      expect(iconColour(tester, SymptomScale.energy), scheme.primary);
+      // Its first dot is a disc where an unlogged day's first dot is a ring.
+      expect(dotDecoration(tester, SymptomScale.energy, 1).border, isNull);
+    });
+
+    testWidgets('an unlogged scale cell reads as unanswered', (tester) async {
+      await pumpStrip(tester);
+      await tester.pumpAndSettle();
+
+      final scheme = Theme.of(tester.element(find.byType(SymptomCheckInStrip)))
+          .colorScheme;
+
+      // Two independent signals, neither of which is the near-invisible fill
+      // this issue removed: a muted icon, and five rings rather than discs.
+      expect(iconColour(tester, SymptomScale.energy), scheme.onSurfaceVariant);
+      expect(dotDecoration(tester, SymptomScale.energy, 1).border, isNotNull);
+    });
+
+    testWidgets('the scale cell keeps its Semantics button label when '
+        'unlogged', (tester) async {
+      await pumpStrip(tester);
+      await tester.pumpAndSettle();
+
+      // Read off the `Semantics` widget rather than the rendered node: the
+      // node merges the cell's own short label in, so a label matcher would
+      // pass on the wrong string. This is one of only four `Semantics` calls
+      // in `lib/` and #307 must not lose it.
+      for (final scale in SymptomScale.values) {
+        final semantics = tester.widget<Semantics>(
+          find
+              .ancestor(
+                of: find.byKey(Key('symptom_cell_${scale.name}')),
+                matching: find.byType(Semantics),
+              )
+              .first,
+        );
+        expect(
+          semantics.properties.button,
+          isTrue,
+          reason: '${scale.name} stopped announcing itself as a button',
+        );
+        expect(
+          semantics.properties.label,
+          scale.label,
+          reason: '${scale.name} lost its semantics label',
+        );
+      }
+    });
+
+    testWidgets('every scale cell keeps a 44pt minimum touch target', (
+      tester,
+    ) async {
+      await pumpStrip(tester);
+      await tester.pumpAndSettle();
+
+      for (final scale in SymptomScale.values) {
+        expect(
+          tester.getSize(find.byKey(Key('symptom_cell_${scale.name}'))).height,
+          greaterThanOrEqualTo(44.0),
+          reason: '${scale.name} is below the HIG minimum',
+        );
+      }
+    });
+
+    testWidgets('the strip meets the text-contrast guideline unlogged', (
+      tester,
+    ) async {
+      await pumpStrip(tester);
+      await tester.pumpAndSettle();
+
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+    });
   });
 }

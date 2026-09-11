@@ -1,4 +1,5 @@
 import 'package:fantastic/core/error/repository_exception.dart';
+import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/features/diary/application/symptom_logging_service.dart';
 import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
@@ -595,4 +596,193 @@ void main() {
       expect(section.decoration, isNull);
     });
   });
+
+  group('score button affordance', () {
+    /// The `Material` painted behind score [score] of [scale].
+    ///
+    /// Read off what is painted rather than off a private field, per
+    /// `design/m5_handoff.md`: the defect this guards was that the button
+    /// *was* correct in every respect except how it looked.
+    Material scoreMaterial(
+      WidgetTester tester,
+      SymptomScale scale,
+      int score,
+    ) => tester.widget<Material>(
+      find.descendant(
+        of: find.byKey(Key('score_${scale.name}_$score')),
+        matching: find.byType(Material),
+      ),
+    );
+
+    BorderSide sideOf(Material material) =>
+        (material.shape! as RoundedRectangleBorder).side;
+
+    testWidgets('an unselected score button renders a visible border', (
+      tester,
+    ) async {
+      await pumpSheet(tester);
+
+      // Every score except the one the sheet opens on. A fresh sheet is not
+      // blank — it seeds every scale at `defaultScore` — so the four beside
+      // it are the row the user actually has to read as tappable.
+      for (var score = 1; score <= 5; score++) {
+        if (score == SymptomLogSheet.defaultScore) continue;
+        final side = sideOf(scoreMaterial(tester, SymptomScale.energy, score));
+        expect(
+          side.color,
+          AppTheme.outline,
+          reason: 'score $score had no visible outline',
+        );
+        expect(side.width, _ScoreButtonSpec.borderWidth);
+        expect(side.style, BorderStyle.solid);
+      }
+    });
+
+    testWidgets('a selected score button renders the primary fill', (
+      tester,
+    ) async {
+      await pumpSheet(tester);
+      await tapScore(tester, SymptomScale.energy, 4);
+
+      final scheme = Theme.of(tester.element(find.byType(SymptomLogSheet)))
+          .colorScheme;
+      expect(
+        scoreMaterial(tester, SymptomScale.energy, 4).color,
+        scheme.primary,
+      );
+    });
+
+    testWidgets('a selected and an unselected button differ by more than fill '
+        'colour', (tester) async {
+      await pumpSheet(tester);
+      await tapScore(tester, SymptomScale.energy, 4);
+
+      TextStyle styleOf(int score) => tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(Key('score_${SymptomScale.energy.name}_$score')),
+              matching: find.byType(Text),
+            ),
+          )
+          .style!;
+
+      // Weight, not only colour. `design/m6_handoff.md` convention 8: colour
+      // is never the only signal.
+      expect(styleOf(4).fontWeight, FontWeight.bold);
+      expect(styleOf(2).fontWeight, FontWeight.normal);
+    });
+
+    testWidgets('selecting a score does not move the digit inside it', (
+      tester,
+    ) async {
+      await pumpSheet(tester);
+      final button = find.byKey(Key('score_${SymptomScale.energy.name}_4'));
+      await tester.ensureVisible(button);
+      await tester.pump();
+      final before = tester.getRect(
+        find.descendant(of: button, matching: find.byType(Text)),
+      );
+
+      await tapScore(tester, SymptomScale.energy, 4);
+
+      // Both states carry a border of the same width precisely so this holds;
+      // a border on one state only reflows the content box by 1.5pt.
+      expect(
+        tester.getRect(
+          find.descendant(of: button, matching: find.byType(Text)),
+        ),
+        before,
+      );
+    });
+
+    testWidgets('every score button keeps a 44pt minimum touch target', (
+      tester,
+    ) async {
+      await pumpSheet(tester);
+
+      for (final scale in SymptomScale.values) {
+        for (var score = 1; score <= 5; score++) {
+          final button = find.byKey(Key('score_${scale.name}_$score'));
+          await tester.ensureVisible(button);
+          await tester.pump();
+          expect(
+            tester.getSize(button).height,
+            greaterThanOrEqualTo(_ScoreButtonSpec.minTouchTarget),
+            reason: '${scale.name} $score is below the HIG minimum',
+          );
+        }
+      }
+    });
+
+    testWidgets('five bordered cells fit the narrowest supported width', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await pumpSheet(tester);
+
+      // Widening the gutter from 2 to 4 is what stops five outlined boxes
+      // reading as one segmented control; it must not cost an overflow on a
+      // 320pt screen.
+      expect(tester.takeException(), isNull);
+
+      // The gutter is inside `_ScoreButton`'s own `Padding`, so the keyed
+      // rects abut by construction — measure the painted `Material`s.
+      Rect fillOf(int score) => tester.getRect(
+        find.descendant(
+          of: find.byKey(Key('score_${SymptomScale.energy.name}_$score')),
+          matching: find.byType(Material),
+        ),
+      );
+
+      // RTL: score 1 sits to the *right* of score 2.
+      expect(fillOf(1).left - fillOf(2).right, greaterThanOrEqualTo(8.0));
+    });
+
+    // This repository's first call to a Flutter accessibility guideline.
+    testWidgets('the sheet meets the text-contrast guideline as opened', (
+      tester,
+    ) async {
+      await pumpSheet(tester);
+
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+    });
+
+    testWidgets('the sheet meets the text-contrast guideline part-answered', (
+      tester,
+    ) async {
+      await pumpSheet(tester);
+      await tapScore(tester, SymptomScale.energy, 5);
+      await tapScore(tester, SymptomScale.hunger, 1);
+
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+    });
+
+    testWidgets('the score digit is rendered left-to-right inside the RTL '
+        'sheet', (tester) async {
+      await pumpSheet(tester);
+
+      final digit = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(Key('score_${SymptomScale.energy.name}_2')),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(digit.textDirection, TextDirection.ltr);
+    });
+  });
+}
+
+/// The two `_ScoreButton` constants, restated.
+///
+/// `_ScoreButton` is private to the widget library, so a test cannot name it.
+/// Restating them here is deliberate: a test that read the values from the
+/// widget could not fail when they changed, and both exist to hold a
+/// guarantee (44pt per Apple HIG, one border width across both states) rather
+/// than to be tuned.
+abstract final class _ScoreButtonSpec {
+  static const double minTouchTarget = 44;
+  static const double borderWidth = 1.5;
 }
