@@ -1,4 +1,5 @@
 import 'package:fantastic/features/keto_lens/presentation/camera/photo_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -27,6 +28,26 @@ class ImagePickerPhotoPicker implements PhotoPicker {
       throw PhotoPickerException('$error');
     }
   }
+
+  @override
+  Future<List<String>> pickMultiple({required int limit}) async {
+    assert(limit >= 1, 'limit must be at least 1');
+    try {
+      final files = await _picker.pickMultiImage();
+      return capped(files.map((file) => file.path).toList(), limit);
+    } on Object catch (error) {
+      throw PhotoPickerException('$error');
+    }
+  }
+
+  /// Truncates [paths] to at most [limit] entries, in the order given.
+  ///
+  /// `image_picker`'s own `limit` argument to `pickMultiImage` is not
+  /// honoured on every platform (an open Flutter issue on Android), so the
+  /// cap is enforced here instead of trusted to the plugin.
+  @visibleForTesting
+  static List<String> capped(List<String> paths, int limit) =>
+      paths.take(limit).toList();
 }
 
 /// How [CameraScreen] imports a photo.

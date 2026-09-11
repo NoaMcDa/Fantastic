@@ -98,6 +98,7 @@ class _FakePicker implements PhotoPicker {
   String? path;
   PhotoPickerException? error;
   int calls = 0;
+  List<String> multiplePaths = const [];
 
   @override
   Future<String?> pickFromGallery() async {
@@ -106,6 +107,14 @@ class _FakePicker implements PhotoPicker {
       throw error!;
     }
     return path;
+  }
+
+  @override
+  Future<List<String>> pickMultiple({required int limit}) async {
+    if (error != null) {
+      throw error!;
+    }
+    return multiplePaths;
   }
 }
 
