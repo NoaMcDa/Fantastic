@@ -116,19 +116,55 @@ class NotificationService {
   /// `flutter_local_notifications` asks the OS itself; the issue's technology
   /// table lists `permission_handler` for this and never uses it, so that
   /// package is not a dependency (`design/m3_preflight.md` §5.5).
+  ///
+  /// **Every schedulable platform is asked, not only iOS.** The prompt is
+  /// per-platform — each implementation has its own entry point, and
+  /// `resolvePlatformSpecificImplementation` returns null for the ones that
+  /// are not running. Asking only
+  /// `IOSFlutterLocalNotificationsPlugin` meant that on Android 13 (API 33)
+  /// and newer, where `POST_NOTIFICATIONS` is a runtime permission, nothing
+  /// ever requested it: the reminder was scheduled, the OS dropped it, and
+  /// there was no symptom to chase. macOS was the same story with a different
+  /// class name.
   Future<bool> requestPermission() async {
-    if (kIsWeb) {
+    // Not `kIsWeb`: the question is whether there is a reminder to ask about,
+    // and on a platform that cannot schedule one there is not. Linux is the
+    // case that distinguishes the two — it can show a notification now and
+    // cannot schedule one for later.
+    if (!supportsScheduling) {
       return false;
     }
-    final ios = _plugin
-        .resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin
-        >();
-    final granted = await ios?.requestPermissions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+
+    final granted = switch (defaultTargetPlatform) {
+      TargetPlatform.iOS =>
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >()
+            ?.requestPermissions(alert: true, badge: true, sound: true),
+      TargetPlatform.macOS =>
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+              MacOSFlutterLocalNotificationsPlugin
+            >()
+            ?.requestPermissions(alert: true, badge: true, sound: true),
+      // A no-op below API 33, which is what the plugin documents — so this is
+      // safe to call unconditionally rather than behind a version check the
+      // app would have to carry a package to ask.
+      TargetPlatform.android =>
+        await _plugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.requestNotificationsPermission(),
+      // Windows has no runtime notification prompt: a registered app may post
+      // toasts, and the user's control is in Settings rather than a dialog.
+      TargetPlatform.windows => true,
+      TargetPlatform.linux || TargetPlatform.fuchsia => false,
+    };
+
+    // The plugin returns null when the OS gives no answer. Treating that as a
+    // grant would have the app promise reminders that never arrive.
     return granted ?? false;
   }
 }

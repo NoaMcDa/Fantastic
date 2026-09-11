@@ -16,6 +16,16 @@ import 'package:fantastic/features/keto_lens/domain/services/text_recognition_se
 /// desktop half unpacks through [TessdataBundle], so all five native targets
 /// recognise against one file.
 ///
+/// **The two platforms find that file differently, and iOS needs project
+/// configuration for it.** The Android half copies the declared asset out at
+/// run time. The iOS half does not: its plugin reads
+/// `Bundle.main.bundleURL/tessdata`, so `assets/tessdata` is *also* added to
+/// `ios/Runner.xcodeproj` as a folder reference in Copy Bundle Resources. One
+/// model, one source of truth on disk, copied into the `.app` twice — and
+/// without the folder reference every scan on a device fails at Tesseract
+/// initialisation, with nothing in `flutter analyze` to say so.
+/// `.github/workflows/build-ios.yml` asserts it landed.
+///
 /// **The only file in `lib/` that imports `flutter_tesseract_ocr`.** M6
 /// convention 1: one plugin, one adapter, behind an interface. If the binding
 /// is ever replaced, this file is the whole change.

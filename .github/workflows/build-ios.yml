@@ -1,0 +1,134 @@
+name: Build iOS
+
+# Separate from ci.yml on purpose, and deliberately not on every event.
+#
+# `flutter build ios` needs a macOS runner, and GitHub bills macOS minutes at
+# **10×** the Linux rate (design/cicd_plan.md §8 — an earlier plan put a nightly
+# macOS job at 3× the whole free tier on its own). So this runs only when a
+# change can plausibly break the iOS build: the iOS project itself, the Dart
+# sources compiled into it, the dependency set that decides which pods get
+# resolved, the assets copied into the bundle, or this file. A README or a
+# design doc costs nothing.
+#
+# `workflow_dispatch` is here so the build can be run on demand after a change
+# the path filter does not catch — a new Xcode on the runner image, say.
+#
+# Scope: an **unsigned compile**. No code signing, no secrets, no Apple
+# Developer account, no fastlane, no simulator. design/cicd_plan.md §7.1 parks
+# all of that by decision, and `--no-codesign` is exactly the part that needs
+# none of it.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'lib/**'
+      - 'assets/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/build-ios.yml'
+  workflow_dispatch:
+
+# A newer push to the same PR makes the in-flight run obsolete. Cancel it —
+# which matters more here than in ci.yml, because each superseded run is
+# spending minutes at 10×.
+concurrency:
+  group: build-ios-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-ios:
+    name: build ios · unsigned
+    runs-on: macos-latest
+    # A cold run pays a CocoaPods resolution plus a release AOT compile for
+    # arm64. Generous, because a timeout that fires mid-link tells you nothing.
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Same exact pin as ci.yml. Two workflows disagreeing about the
+          # toolchain is a bug that only shows up as a mystery.
+          flutter-version: 3.47.3
+          channel: stable
+          cache: true
+
+      - name: Toolchain
+        # Printed unconditionally: when a native build breaks on a hosted
+        # runner, the first question is always which Xcode and which CocoaPods
+        # produced it, and the answer changes under you as the image rolls.
+        run: |
+          xcodebuild -version
+          pod --version
+          flutter --version
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Build iOS
+        # --no-codesign is what keeps this inside the parked-CD boundary: it
+        # compiles and assembles Runner.app without an identity, a profile or a
+        # secret. It still runs `pod install`, which is the thing this repo had
+        # never once done.
+        run: flutter build ios --release --no-codesign
+
+      - name: Native dependencies resolved
+        # The Podfile.lock is a build output here (it is gitignored — see the
+        # root .gitignore's `*.lock` rule), so echo it into the log: it is the
+        # only record of which pod versions this build actually linked, and
+        # SwiftyTesseract is pulled in by an unversioned `s.dependency`.
+        run: cat ios/Podfile.lock
+
+      - name: Hebrew model ships in the app bundle
+        # The one claim a compile can settle about OCR. flutter_tesseract_ocr's
+        # iOS half reads `Bundle.main.bundleURL/tessdata` (see its
+        # SwiftFlutterTesseractOcrPlugin.swift) — the Flutter asset bundle is
+        # not where it looks, so the model has to be in the .app as a folder
+        # reference as well. This step is the assertion that the folder
+        # reference added to Runner.xcodeproj actually copied.
+        run: |
+          set -euo pipefail
+          APP=build/ios/iphoneos/Runner.app
+          test -d "$APP" || { echo "::error::$APP was not produced"; exit 1; }
+
+          PLUGIN_MODEL="$APP/tessdata/heb.traineddata"
+          ASSET_MODEL="$APP/Frameworks/App.framework/flutter_assets/assets/tessdata/heb.traineddata"
+
+          if [ ! -f "$PLUGIN_MODEL" ]; then
+            echo "::error::$PLUGIN_MODEL is missing — the tessdata folder reference is not in Copy Bundle Resources, and every scan on a device would fail to initialise Tesseract."
+            find "$APP" -name '*.traineddata' -print || true
+            exit 1
+          fi
+          if [ ! -f "$ASSET_MODEL" ]; then
+            echo "::error::$ASSET_MODEL is missing — the pubspec asset declaration did not reach the bundle."
+            exit 1
+          fi
+
+          echo "Hebrew model present in both places the app can read it:"
+          ls -l "$PLUGIN_MODEL" "$ASSET_MODEL"
+
+      - name: Camera and photo-library usage strings ship
+        # iOS kills the app on the first `AVCaptureDevice` call if the string is
+        # absent, and the strings are Hebrew — so this checks the built
+        # Info.plist, not the source one, and checks it is not empty.
+        run: |
+          set -euo pipefail
+          PLIST=build/ios/iphoneos/Runner.app/Info.plist
+          for key in NSCameraUsageDescription NSPhotoLibraryUsageDescription; do
+            value=$(plutil -extract "$key" raw -o - "$PLIST")
+            if [ -z "$value" ]; then
+              echo "::error::$key is missing or empty in the built Info.plist"
+              exit 1
+            fi
+            echo "$key: $value"
+          done
+
+      - name: App bundle summary
+        # Size and contents, for the record. A release .app that is suspiciously
+        # small is usually one that lost its assets.
+        run: |
+          du -sh build/ios/iphoneos/Runner.app
+          ls -l build/ios/iphoneos/Runner.app

@@ -81,7 +81,19 @@ class StreakNotificationService {
         ),
         windows: WindowsNotificationDetails(),
       ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      // **Inexact, deliberately.** `exactAllowWhileIdle` requires an exact
+      // alarm permission, and on Android 14 and newer there are only two ways
+      // to hold one: prompt the user for `SCHEDULE_EXACT_ALARM` — a system
+      // settings trip, for a daily nudge — or declare `USE_EXACT_ALARM`,
+      // which Google reserves for alarm clocks and calendars and audits on
+      // submission. Neither is proportionate here. Without one, the plugin
+      // logs an error and **schedules nothing at all**, which is how this
+      // reminder came to be scheduled on every launch and delivered never.
+      //
+      // What inexact costs is that the reminder may drift by a few minutes
+      // and may be batched with other wakeups. `AllowWhileIdle` still gets it
+      // out of Doze, so a phone left on the desk all evening still buzzes.
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       // What makes the one scheduled instant repeat every day — on android,
       // iOS and macOS. **Windows drops it**: the umbrella plugin's
       // `TargetPlatform.windows` branch does not forward the argument, and

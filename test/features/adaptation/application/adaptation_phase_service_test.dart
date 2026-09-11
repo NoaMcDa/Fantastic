@@ -42,6 +42,23 @@ void main() {
   StreakState saved() =>
       verify(() => repository.save(captureAny())).captured.last as StreakState;
 
+  /// A five-day streak whose grace period is still open at [now].
+  ///
+  /// **The window is stated here, not taken from the fixture.**
+  /// `StreakStateFixture.defaultGracePeriodEnd` is 2026-09-10 12:00, two and a
+  /// half hours *before* this suite's [now] — so a fixture called
+  /// `inGracePeriod` with no argument is in fact an expired one, and a test
+  /// that named the open case was silently exercising the closed one.
+  StreakState openWindow() => StreakStateFixture.inGracePeriod(
+    gracePeriodEnd: now.add(const Duration(hours: 6)),
+  ).copyWith(lastCompliantDate: yesterday);
+
+  /// A twelve-day streak whose grace period closed a minute before [now].
+  StreakState closedWindow() => StreakStateFixture.inGracePeriod(
+    days: 12,
+    gracePeriodEnd: now.subtract(const Duration(minutes: 1)),
+  ).copyWith(highestStreak: 30, lastCompliantDate: yesterday);
+
   group('currentPhase', () {
     // The boundaries are the whole of this function, so every one is asserted
     // on both sides. `design/m3_preflight.md` §1.4: 1–7, 8–27, 28+.
@@ -168,10 +185,7 @@ void main() {
     });
 
     test('closes an open grace period', () async {
-      stored(
-        StreakStateFixture.inGracePeriod(days: 5)
-            .copyWith(lastCompliantDate: yesterday),
-      );
+      stored(openWindow());
 
       await service.recordCompliantDay(now);
 
@@ -184,10 +198,7 @@ void main() {
     // assertion above on `inGracePeriod` passes either way — only this one
     // fails when the flag is missing.
     test('clears the grace-period expiry, not just the flag', () async {
-      stored(
-        StreakStateFixture.inGracePeriod(days: 5)
-            .copyWith(lastCompliantDate: yesterday),
-      );
+      stored(openWindow());
 
       await service.recordCompliantDay(now);
 
@@ -195,14 +206,94 @@ void main() {
     });
 
     test('resuming inside a grace period keeps the streak going', () async {
-      stored(
-        StreakStateFixture.inGracePeriod(days: 5)
-            .copyWith(lastCompliantDate: yesterday),
-      );
+      stored(openWindow());
 
       await service.recordCompliantDay(now);
 
       expect(saved().currentStreak, 6);
+    });
+
+    // The reset is lazy: nothing evaluates the state machine while the user
+    // logs nothing, so an expired window is first seen on the next
+    // evaluation — and that is at least as likely to be a compliant meal as a
+    // breach. Checking expiry only in `handleBreach` let a user who breached,
+    // sat out the whole 24 hours and then logged a compliant day carry on as
+    // if the lapse had never happened.
+    group('after the window has closed', () {
+      test('the streak restarts at one rather than resuming', () async {
+        stored(closedWindow());
+
+        await service.recordCompliantDay(now);
+
+        expect(saved().currentStreak, 1);
+      });
+
+      test('the phase returns to induction', () async {
+        stored(closedWindow());
+
+        await service.recordCompliantDay(now);
+
+        expect(saved().phase, AdaptationPhase.induction);
+      });
+
+      test('the grace period closes', () async {
+        stored(closedWindow());
+
+        await service.recordCompliantDay(now);
+
+        final state = saved();
+        expect(state.inGracePeriod, isFalse);
+        expect(state.gracePeriodEnd, isNull);
+      });
+
+      // A personal best is history, not current state — a lapse must not cost
+      // it, here any more than in `handleBreach`.
+      test('the personal best survives', () async {
+        stored(closedWindow());
+
+        await service.recordCompliantDay(now);
+
+        expect(saved().highestStreak, 30);
+      });
+
+      test('the new day is still banked', () async {
+        stored(closedWindow());
+
+        await service.recordCompliantDay(now);
+
+        expect(saved().lastCompliantDate, today);
+      });
+
+      // Strictly after, matching `handleBreach`: the boundary instant is
+      // still inside the window, so the streak resumes rather than restarts.
+      test('a compliant day at the exact expiry still resumes', () async {
+        final end = now.add(const Duration(hours: 6));
+        stored(
+          StreakStateFixture.inGracePeriod(
+            days: 5,
+            gracePeriodEnd: end,
+          ).copyWith(lastCompliantDate: yesterday),
+        );
+
+        await service.recordCompliantDay(end);
+
+        expect(saved().currentStreak, 6);
+      });
+
+      // A malformed record — the flag set with no expiry — has no instant to
+      // judge, and guessing would reset a streak on bad data.
+      test('an open flag with no expiry does not reset the streak', () async {
+        stored(
+          StreakStateFixture.withStreak(
+            5,
+            lastCompliantDate: yesterday,
+          ).copyWith(inGracePeriod: true),
+        );
+
+        await service.recordCompliantDay(now);
+
+        expect(saved().currentStreak, 6);
+      });
     });
 
     group('idempotence', () {
@@ -302,10 +393,7 @@ void main() {
     });
 
     group('after the window expires', () {
-      StreakState expired() => StreakStateFixture.inGracePeriod(
-        days: 12,
-        gracePeriodEnd: now.subtract(const Duration(minutes: 1)),
-      ).copyWith(highestStreak: 30, lastCompliantDate: yesterday);
+      StreakState expired() => closedWindow();
 
       test('the streak resets to zero', () async {
         stored(expired());
@@ -397,6 +485,18 @@ void main() {
       final state = saved();
       expect(state.inGracePeriod, isTrue);
       expect(state.currentStreak, 3);
+    });
+
+    // The user's whole experience of the lazy reset: they breach, they let
+    // the 24 hours run out, and the next thing that touches the state machine
+    // is a good meal. Whichever branch that lands on, the lapse must have
+    // cost the streak.
+    test('either branch notices a window that has closed', () async {
+      stored(closedWindow());
+
+      await service.evaluateToday(now, compliant: true);
+
+      expect(saved().currentStreak, 1);
     });
   });
 

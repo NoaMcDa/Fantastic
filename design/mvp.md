@@ -14,7 +14,7 @@ Everything in the MVP serves one of those two goals. Features that don't serve t
 - Not a recipe converter (useful, not critical to first-week retention)
 - Not a menu analyzer (complex ML flow, v2)
 - Not a social / community feature
-- Not a cloud-sync product (offline-first, iCloud backup deferred to v1.1)
+- Not a cloud-sync product (offline-first; backup & restore deferred to M14)
 
 ---
 
@@ -94,18 +94,27 @@ Everything in the MVP serves one of those two goals. Features that don't serve t
 
 ---
 
-## Deferred to v1.1
+## Deferred past the MVP
 
-| Feature | Reason deferred |
-|---|---|
-| Restaurant directory | Requires manual content curation of Israeli venues |
-| Menu analyzer | Complex second ML pipeline; OCR + NLP |
-| Recipe converter | Nice-to-have; adds complexity without proving core loop |
-| Biomarker logging (ketones, glucose, weight) | Valuable but not day-1 critical |
-| Apple Health integration | Requires HealthKit entitlement review |
-| iCloud backup | Offline-first is sufficient for v1 |
-| Food database / barcode scanner | Manual entry covers MVP; Open Food Facts integration for v1.1 |
-| Sharing / social features | Post-retention problem |
+Each deferred capability now has its own milestone rather than a shared v1.1
+bucket — see `design/v1_1_split.md` and `milestone_conventions.md` §1.2.
+
+| Feature | Milestone | Reason deferred |
+|---|---|---|
+| Biomarker logging (ketones, glucose, weight) | M9 | Valuable but not day-1 critical |
+| Recipe converter | M10 | Nice-to-have; adds complexity without proving core loop |
+| Restaurant directory | M11 | Requires manual content curation of Israeli venues |
+| Menu analyzer | M12 | Extends M6's OCR pipeline; complexity deferred |
+| Apple Health integration | M13 | Requires HealthKit entitlement review |
+| Backup & restore | M14 | Offline-first is sufficient for v1 |
+| Food database / barcode scanner | *(unplanned)* | Manual entry covers MVP |
+| Sharing / social features | *(unplanned)* | Post-retention problem |
+
+**M9–M14 are parallel peers**, numbered by recommended build order rather than by
+dependency. M9 and M10 are the two with no external blocker.
+
+App Store submission is **not** on this list — it ships v1.0 itself, under
+`epic:release-v1`, and runs before M9.
 
 ---
 

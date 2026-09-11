@@ -1,10 +1,10 @@
 import 'dart:ffi';
-import 'dart:io';
 import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 
 import 'package:fantastic/features/keto_lens/data/adapters/tessdata_bundle.dart';
+import 'package:fantastic/features/keto_lens/data/adapters/tesseract_library_candidates.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
 
 /// The desktop half of the OCR firewall — Hebrew OCR through libtesseract.
@@ -42,75 +42,6 @@ class TesseractFfiRecognizer implements TextRecognitionService {
       'Tesseract is not installed on this computer. The scanner needs the '
       'Tesseract OCR library; install it and restart the app.';
 
-  /// Candidate library names, most specific first.
-  ///
-  /// Versioned sonames come first so a system with both 5 and a stale 4
-  /// resolves to 5. The unversioned name is the fallback a dev install or a
-  /// Homebrew prefix usually provides.
-  static List<String> get _candidates {
-    if (Platform.isWindows) {
-      return const [
-        // Verified on a windows-latest runner against the chocolatey
-        // `tesseract` package (5.5.3, an MSYS2 build): this is the name it
-        // installs into C:\Program Files\Tesseract-OCR, which the installer
-        // puts on PATH — and a bare name is what LoadLibrary resolves there.
-        //
-        // The name is right; loading it on that runner is not. It comes back
-        // `error code: 127`, ERROR_PROC_NOT_FOUND — the file was found and
-        // loaded and one of *its own* imports resolved to a different copy
-        // earlier on PATH, which on a CI image carrying several MinGW-ish
-        // toolchains is unsurprising. An absolute path does not help: Dart
-        // calls plain `LoadLibraryW`, so a library's own directory gets no
-        // priority when its dependencies are resolved. Leptonica, next door
-        // and built the same way, opens fine. So Windows OCR is still
-        // unproven on a machine where Tesseract is the only MinGW runtime,
-        // and there is no such machine in this project.
-        'libtesseract-5.dll',
-        'tesseract55.dll',
-        'libtesseract.dll',
-      ];
-    }
-    if (Platform.isMacOS) {
-      return const [
-        'libtesseract.5.dylib',
-        'libtesseract.dylib',
-        '/opt/homebrew/lib/libtesseract.dylib',
-        '/usr/local/lib/libtesseract.dylib',
-      ];
-    }
-    return const ['libtesseract.so.5', 'libtesseract.so.4', 'libtesseract.so'];
-  }
-
-  /// Leptonica, which owns image decoding. Tesseract's own `SetImage2` takes a
-  /// `Pix*`, so reading a PNG or JPEG means calling `pixRead` here first.
-  static List<String> get _leptCandidates {
-    if (Platform.isWindows) {
-      return const [
-        // Verified on a windows-latest runner, and the reason this list is not
-        // a guess any more. The tesseract name above happened to be right;
-        // every Leptonica name here was wrong — the chocolatey package ships
-        // `libleptonica-6.dll`, matching the `.so.6` soname the Linux branch
-        // below already knew about, not the `liblept-5` shape this list had.
-        // Nothing in the app would have crashed: the probe simply returns
-        // false and the lens tab says "install Tesseract" on a machine where
-        // it *is* installed.
-        'libleptonica-6.dll',
-        'liblept-5.dll',
-        'libleptonica.dll',
-        'liblept.dll',
-      ];
-    }
-    if (Platform.isMacOS) {
-      return const [
-        'liblept.5.dylib',
-        'libleptonica.dylib',
-        '/opt/homebrew/lib/libleptonica.dylib',
-        '/usr/local/lib/libleptonica.dylib',
-      ];
-    }
-    return const ['liblept.so.5', 'libleptonica.so.6', 'liblept.so'];
-  }
-
   static bool? _probed;
 
   /// Whether libtesseract and leptonica can be opened on this machine.
@@ -128,9 +59,9 @@ class TesseractFfiRecognizer implements TextRecognitionService {
   bool get isAvailable => _probed ??= _canOpen();
 
   static bool _canOpen() {
-    final tess = _tryOpenAny(_candidates);
+    final tess = _tryOpenAny(TesseractLibraryCandidates.tesseract);
     if (tess == null) return false;
-    return _tryOpenAny(_leptCandidates) != null;
+    return _tryOpenAny(TesseractLibraryCandidates.leptonica) != null;
   }
 
   static DynamicLibrary? _tryOpenAny(List<String> names) {
@@ -172,10 +103,10 @@ String _recogniseSync({
   required String language,
 }) {
   final tess = TesseractFfiRecognizer._tryOpenAny(
-    TesseractFfiRecognizer._candidates,
+    TesseractLibraryCandidates.tesseract,
   );
   final lept = TesseractFfiRecognizer._tryOpenAny(
-    TesseractFfiRecognizer._leptCandidates,
+    TesseractLibraryCandidates.leptonica,
   );
   if (tess == null || lept == null) {
     throw const TextRecognitionUnavailableException(

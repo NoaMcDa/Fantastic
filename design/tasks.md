@@ -465,43 +465,53 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ---
 
-## Post-MVP — v1.1 Backlog (Deferred, Lower Priority)
+## Post-MVP — M9–M14 (split out of the former v1.1 backlog)
 
-### Biomarker Logging
+> The single `v1.1 — Post-MVP Backlog` milestone was split into six capability
+> milestones plus a release milestone. See `design/v1_1_split.md` for why, and each
+> Epic (#264–#270) for its North Star, entry conditions and invariants.
+>
+> **M9–M14 are numbered by recommended build order, not by dependency** — they are
+> parallel peers. **M9 and M10 are the two with no external blocker.**
+>
+> App Store submission (#125–#128) is **not** post-MVP work — it ships v1.0 and runs
+> before M9, under `epic:release-v1` / Epic #270.
+
+### M9 — Biomarker Logging (#264) — *ready now*
 - [ ] Define `BiomarkerLog` domain model and `BiomarkerLogRepository` interface
-- [ ] Implement `IsarBiomarkerLogRepository` and contract tests
+- [ ] Implement `SembastBiomarkerLogRepository` and contract tests
 - [ ] Build `BiomarkerLogSheet` — ketones, glucose, weight entry
 - [ ] Build `BiomarkerTrendChart` — 30-day sparkline per metric using `fl_chart`
 - [ ] Add `BiomarkerSection` to `DiaryDayScreen`
 
-### Apple Health Integration
+### M13 — Apple Health Sync (#268) — *blocked: HealthKit entitlement*
 - [ ] Add `health` package and request HealthKit entitlement
 - [ ] Read body weight from HealthKit and pre-fill weight field in onboarding/profile
 - [ ] Write macro totals (fat, carbs, protein) to HealthKit on each meal log
 
-### Restaurant Directory
+### M11 — Restaurant Directory (#266) — *blocked: content curation + map SDK re-decision*
 - [ ] Curate `assets/data/directory.json` — initial set of Israeli keto-friendly restaurants
 - [ ] Define `DirectoryEntry` domain model and `DirectoryReader` interface
-- [ ] Implement `JsonDirectorySource` — loads and caches JSON to Isar on first launch
-- [ ] Add `mapkit_flutter` and request location permission
+- [ ] Implement `JsonDirectorySource` — loads and caches the bundled JSON to sembast
+- [ ] Choose a web-capable map SDK (not `mapkit_flutter` — that is Yandex, and neither it nor `apple_maps_flutter` renders on web) and request location permission
 - [ ] Build `DirectoryScreen` — search + filter chips + list/map toggle
 - [ ] Build `RestaurantDetailSheet` — name, address, keto highlights, tips
 - [ ] Build `MapView` with keto pin markers and bottom card on tap
 
-### Recipe Converter
+### M10 — Recipe Converter (#265) — *ready now*
 - [ ] Define substitution rule engine with common Hebrew/English ingredient mappings
-- [ ] Build `RecipeConverterScreen` — paste or scan input; substitution side-by-side output
+- [ ] Build `RecipeConverterScreen` — paste input; side-by-side output. Scan input is now possible (M6 shipped) but stays out of M10's scope
 - [ ] Build `RecipeLibraryScreen` — saved converted recipes grid
 
-### Menu Analyzer
-- [ ] Implement `MenuAnalyzerService` — OCR → dish extraction → keto suitability per dish
+### M12 — Menu Analyzer (#267) — *unblocked: M6 shipped, but re-spec needed*
+- [ ] Implement `MenuAnalyzerService` — OCR → dish extraction → keto suitability per dish. **Re-spec first:** #121/#122 are written against `MlKitTextRecognizer`, which no longer exists — ML Kit was removed and Tesseract now backs every platform (`design/m6_platform_handoff.md`)
 - [ ] Build `MenuAnalyzerScreen` — camera input → dish list with badges and modification tips
 
-### iCloud Backup
-- [ ] Implement Isar export to JSON; store in iCloud Documents container
-- [ ] Implement import/restore flow from iCloud backup
+### M14 — Backup & Restore (#269) — *needs re-spec for sembast + web*
+- [ ] Implement versioned JSON backup export (destination decision: platform-neutral share/download vs iOS-only iCloud)
+- [ ] Implement validated, atomic import/restore from a backup file
 
-### App Store Submission
+### Release v1.0 — App Store Launch (#270) — *ships the MVP; runs before M9*
 - [ ] Add Hebrew `App Store Connect` metadata (description, keywords, screenshots)
 - [ ] Complete Apple privacy nutrition labels
 - [ ] Submit for TestFlight review with 20–30 beta users

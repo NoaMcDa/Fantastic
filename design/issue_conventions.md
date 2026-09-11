@@ -113,7 +113,10 @@ Every issue must carry exactly **one Type label**, exactly **one Layer label**, 
 
 #### Epic Labels
 
-See `milestone_conventions.md` §2 for the full epic label list (`epic:m0-foundation` through `epic:post-mvp`).
+See `milestone_conventions.md` §2 for the full epic label list — `epic:m0-foundation`
+through `epic:m8-ci-integration` for the MVP, `epic:release-v1` for the v1.0 launch,
+and `epic:m9-biomarkers` through `epic:m14-backup` for the post-MVP milestones.
+**`epic:post-mvp` is retired** (`design/v1_1_split.md`).
 
 ---
 
