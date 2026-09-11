@@ -218,6 +218,13 @@ Future<void> enterInto(WidgetTester tester, String key, String text) async {
   await settle(tester);
 }
 
+/// The current text of the `TextFormField` keyed [key].
+///
+/// For asserting on a prefilled form: the value lives in the field's
+/// controller, not in a `Text` widget, so `find.text` does not see it.
+String? fieldText(WidgetTester tester, String key) =>
+    tester.widget<TextFormField>(find.byKey(Key(key))).controller?.text;
+
 /// Switches to the tab keyed [tabKey] (`tab_home`, `tab_lens`, …).
 ///
 /// By key, never by label: `'יומן'` is both the diary tab's label and

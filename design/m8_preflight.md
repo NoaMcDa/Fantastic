@@ -580,10 +580,10 @@ everything in §0.4, which no tier available to this project can measure.
 
 ## Part 10 — What shipped, and what it found
 
-The harness (§1), the CI job (§4) and **nine of the eleven flows** (§3) are
+The harness (§1), the CI job (§4) and **ten of the eleven flows** (§3) are
 implemented. `flutter test -d flutter-tester integration_test/app_test.dart`
-runs **10 tests in ~35 s** on this Linux container, and `flutter test` still
-reports 1112 green with no flow file picked up.
+runs **14 tests in ~41 s** on this Linux container, and `flutter test` still
+reports 1136 green (3 skipped) with no flow file picked up.
 
 | Flow | File | State |
 |---|---|---|
@@ -599,6 +599,30 @@ reports 1112 green with no flow file picked up.
 | F11 storage failure is reported | `flows/storage_failure_flow.dart` | ✅ |
 | F6 breach → grace → reset (#98) | — | **not written** — still blocked on the clock seam (P5, §2.4) |
 | F9 scan → prefilled meal (#101) | — | **not written** — still blocked on #257 (§2.7) |
+
+### F9 shipped after all — and what it cost to make honest
+
+§2.7 said to split #101 and write only its post-OCR half. That is what
+`flows/keto_lens_flow.dart` does, and #274 made it better than planned: the
+photo is `test/fixtures/images/tahini_label.png`, a real image, and the OCR
+text the fake recogniser returns is `RealOcrFixture` — **verbatim Tesseract
+output for that same image**, captured by #274 rather than written by anyone.
+The flow asserts the file exists, so it cannot quietly degrade into a made-up
+path.
+
+Two seams are faked, both already interfaces in `lib/` and both at the plugin
+boundary: `PhotoPicker` (no `image_picker` channel headless) and
+`TextRecognitionService` (the desktop arm is `dart:ffi` against a system
+`libtesseract` that neither this container nor CI installs — #274's own FFI
+suite skips for the same reason). **If CI ever installs `libtesseract`, drop
+the recogniser override and the same flow scans the PNG for real.** Nothing
+else is stubbed: the parser, classifier, orchestrator, sealed `ScanResult`,
+sheet, prefill and meal write are all shipped code.
+
+The four tests: a clean label analysed end to end; add-to-diary prefilling and
+logging; **a photo that is not a label never getting a verdict** (M6's worst
+defect, asserted from the outside); and backing out of the picker changing
+nothing.
 
 Production changes were the three prerequisites and nothing else: keys on the
 onboarding inputs and the shared CTA (P3), keys on the five tab destinations
@@ -629,6 +653,21 @@ skipped.
    first because `Dismissible` asserts that a dismissed child leaves the tree
    immediately. Not a bug — but a correctness trap for any test, which is why
    the harness has `waitFor`.
+4. **The scan prefill shows floating-point noise.** `ScanResultSheet` renders
+   the tahini label's net carbs as `1.2 ג`; the `AddMealBottomSheet` it
+   prefills two taps later shows **`1.1999999999999993`**. `10.5 - 9.3` is not
+   1.2 in binary floating point, the sheet formats with `toStringAsFixed(1)`
+   and `AddMealBottomSheet._grams` interpolates the raw double. The same
+   number, two ways, one screen apart — and the second one is the one the
+   user is asked to save.
+
+A fifth thing the lens flow found is not a defect but was worth learning: a
+clean tahini label does **not** get a green `קטו נקי` tick. Its ingredient
+line is `100% שומשום מלא`, which is on none of the rule lists, so the
+classifier reports `recognisedNothing` and the badge reads
+`לא נמצאו רכיבים בעייתיים` instead. That is `CLAUDE.md`'s OCR rule working
+exactly as written — "nothing here is bad" and "nothing here was readable"
+must not paint the same badge — and the flow now asserts both halves of it.
 
 ### Three things about the runtime that no document had
 
@@ -645,7 +684,8 @@ skipped.
 
 ### Still open
 
-- **F6 and F9**, above, with their prerequisites unchanged.
+- **F6**, above. F9 shipped; what stays open is the OCR *accuracy* claim
+  behind it (#256, Epic #10), which no tier available here can measure.
 - **P5**, the clock seam, is the only remaining blocker inside this
   milestone's control — and it is now half-built by someone else. `main`
   gained `lib/core/time/today_tracker.dart` while this branch was in flight:
