@@ -681,6 +681,15 @@ to `main`, on every push to `main`, and on demand via `workflow_dispatch`. Uses 
 pinned Flutter 3.47.3 (the pubspec needs Dart ^3.13.2; older toolchains cannot
 resolve it), and cancels a superseded PR run but never one on `main`.
 
+**A documentation-only change runs neither job.** A `changes` job classifies
+the diff with `tool/docs_only.sh`; when every changed path is `design/**`,
+`docs/**`, a `**/*.md` or `LICENSE*`, `verify` and `e2e flows` are skipped —
+which reports as a pass, unlike a `paths-ignore` filter, whose check would
+stay pending forever. Every uncertain case (missing SHA, empty diff, a crash in
+the script) runs the full gate instead. **`*.txt` is deliberately not on the
+docs list** — `linux/CMakeLists.txt`, `windows/CMakeLists.txt` and
+`tool/coverage_ignore.txt` are all load-bearing. See `design/cicd_plan.md` §5.6.
+
 Steps, cheapest first so a formatting slip fails in seconds:
 1. `flutter pub get`
 2. **`pubspec.lock` unchanged** — fails if `pub get` rewrote the committed lockfile
@@ -763,6 +772,11 @@ that analysed clean and compiled clean on every *other* platform: a `jcenter()`
 call Gradle 9 removed, a model declared in `pubspec.yaml` but absent from the
 iOS `.app`, and library names that were simply wrong on macOS and Windows. See
 `design/m6_platform_handoff.md` §"What compiling on real runners found".
+
+All five carry a docs filter too: `build-android.yml`, `build-linux.yml` and
+`build-windows.yml`'s `push` trigger via `paths-ignore`, the three
+macOS/Windows `pull_request` triggers via `paths` include-lists that never
+matched Markdown anyway. A docs PR compiles nothing.
 
 **A green build job means the target assembles. It does not mean the app runs** —
 only web and Linux have ever been launched.

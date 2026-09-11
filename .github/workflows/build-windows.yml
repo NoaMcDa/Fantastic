@@ -26,6 +26,14 @@ on:
       - '.github/workflows/build-windows.yml'
   push:
     branches: [main]
+    # The PR trigger above lists what matters; this one lists what does not,
+    # because `paths` and `paths-ignore` cannot both appear on one trigger. The
+    # effect on a docs-only push to main is the same: no 2x runner minutes.
+    paths-ignore:
+      - 'design/**'
+      - 'docs/**'
+      - '**.md'
+      - 'LICENSE'
   workflow_dispatch:
 
 concurrency:

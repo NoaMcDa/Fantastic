@@ -21,8 +21,30 @@ name: Build Android
 on:
   pull_request:
     branches: [main]
+    # Documentation is not an input to this build. A change confined to
+    # `design/`, a README or any other Markdown cannot alter what gets
+    # compiled, so it does not get a compile. Same list as tool/docs_only.sh,
+    # which is what ci.yml skips its own jobs on; `.txt` is deliberately absent
+    # from both, because CMakeLists.txt is a build file.
+    #
+    # A `paths-ignore` here rather than ci.yml's `changes` job because this
+    # workflow is not a required check (design/cicd_plan.md §5.5) — a filtered
+    # workflow reports no conclusion at all, which only matters for a check a
+    # PR is told to wait for. If this ever becomes required, move it to the
+    # ci.yml pattern.
+    paths-ignore:
+      - 'design/**'
+      - 'docs/**'
+      - '**.md'
+      - 'LICENSE'
   push:
     branches: [main]
+    # Same reasoning as the PR filter above: docs change nothing this builds.
+    paths-ignore:
+      - 'design/**'
+      - 'docs/**'
+      - '**.md'
+      - 'LICENSE'
   workflow_dispatch:
 
 # Same rule as ci.yml: a newer push to the same PR makes the in-flight run
