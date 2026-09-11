@@ -316,13 +316,14 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
   - "התחל את המסע" CTA saves profile and navigates to dashboard
   - Acceptance: widget test — defaults populated; editable; saves correctly
 
-- [ ] **Implement `OnboardingService` in `dashboard/application/`**
+- [ ] **Implement `OnboardingService` in `onboarding/application/`**
   - Computes macro targets from sex, age, weight, height, goal
   - Seeds `StreakState` from past keto start date if provided
   - Acceptance: unit tests — target calculation correct for male/female, different goals
 
 - [ ] **Gate app entry — show onboarding on first launch; skip on subsequent launches**
-  - Use a `hasCompletedOnboarding` flag persisted in Isar (or `shared_preferences`)
+  - The first-launch flag is the existence of the `user_profile` sembast record —
+    no `shared_preferences`, no second store. See `design/m4_preflight.md` §4
   - Acceptance: onboarding shown exactly once; removed on reinstall
 
 ---

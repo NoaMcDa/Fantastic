@@ -47,23 +47,31 @@ Home is the default tab.
 #### 1a. Welcome
 - Full-screen illustration: keto plate (avocado, eggs, salmon, olive oil) with Hebrew tagline
 - CTA: "בואו נתחיל" (Let's start)
-- Sub-link: "כבר יש לי חשבון" (I already have an account)
+- No account sub-link: there are no accounts in the MVP — Epic #8 lists social login and
+  account creation as explicitly out of scope. See `design/m4_preflight.md` §6.3.
 
 #### 1b. About You
 - Fields: Sex, Age, Weight (kg), Height (cm)
 - Toggle: "כבר בקטו?" (Already on keto?) → if yes, ask start date to seed streak
 
 #### 1c. Goals
-- Three cards (single-select):
-  - ירידה במשקל (Weight loss)
-  - שיפור אנרגיה ומיקוד (Energy & focus)
-  - ניהול מצב רפואי (Medical condition management)
-- This seeds the emphasis of the dashboard (weight graph vs. energy diary vs. biomarker tracking)
+- Three cards (single-select), matching the shipped `KetoGoal` enum:
+  - ירידה במשקל (Weight loss) — `KetoGoal.weightLoss`
+  - בריאות מטבולית (Metabolic health) — `KetoGoal.metabolicHealth`
+  - ביצועים ספורטיביים (Athletic performance) — `KetoGoal.athleticPerformance`
+- Only `weightLoss` changes the arithmetic today (a 20% TDEE deficit). This list was
+  previously "Energy & focus / Medical condition management"; it was reconciled with
+  the enum #71 defines and #73 codes against — see `design/m4_preflight.md` §6.1, which
+  also records why the choice is worth revisiting.
+- Post-MVP, the goal seeds the emphasis of the dashboard (weight graph vs. energy diary
+  vs. biomarker tracking)
 
 #### 1d. Daily Targets
 - Auto-calculated macro targets shown (editable)
 - Fat: `__g` Carbs: `__g` Protein: `__g`
-- Electrolyte targets: Na / K / Mg
+- Electrolyte targets are **not** shown here: they are per-phase, not per-user, owned by
+  `ElectrolyteConstants` and rendered by the dashboard's electrolytes card. There is
+  nothing for onboarding to compute or save. See `design/m4_preflight.md` §6.4.
 - CTA: "התחל את המסע" (Start the journey)
 
 ---
