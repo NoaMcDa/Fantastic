@@ -19,7 +19,7 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/milestone_conventions.md` | **Milestone/Epic standard** — scope discipline, MVP boundary, epic template, closure conditions, label taxonomy |
 | `design/m0_handoff.md` | **M0 closing handoff** — what shipped, seven corrections the M0 issue text got wrong (read before trusting a closed issue), known failing tests, environment setup notes, loose ends, M1 starting points |
 | `design/m1_preflight.md` | **M1 pre-flight corrections** — eight things the M1 issue text (#25–#43) gets wrong: wrong Isar package, lint-failing imports, a non-compiling `Isar.open` snippet, repository cross-references off by two, a feature directory that does not exist. **Read before picking up any M1 issue** |
-| `design/m1_handoff.md` | **M1 handoff** — M1 is code-complete; the ten conventions every later issue inherits; the data-layer decisions M2 needs (unique-index writes, the singleton streak row, enum ordinal storage); typed repository failures; gotchas (`const` canonicalisation in equality tests, all-neutral fixtures hiding cross-wiring, `lcov` with no `LF:` lines, `build_runner` completing but never exiting). **Read before picking up M2** |
+| `design/m1_handoff.md` | **M1 handoff** — M1 is code-complete; the ten conventions every later issue inherits; the data-layer decisions M2 needs (unique-index writes, the singleton streak row, enum ordinal storage); typed repository failures; gotchas (`const` canonicalisation in equality tests, all-neutral fixtures hiding cross-wiring, `lcov` with no `LF:` lines — **since expired, see the correction in that file**, `build_runner` completing but never exiting). **Read before picking up M2** |
 | `design/m2_preflight.md` | **M2 pre-flight corrections** — riverpod-2 `Ref` types, a `DailyLog.empty` factory that does not exist, and the `DailyLog` dashboard move that M2's text never picked up. Also lists the shipped model fields and repository methods M2 must code against. **Read before picking up any M2 issue** |
 | `design/m2_handoff.md` | **M2 handoff** — M2 shipped and the app became usable; the five conventions M3 inherits (the `pump_app` widget-test harness, date-only family keys held in state, parameters over un-overridable providers); **the RTL traps that cost the most time** (a horizontal `ListView` already starts right; `endToStart` drags *rightward*); Flutter/riverpod gotchas (`Dismissible` vs async delete, `AnimatedCrossFade` keeping both children, `Override` unexported by `flutter_riverpod`); coverage at closure; the gaps M3/M4/M5 inherit. **Read before picking up M3** |
 | `design/m3_preflight.md` | **M3 pre-flight corrections** — all twelve M3 issues audited. Four defects that compile and ship wrong behaviour: `copyWith(gracePeriodEnd: null)` silently does not clear, the streak increments per *meal* not per day, a fat-only first meal registers as a breach, and the phase boundary is off by one. Plus the canonical phase thresholds (8 and 28), two routes that do not exist, and the two places the issue text would regress M2. **Read before picking up any M3 issue** |
@@ -37,7 +37,7 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/architecture.md` | Layer model, persistence schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
 | `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, and the **Error Handling Contract** (repositories throw typed exceptions; §"Why not `Result<T>`" records why that pattern was dropped before M1 — do not reintroduce it) |
 | `design/tests.md` | Testing strategy — pyramid, unit/widget/integration patterns, fixture conventions, CI gate |
-| `design/cicd_plan.md` | **CI/CD plan** — `.github/workflows/ci.yml` runs format, analyze and the full test suite on every PR (Phase 0, shipped). Phase 1 (codegen drift, dependabot) and Phase 2 (the `DA:`-counting coverage gate — `lcov.info` has no `LF:` lines) are next. **Integration/nightly-simulator CI and all fastlane/TestFlight/App Store CD are parked by decision — §7.1 has the entry conditions; do not build them early.** Also carries seven corrections to issue #102's YAML. **Read before touching `.github/`** |
+| `design/cicd_plan.md` | **CI/CD plan** — `.github/workflows/ci.yml` runs format, analyze, the full test suite, the coverage gate and the web build on every PR (Phases 0 and 2, shipped). Phase 1 (codegen drift, dependabot) is next. Note §5.3 **[r4]**: the "`lcov.info` has no `LF:` lines" premise expired — every record carries `LF:`/`LH:` on Flutter 3.47.3, and the gate counts `DA:` by choice rather than by necessity. **Integration/nightly-simulator CI and all fastlane/TestFlight/App Store CD are parked by decision — §7.1 has the entry conditions; do not build them early.** Also carries seven corrections to issue #102's YAML. **Read before touching `.github/`** |
 | `design/technology.md` | Per-feature technology evaluation and full pubspec.yaml dependency list |
 | `design/ui_ux_design.md` | Full RTL/Hebrew UI spec for all screens — colour palette, tab structure, page layouts |
 | `design/web_support.md` | **Web support** — why Isar was replaced by sembast, the store/key layout, the conditional-import factory, the CanvasKit and Hebrew-font notes, and the one known gap |
@@ -150,8 +150,10 @@ flutter test test/features/<feature_name>/
 # Run a single test file
 flutter test test/path/to/test_file.dart
 
-# Run tests with coverage
+# Run tests with coverage, then apply the same gate CI does
 flutter test --coverage
+tool/check_coverage.sh coverage/lcov.info 80
+tool/check_coverage_files.sh coverage/lcov.info
 
 # Run the browser-only tests (the dart:js_interop binding for web OCR).
 # These are @TestOn('browser') and are skipped by a plain `flutter test`.
@@ -542,10 +544,12 @@ Steps, cheapest first so a formatting slip fails in seconds:
 2. **`pubspec.lock` unchanged** — fails if `pub get` rewrote the committed lockfile
 3. `dart format --output=none --set-exit-if-changed lib/ test/` — zero diffs
 4. `flutter analyze --no-pub` — zero issues
-5. `flutter test --no-pub` — zero failures
-6. `flutter build web --release --no-pub --no-web-resources-cdn` — the web target compiles
+5. `flutter test --no-pub --coverage` — zero failures, and writes `coverage/lcov.info`
+6. `tool/check_coverage.sh coverage/lcov.info 80` — ≥80% on `domain/` + `application/`
+7. `tool/check_coverage_files.sh coverage/lcov.info` — no gated file missing from the report and absent from `tool/coverage_ignore.txt`
+8. `flutter build web --release --no-pub --no-web-resources-cdn` — the web target compiles
 
-Step 6 is not redundant with `analyze`: a stray `dart:io` or `path_provider`
+Step 8 is not redundant with `analyze`: a stray `dart:io` or `path_provider`
 import outside `lib/core/database/database_factory_io.dart` analyses clean and
 breaks only the web build.
 
@@ -553,9 +557,12 @@ Two things CI checks but does not generate, because it builds what you committed
 **generated `.g.dart` files** (run `build_runner` and commit) and **`pubspec.lock`**
 (run `flutter pub get` and commit).
 
-Coverage is not enforced by the workflow today. The 80% target on `application/`
-and `domain/` (`design/tests.md`) remains a review expectation until a coverage
-step is added.
+**Coverage is enforced.** `tool/check_coverage.sh` gates `domain/` +
+`application/` at 80% line coverage, and `tool/check_coverage_files.sh` fails a
+gated file that has no coverage record and is not on `tool/coverage_ignore.txt`
+— lcov emits nothing for a file no test imports, so without that companion an
+untested layer reads as 100% rather than 0%. Measured 470/472 = 99.58%. Both
+scripts run locally: `flutter test --coverage && tool/check_coverage.sh`.
 
 Integration tests (`integration_test/`) are scoped to run nightly on an iOS
 simulator, not per-PR. That directory does not exist yet (#150).

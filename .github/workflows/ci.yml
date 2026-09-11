@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   verify:
-    name: analyze · format · test · build web
+    name: analyze · format · test · coverage · build web
     runs-on: ubuntu-latest
     # A cold release web build adds a few minutes on top of the gates above.
     timeout-minutes: 30
@@ -56,7 +56,36 @@ jobs:
       - name: Test
         # Unit + widget tests only. integration_test/ does not exist yet and is
         # scoped to run nightly on a macOS simulator, not per-PR (design/tests.md).
-        run: flutter test --no-pub
+        #
+        # --coverage writes coverage/lcov.info for the two gates below. It costs
+        # roughly a third again on top of a plain run, which buys the only
+        # enforcement the 80% contract in design/tests.md has ever had.
+        run: flutter test --no-pub --coverage
+
+      - name: Coverage gate — domain + application ≥ 80%
+        # design/cicd_plan.md §5.3. A script rather than `very_good_coverage`
+        # because the contract is scoped to two layers and no lcov action
+        # filters by path — `data/` and `presentation/` are covered by contract
+        # and widget tests instead, so including them measures the wrong thing
+        # in both directions.
+        run: tool/check_coverage.sh coverage/lcov.info 80
+
+      - name: Every gated file has a coverage record
+        # The companion the percentage cannot provide: lcov emits no record at
+        # all for a file no test imports, so an untested layer reads as 100%
+        # rather than as 0%. tool/coverage_ignore.txt names the files that are
+        # legitimately absent because they hold nothing executable.
+        run: tool/check_coverage_files.sh coverage/lcov.info
+
+      - name: Upload coverage artifact
+        # `always()`, so a failed gate still leaves the report to read. Without
+        # it the one run that needs inspecting is the one with no artifact.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov
+          path: coverage/lcov.info
+          retention-days: 14
 
       - name: Build web
         # Web is a shipping target and has no simulator gate, so a compile is
