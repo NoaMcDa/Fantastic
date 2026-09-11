@@ -68,6 +68,15 @@ argument, and a failed write escaping as a raw platform exception with no
 `guardPersistence` on the path. On web it would also split one user's data
 across `localStorage` and IndexedDB, with two eviction policies.
 
+**A seventh M4 issue existed, and is now closed as not planned.** #149 ("Add
+`shared_preferences` to `pubspec.yaml`") sits outside the #69–#74 range and
+was created after the rest. It was right that three issues — #73, #74 and
+M8's #95 — were written against a package no issue owned; the resolution is
+the other one. `pubspec.yaml` is unchanged, and #149's comment records why,
+including the one claim in its own reasoning that is no longer true: the
+database *is* guaranteed open before the first redirect, because `main`
+awaits `openAppDatabase()` before `runApp`.
+
 Also worth keeping: **seeding `StreakState.initial()` is worse than a no-op.**
 That value is exactly what `AdaptationPhaseService` already substitutes for a
 null record, so the write changes no behaviour — while destroying the "never
@@ -216,6 +225,11 @@ own decomposition never covered.
 - **Water and electrolytes still have no logging flow**, from M2.
 - **`EntityNotFoundException` still has no throw site**, from M1.
 - **CI does not check codegen freshness**, from M3. `cicd_plan.md` Phase 1.
+- **#95's integration test opens with `SharedPreferences.getInstance()` and
+  `prefs.clear()`**, which is now wrong on both halves: there are no
+  preferences, and the reset an onboarding flow test needs is an empty sembast
+  store. Nothing is broken today — `integration_test/` does not exist (#150) —
+  but whoever picks up #95 should read `m4_preflight.md` §4 first.
 
 ---
 

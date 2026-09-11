@@ -1,10 +1,12 @@
 import 'package:fantastic/features/onboarding/application/onboarding_service.dart';
+import 'package:fantastic/features/onboarding/application/providers/onboarding_gate.dart';
 import 'package:fantastic/features/onboarding/domain/models/biological_sex.dart';
 import 'package:fantastic/features/onboarding/domain/models/keto_goal.dart';
 import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
 import 'package:fantastic/features/onboarding/domain/models/onboarding_data.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen4.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -60,6 +62,11 @@ void main() {
   ///
   /// `verify` consumes the recorded call, so this is callable once per test
   /// — hold the result rather than calling it twice.
+  ProviderContainer gateOf(WidgetTester tester) => ProviderScope.containerOf(
+    tester.element(find.byType(MaterialApp)),
+    listen: false,
+  );
+
   MacroTargets savedTargets() =>
       verify(
             () => service.completeOnboarding(
@@ -161,6 +168,19 @@ void main() {
 
       expect(lastPushedLocation, '/');
     });
+
+    // Without this the router's redirect still believes onboarding is
+    // pending and sends the user straight back to step 1 — forever, on
+    // every launch. #74 expects the service to invalidate a provider, which
+    // it holds no `Ref` to do (`design/m4_preflight.md` §1.1).
+    testWidgets('opens the onboarding gate', (tester) async {
+      await pumpScreen(tester);
+      expect(gateOf(tester).read(onboardingGateProvider), isFalse);
+
+      await confirm(tester);
+
+      expect(gateOf(tester).read(onboardingGateProvider), isTrue);
+    });
   });
 
   group('validation', () {
@@ -236,6 +256,16 @@ void main() {
       expect(find.text('השמירה נכשלה, נסו שוב'), findsOneWidget);
       expect(lastPushedLocation, isNull);
       expect(find.byType(OnboardingScreen4), findsOneWidget);
+    });
+
+    // A gate opened on a profile that never reached storage would skip
+    // onboarding on the next launch and leave the user on the defaults.
+    testWidgets('leaves the onboarding gate closed', (tester) async {
+      await pumpScreen(tester);
+
+      await confirm(tester);
+
+      expect(gateOf(tester).read(onboardingGateProvider), isFalse);
     });
 
     testWidgets('keeps the edited numbers and allows a retry', (tester) async {
