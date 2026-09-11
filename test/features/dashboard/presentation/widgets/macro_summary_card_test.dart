@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:fantastic/core/constants/keto_constants.dart';
+import 'package:fantastic/core/theme/app_theme.dart';
+import 'package:fantastic/core/theme/keto_ratio_palette.dart';
+import 'package:fantastic/features/adaptation/presentation/widgets/streak_ring_widget.dart';
 import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card.dart';
@@ -348,6 +351,136 @@ void main() {
         ),
         findsNothing,
       );
+    });
+  });
+
+  group('the ratio bar is a verdict', () {
+    /// A day whose totals give exactly [ratio], with a non-zero denominator.
+    ///
+    /// Built from macros rather than by setting `ketoRatioAvg`, because the
+    /// card recomputes the ratio from the totals.
+    DailyLog dayWithRatio(double ratio) => DailyLogFixture.fixture(
+      totalFatG: ratio * 20,
+      totalNetCarbsG: 5,
+      totalProteinG: 15,
+    );
+
+    /// The ratio row's bar — the fourth and last.
+    LinearProgressIndicator ratioBar(WidgetTester tester) => bars(tester).last;
+
+    testWidgets('green when the ratio meets the target', (tester) async {
+      await pumpCard(tester, log: dayWithRatio(2.6));
+      await tester.pumpAndSettle();
+
+      expect(ratioBar(tester).color, AppTheme.success);
+    });
+
+    testWidgets('amber when the ratio is approaching the target', (
+      tester,
+    ) async {
+      await pumpCard(tester, log: dayWithRatio(1.7));
+      await tester.pumpAndSettle();
+
+      expect(ratioBar(tester).color, AppTheme.caution);
+    });
+
+    testWidgets('red when the ratio is below the minimum', (tester) async {
+      await pumpCard(tester, log: dayWithRatio(0.9));
+      await tester.pumpAndSettle();
+
+      expect(ratioBar(tester).color, AppTheme.danger);
+    });
+
+    // **The test this issue exists for.** A per-widget assertion would pass
+    // while the two still disagreed — which is exactly what happened: the
+    // ring had band colours from M3 and the bar had a fixed gold, and every
+    // test of each one passed.
+    //
+    // The two widgets are pumped separately and read against each other, at
+    // a ratio in each band.
+    //
+    // One test per ratio rather than a loop: a second `pumpWidget` of the
+    // same widget updates the tree instead of replacing it, so the card kept
+    // the previous ratio's colour and the loop compared the wrong pair.
+    for (final ratio in [2.6, 1.7, 0.9]) {
+      testWidgets('the ratio bar and the streak ring agree at $ratio', (
+        tester,
+      ) async {
+        await pumpCard(tester, log: dayWithRatio(ratio));
+        await tester.pumpAndSettle();
+
+        expect(
+          ratioBar(tester).color,
+          StreakRingPainter.colourFor(ratio),
+          reason: 'ring and bar disagree at ratio $ratio',
+        );
+      });
+    }
+
+    testWidgets('the ratio row carries a band icon', (tester) async {
+      await pumpCard(tester, log: dayWithRatio(2.6));
+      await tester.pumpAndSettle();
+
+      // Colour is never the only signal.
+      expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
+      expect(
+        tester
+            .widget<Icon>(find.byIcon(Icons.check_circle_outline))
+            .semanticLabel,
+        KetoRatioPalette.labelFor(2.6),
+      );
+    });
+
+    testWidgets('the icon changes with the band', (tester) async {
+      await pumpCard(tester, log: dayWithRatio(0.9));
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle_outline), findsNothing);
+    });
+
+    // The three macro rows keep their fixed hues: those identify fat from
+    // carbs from protein, and are not a judgement about progress.
+    testWidgets('the fat, carb and protein bars keep their own colours '
+        'regardless of progress', (tester) async {
+      final scheme = AppTheme.dark.colorScheme;
+
+      await pumpCard(tester, log: dayWithRatio(2.6));
+      await tester.pumpAndSettle();
+
+      final rows = bars(tester);
+      expect(rows[0].color, scheme.tertiary, reason: 'fat');
+      expect(rows[1].color, scheme.error, reason: 'net carbs');
+      expect(rows[2].color, scheme.secondary, reason: 'protein');
+      // And none of them picked up a band icon: the ratio row's is the only
+      // one in the card.
+      expect(find.byType(Icon), findsOneWidget);
+    });
+
+    // A ratio of 0.0 on an unlogged day is not a bad day — it is no day yet.
+    // A red bar on someone's first morning, under a headline saying nothing
+    // has been logged, is a verdict on something that has not happened. The
+    // issue left this open; this is the answer.
+    testWidgets('an unlogged day is neutral, not red', (tester) async {
+      await pumpCard(tester);
+      await tester.pumpAndSettle();
+
+      expect(
+        ratioBar(tester).color,
+        AppTheme.dark.colorScheme.onSurfaceVariant,
+      );
+      expect(ratioBar(tester).color, isNot(AppTheme.danger));
+      // And no verdict icon either.
+      expect(find.byType(Icon), findsNothing);
+    });
+
+    // A *stored* all-zero day is a different fact: the record exists, so the
+    // user logged something and emptied it, and a verdict is earned.
+    testWidgets('a stored all-zero day is judged, not excused', (tester) async {
+      await pumpCard(tester, log: DailyLogFixture.empty(date: date));
+      await tester.pumpAndSettle();
+
+      expect(ratioBar(tester).color, AppTheme.danger);
     });
   });
 }
