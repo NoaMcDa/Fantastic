@@ -1,9 +1,11 @@
 # M8 Pre-flight — end-to-end tests for every shipped feature, and the CI slot that runs them
 
-Status: **plan only. No code in this document has been merged.** Everything
-marked ✓ below was executed in a throwaway copy of this repository with
-Flutter 3.47.3 on Linux; nothing was committed to `lib/`, `test/` or
-`pubspec.yaml`.
+Status: **the harness, the CI job and nine of the eleven flows are now
+implemented** — see **Part 10**, which also records the three defects the
+suite found on its first runs and the two corrections implementing it forced
+on this document (§6.2 and §6.5 were both wrong). The audit in Parts 1–9 is
+kept as written: it is the record the flow issues have to be corrected
+against.
 
 M8 is eight issues: seven flow tests (#95–#101), the harness they need (#150),
 and the CI workflow (#102, already shipped and closed as Phase 0). This
@@ -481,9 +483,16 @@ exist until the dashboard is dragged (`AFTER SCROLL` in the spike log). This is
 `DiaryScreen`'s AppBar title. Scope every tab tap to the `NavigationBar`, or
 key the destinations.
 
-**6.5 The `pumpAndSettle` timeout is ten minutes by default.** Always pass a
-duration (`m4_handoff.md`). A stuck provider otherwise costs ten minutes per
-call, per test, on a CI runner.
+**6.5 The `pumpAndSettle` timeout is ten minutes by default — and passing a
+duration does not change it. [corrected]** This section first said "always
+pass a duration (`m4_handoff.md`)". That is wrong, and the harness shipped
+with the bug before the suite caught it: `pumpAndSettle`'s **first**
+positional argument is the interval *between* pumps; the timeout is the
+**third**. So `pumpAndSettle(Duration(milliseconds: 100))` bounds nothing —
+it leaves the ten-minute timeout in place and makes every frame wait 100 ms
+of real time under the live binding, which is how one flow came to take 40
+seconds. Pass all three:
+`pumpAndSettle(frameInterval, EnginePhase.sendSemanticsUpdate, timeout)`.
 
 **6.6 sembast does complete here — the M4 note is binding-specific.**
 `m4_handoff.md` says "sembast futures do not complete inside `testWidgets`",
@@ -566,3 +575,81 @@ expectations.
 this workflow has happened (the same residual risk `cicd_plan.md` §10 records
 for Phase 0: the action wiring, not the commands). The Chrome tier (§5). And
 everything in §0.4, which no tier available to this project can measure.
+
+---
+
+## Part 10 — What shipped, and what it found
+
+The harness (§1), the CI job (§4) and **nine of the eleven flows** (§3) are
+implemented. `flutter test -d flutter-tester integration_test/app_test.dart`
+runs **10 tests in ~35 s** on this Linux container, and `flutter test` still
+reports 1112 green with no flow file picked up.
+
+| Flow | File | State |
+|---|---|---|
+| F1 onboarding → seeded targets (#95) | `flows/onboarding_flow.dart` | ✅ |
+| F2 first launch once, relaunch lands on the dashboard | `flows/onboarding_flow.dart` | ✅ |
+| F3 log a meal → totals (#96) | `flows/meal_logging_flow.dart` | ✅ |
+| F4 delete a meal → totals recomputed | `flows/meal_logging_flow.dart` | ✅ |
+| F5 compliant day → streak 1 (#97) | `flows/streak_flow.dart` | ✅ |
+| F5b a second meal does not increment again | `flows/streak_flow.dart` | ✅ |
+| F7 five scales → diary (#99) | `flows/symptom_diary_flow.dart` | ✅ |
+| F8 a past date shows its own day | `flows/symptom_diary_flow.dart` | ✅ |
+| F10 all five tabs (#100) | `flows/navigation_smoke_flow.dart` | ✅ |
+| F11 storage failure is reported | `flows/storage_failure_flow.dart` | ✅ |
+| F6 breach → grace → reset (#98) | — | **not written** — still blocked on the clock seam (P5, §2.4) |
+| F9 scan → prefilled meal (#101) | — | **not written** — still blocked on #257 (§2.7) |
+
+Production changes were the three prerequisites and nothing else: keys on the
+onboarding inputs and the shared CTA (P3), keys on the five tab destinations
+(P4), and a key per diary date chip. No behaviour changed; all 1112 existing
+tests still pass.
+
+### The three defects the suite found
+
+Each was found by a flow failing on its **first** run, and each is real rather
+than a test artefact. None is fixed here — that is M7 work — and each is
+asserted as it actually behaves, with a comment saying so, rather than
+skipped.
+
+1. **The dashboard shows no macro targets at all until the first meal is
+   logged.** `MacroSummaryCard` renders `EmptyMealsState` whenever the day has
+   no `DailyLog`, so a user who has just agreed to 149/20/64 g sees none of
+   those numbers on the screen they land on. Epic #8's Definition of Done —
+   "dashboard macro targets match what onboarding set" — is only observable
+   from the second screen onwards. `mvp_handoff.md` records the same shape for
+   `ElectrolytesCard`; it is the same root cause, one widget wider than
+   anyone had noticed.
+2. **On a storage failure, `MealListSection` spins forever** while the macro
+   card and the symptom strip beside it report the error correctly. This is
+   the loading-first `.when` pattern `mvp_handoff.md` lists as outstanding,
+   now localised and reproduced: `hasError` before `hasValue` is the fix.
+3. **A dismissed meal is deleted from storage asynchronously**, so an
+   assertion on the repository in the next frame still sees it. The row goes
+   first because `Dismissible` asserts that a dismissed child leaves the tree
+   immediately. Not a bug — but a correctness trap for any test, which is why
+   the harness has `waitFor`.
+
+### Three things about the runtime that no document had
+
+- **riverpod 3 retries a failed provider on an exponential backoff.** A screen
+  over a broken store therefore *never settles* — `pumpAndSettle` times out
+  rather than returning, however generous the bound. `pumpFrames` and
+  `pumpUntil` exist for exactly that screen, and `pumpApp(settleAfter: false)`
+  is how F11 boots.
+- **The tab shell keeps the outgoing screen mounted** while the next one comes
+  in, so an unscoped finder can match a screen on its way out. Scope
+  cross-tab assertions to the screen type under test.
+- **§6.2's `hitTestWarningShouldBeFatal` is worth the line.** It turned a
+  silent mis-tap into a failure at the tap rather than three steps later.
+
+### Still open
+
+- **F6 and F9**, above, with their prerequisites unchanged.
+- **P5**, the clock seam, is the only remaining blocker inside this
+  milestone's control.
+- **Branch protection** — `e2e flows` should join `analyze · format · test`
+  as a required check once it has one green run on `main` (§4.4). Needs repo
+  admin; not something this PR can do.
+- The Chrome tier (§5) and everything in §0.4 are unchanged: still the honest
+  limits of what any of this proves.

@@ -30,7 +30,7 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/m5_handoff.md` | **M5 handoff** — M5 is code-complete and was driven end-to-end in a browser, including a page reload and a past-date check. What the audit found (a field the model does not have, whose label the compiler cannot catch; a save that erased the user's note). The eight conventions M6/M7 inherit (one enum owns the five scales; `hasError` before `isLoading`; a failed read and an empty day must not look alike; assert against what is *painted*). Gotchas: `AsyncValue.when` is loading-first, a sliver child below the fold has no element at all, Flutter web's RTL semantics rects are offset from the viewport. **Epic #9's DoD is fully met and the Epic is closed.** Known gaps M7 and v1.1 inherit. **Read before picking up M7** |
 | `design/m6_preflight.md` | **M6 pre-flight corrections** — all nine M6 issues audited. **Part 0 settles the ML Kit / web-build question empirically**: `dart:io` compiles for dart2js as throwing stubs, so the naive import does *not* break CI — the hazard is a runtime `MissingPluginException`, and the conditional-export firewall is built anyway (and why). Five defects that compile and ship wrong behaviour, the worst being a failed scan reported as **Clean Keto**; the five reasons #81's Hebrew regexes never match a real Israeli label; `permission_handler` and `image` decisions; a circular dependency graph. **Read before picking up any M6 issue** |
 | `design/m6_handoff.md` | **M6 handoff** — Keto Lens shipped; **why the ML Kit / web risk was real but mis-located** (`dart:io` compiles for dart2js as throwing stubs; the hazard is a runtime `MissingPluginException`) and the product decision that follows: **the lens tab cannot scan in a browser and says so**. The nine conventions M7 inherits (one plugin per adapter behind an interface, failure as a sealed value, a clean badge is not evidence); the gotchas that cost the most (**an indeterminate spinner on a tab screen hangs `widget_test.dart`**, clearing a busy flag after awaiting a modal, a stale `build_runner` cache skipping a file silently); and an explicit list of **what is unverified** — there is no camera, device or browser here, so no accuracy claim has been measured. **Read before picking up M7** |
-| `design/m8_preflight.md` | **M8 pre-flight corrections** — all eight M8 issues audited, and **Part 0 settles the "where do e2e tests run?" question empirically**: `flutter test -d flutter-tester integration_test/app_test.dart` drives the real app over a real in-memory sembast database, headless on Linux, in seconds — **no simulator, no macOS runner, no nightly-only compromise**, which retires `cicd_plan.md` §7.1's Phase 3 parking. Also: the harness needs no change to `lib/`; the seven flow issues carry 24 defects between them (two of five tab labels do not exist; #99 drives sliders the sheet does not have; #95 clears a `SharedPreferences` this project deliberately does not depend on); four flows no issue covers; and the CI slot, at ~23% of the free tier. **Read before picking up any M8 issue** |
+| `design/m8_preflight.md` | **M8 pre-flight + the e2e suite** — all eight M8 issues audited, and **Part 0 settles the "where do e2e tests run?" question empirically**: `flutter test -d flutter-tester integration_test/app_test.dart` drives the real app over a real in-memory sembast database, headless on Linux, in seconds — **no simulator, no macOS runner, no nightly-only compromise**, which retires `cicd_plan.md` §7.1's Phase 3 parking. The seven flow issues carry 24 defects between them (two of five tab labels do not exist; #99 drives sliders the sheet does not have). **Part 10 is what shipped**: the harness, the `e2e flows` CI job, nine flows — and the three defects the suite found on its first runs (the dashboard shows no macro targets until the first meal is logged; `MealListSection` spins forever on a storage failure; a dismissed meal is deleted asynchronously). **Read before picking up any M8 issue, and before writing a flow** |
 | `design/mvp_handoff.md` | **MVP handoff** — the cross-milestone view. **All five MVP features ship (M0–M6 complete).** The audit pattern that defined the project (the issue text was never right, once, in seven milestones) and the worst defect each audit caught; **the riverpod-3 async-error fact that cost four milestones in four disguises**; the consolidated open-defect list (#257 is the highest-value fix); what has never been verified — no device, no camera, and **nothing has ever read a real Hebrew label**; and the four M7 issues that are already done or obsolete. **Read before M7 or M8** |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
 | `design/architecture.md` | Layer model, persistence schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
@@ -131,8 +131,12 @@ flutter run -d <device-id>
 # Build for iOS release
 flutter build ios --release
 
-# Run all tests
+# Run all tests (unit + widget). Never picks up integration_test/.
 flutter test
+
+# Run the end-to-end flows. `-d flutter-tester` is required, and the
+# aggregator file is required — see design/m8_preflight.md Part 0 and §6.1.
+flutter test -d flutter-tester integration_test/app_test.dart
 
 # Run tests for a single feature
 flutter test test/features/<feature_name>/
@@ -150,7 +154,7 @@ flutter analyze
 dart format .
 
 # Format check only (no writes — used in CI)
-dart format --output=none --set-exit-if-changed lib/ test/
+dart format --output=none --set-exit-if-changed lib/ test/ integration_test/
 
 # Get/update dependencies
 flutter pub get
@@ -375,7 +379,7 @@ Full testing strategy in `design/tests.md`. Summary:
 | `application/` | Unit — mock interfaces | `dart test` + `mocktail` | 100% public methods |
 | `data/` | Repository contract tests | In-memory sembast | Contract suite |
 | `presentation/` | Widget tests | `flutter_test` + provider overrides | Critical paths |
-| Full flows | Integration | `integration_test` on simulator | 7 key flows |
+| Full flows | End-to-end | `integration_test` on `flutter-tester`, headless | 10 flows, per PR |
 
 - **CI runs the suite; you do not have to.** Push, open the PR, watch the run, and fix any failure on the same branch — see the Developer Workflow above
 - All fixtures live in `test/fixtures/` — never construct domain objects inline in tests
@@ -465,7 +469,7 @@ resolve it), and cancels a superseded PR run but never one on `main`.
 Steps, cheapest first so a formatting slip fails in seconds:
 1. `flutter pub get`
 2. **`pubspec.lock` unchanged** — fails if `pub get` rewrote the committed lockfile
-3. `dart format --output=none --set-exit-if-changed lib/ test/` — zero diffs
+3. `dart format --output=none --set-exit-if-changed lib/ test/ integration_test/` — zero diffs
 4. `flutter analyze --no-pub` — zero issues
 5. `flutter test --no-pub` — zero failures
 6. `flutter build web --release --no-pub --no-web-resources-cdn` — the web target compiles
@@ -482,9 +486,33 @@ Coverage is not enforced by the workflow today. The 80% target on `application/`
 and `domain/` (`design/tests.md`) remains a review expectation until a coverage
 step is added.
 
-Integration tests (`integration_test/`) do not exist yet (#150). The nightly-on-
-an-iOS-simulator scoping this section used to state is **superseded by
-`design/m8_preflight.md` Part 0**, which measured the flows running headless on
-Linux in seconds: the plan is a second `e2e flows` job in `ci.yml`, per PR, on
-`ubuntu-latest`, running `flutter test -d flutter-tester integration_test/app_test.dart`.
-Planned, not built — nothing in `.github/` has changed yet.
+### The `e2e flows` job
+
+A second job in the same workflow, on `ubuntu-latest`, per PR and in parallel
+with `verify`:
+
+```bash
+flutter test -d flutter-tester integration_test/app_test.dart --no-pub
+```
+
+**No simulator, and not nightly** — the nightly-on-an-iOS-simulator scoping
+every other document used to state is superseded by `design/m8_preflight.md`
+Part 0. The suite drives the real app (real router, real provider graph, real
+repositories, real in-memory sembast) headless, in ~35 s.
+
+Two parts of that command are load-bearing:
+
+- **`-d flutter-tester`.** Without a device the run fails with "No supported
+  devices connected".
+- **`integration_test/app_test.dart`, not the directory.** One app launch is
+  allowed per invocation; pointing the runner at the directory fails the
+  second file with "The log reader failed unexpectedly". Every flow is
+  therefore a library named `*_flow.dart` exporting `main()`, grouped by the
+  aggregator.
+
+`flutter test` (the `verify` job) globs `test/` only and never picks these up.
+Write flows against `integration_test/helpers/app_harness.dart` — `bootApp`,
+`pumpApp`, `settle`, `pumpUntil`, `waitFor` — and never call a bare
+`pumpAndSettle()`: its timeout is the **third** positional argument, not the
+first, and a screen over a broken store never settles at all because riverpod
+3 retries failed providers on a backoff.

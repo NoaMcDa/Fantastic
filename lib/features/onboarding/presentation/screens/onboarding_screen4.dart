@@ -77,9 +77,14 @@ class _OnboardingScreen4State extends ConsumerState<OnboardingScreen4> {
               ),
             ),
             const SizedBox(height: 24),
-            _targetField(controller: _fatController, label: 'שומן יומי (גרם)'),
+            _targetField(
+              key: const Key('fat_target_field'),
+              controller: _fatController,
+              label: 'שומן יומי (גרם)',
+            ),
             const SizedBox(height: 16),
             _targetField(
+              key: const Key('carbs_target_field'),
               controller: _netCarbsController,
               // Calculated as the fixed induction allowance and editable
               // anyway: #73 calls 20 g "not user-adjustable" and #72 renders
@@ -89,7 +94,11 @@ class _OnboardingScreen4State extends ConsumerState<OnboardingScreen4> {
               label: 'פחמימות נטו (גרם)',
             ),
             const SizedBox(height: 16),
-            _targetField(controller: _proteinController, label: 'חלבון (גרם)'),
+            _targetField(
+              key: const Key('protein_target_field'),
+              controller: _proteinController,
+              label: 'חלבון (גרם)',
+            ),
             if (_saveError != null) ...[
               const SizedBox(height: 16),
               Text(
@@ -105,9 +114,11 @@ class _OnboardingScreen4State extends ConsumerState<OnboardingScreen4> {
   }
 
   Widget _targetField({
+    required Key key,
     required TextEditingController controller,
     required String label,
   }) => TextFormField(
+    key: key,
     controller: controller,
     keyboardType: const TextInputType.numberWithOptions(decimal: true),
     decoration: InputDecoration(labelText: label),
