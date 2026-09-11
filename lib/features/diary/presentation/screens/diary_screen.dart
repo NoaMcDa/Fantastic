@@ -1,3 +1,4 @@
+import 'package:fantastic/core/time/today_tracker.dart';
 import 'package:fantastic/features/diary/presentation/screens/diary_day_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,19 +15,25 @@ class DiaryScreen extends ConsumerStatefulWidget {
   ConsumerState<DiaryScreen> createState() => _DiaryScreenState();
 }
 
-class _DiaryScreenState extends ConsumerState<DiaryScreen> {
-  /// Today at midnight, resolved once.
+class _DiaryScreenState extends ConsumerState<DiaryScreen> with TodayTracker {
+  /// The selected day. Starts on [today] and follows it across a rollover.
   ///
-  /// Every chip is derived from this and every date-keyed provider is keyed on
-  /// the result, so it must not be recomputed per build — see
-  /// `DashboardScreen` for the same reasoning.
-  late final DateTime _today = _midnightToday();
+  /// Every chip is derived from [today] and every date-keyed provider is
+  /// keyed on the result, so it must not be recomputed per build — see
+  /// `DashboardScreen` for the same reasoning, and [TodayTracker] for why
+  /// "resolved once" was not good enough.
+  late DateTime _selectedDate = today;
 
-  late DateTime _selectedDate = _today;
-
-  static DateTime _midnightToday() {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day);
+  /// Keeps the selection on *today* across a midnight rollover.
+  ///
+  /// Only when it was already there: a user reading Tuesday at 00:01 on
+  /// Wednesday asked for Tuesday and should keep it. A user sitting on today
+  /// asked for today, and today has moved.
+  @override
+  void onTodayChanged(DateTime previous) {
+    if (_selectedDate == previous) {
+      _selectedDate = today;
+    }
   }
 
   /// Newest first.
@@ -37,7 +44,7 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
   /// into the previous month.
   List<DateTime> get _dates => [
     for (var i = 0; i < DiaryScreen.visibleDays; i++)
-      DateTime(_today.year, _today.month, _today.day - i),
+      DateTime(today.year, today.month, today.day - i),
   ];
 
   @override
@@ -57,7 +64,7 @@ class _DiaryScreenState extends ConsumerState<DiaryScreen> {
                 return _DateChip(
                   date: date,
                   selected: date == _selectedDate,
-                  isToday: date == _today,
+                  isToday: date == today,
                   onTap: () => setState(() => _selectedDate = date),
                 );
               },

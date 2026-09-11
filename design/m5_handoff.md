@@ -125,11 +125,12 @@ pre-focused sheet that #76's text explicitly refuses.
   than as a corollary: `when` cannot express "show the error even though a
   reload is in flight" without `skipLoadingOnReload`, and for a *first* load
   it cannot express it at all. Read the flags.
-- **`SymptomLog.copyWith` cannot clear `notes`** (`notes ?? this.notes`) — the
-  same shape as `StreakState`'s trap (`m3_preflight.md` §1.1) without the
-  escape flag. Nothing in M5 needs it: the sheet builds a fresh log through
-  `buildSymptomLog`, so an emptied note stores as `null` correctly. Anything
-  later that clears a note through `copyWith` needs the flag first.
+- **`SymptomLog.copyWith` could not clear `notes`** (`notes ?? this.notes`) —
+  the same shape as `StreakState`'s trap (`m3_preflight.md` §1.1) without the
+  escape flag. Nothing in M5 needed it: the sheet builds a fresh log through
+  `buildSymptomLog`, so an emptied note stores as `null` correctly. **Fixed
+  in the post-milestone pass below** — `clearNotes: true` now works the way
+  `StreakState` and `UserProfile` already did.
 - **A sliver child below the fold has no element at all.** #76's strip pushed
   `ElectrolytesCard` past the fold of the default 800×600 test window and four
   dashboard tests started failing with "Found 0 widgets".
@@ -240,6 +241,37 @@ Unlike Epic #7, every item holds and **Epic #9 is closed**.
   should ask whether the dashboard is still the right home for it.
 
 ---
+
+## Post-milestone bug fixes
+
+A later audit of the shipped M4 and M5 code found four defects in M5's half.
+All four are fixed, with tests.
+
+1. **The sheet could still erase a stored day — on the failure path.** The
+   strip stays tappable when its read failed or is still in flight, and in
+   both cases it opens the sheet with `existing: null`. That means *unknown*,
+   not *blank*, and `save` upserts on the date — so the stored note and id
+   went. This is §1.3's data loss surviving in the one branch §1.3 did not
+   look at. `SymptomLogSheet._save` now resolves the stored record before
+   overwriting it, and a note recovered that way is kept rather than cleared:
+   the user never saw it, so an empty field is silence, not an instruction.
+2. **A stale `today` on the dashboard and in the diary.** Both screens
+   resolved the date once, in a `late final`, and nothing in `lib/` observed
+   the app lifecycle. iOS suspends rather than kills, so a `State` built at
+   23:50 was still live at 00:15 — and the check-in the strip launches is a
+   *write*, filed under yesterday while the strip said `תסמינים היום`.
+   `lib/core/time/today_tracker.dart` is the fix: a mixin that re-reads the
+   clock on resume and rolls the date over only when the calendar day
+   actually moved, so the date-keyed families are not re-allocated for
+   nothing. `DiaryScreen` follows it with its selection when the selection
+   was on today. **Still open: an app left in the foreground across
+   midnight.** Closing that needs a timer, and a timer pending at the end of
+   a `testWidgets` body fails the test.
+3. **`SymptomLogMapper` decoded with `as int`**, against `CLAUDE.md`'s "every
+   number through `num`". It worked — the values are integral — but it is one
+   stored `3.0` away from throwing on read, in a browser, on a record already
+   written. Now `(… as num).toInt()`, like every other mapper.
+4. **`SymptomLog.copyWith` gained `clearNotes`**, per the gotcha above.
 
 ## Next
 

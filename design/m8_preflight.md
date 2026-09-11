@@ -647,7 +647,15 @@ skipped.
 
 - **F6 and F9**, above, with their prerequisites unchanged.
 - **P5**, the clock seam, is the only remaining blocker inside this
-  milestone's control.
+  milestone's control — and it is now half-built by someone else. `main`
+  gained `lib/core/time/today_tracker.dart` while this branch was in flight:
+  `dateOnly`, `todayDate()`, and a `TodayTracker` mixin whose `now()` a
+  subclass can override. That is a **widget-level** seam, for the midnight
+  rollover. `MealLoggingService._evaluateStreak` still calls `DateTime.now()`
+  itself, so a flow driving the UI still cannot advance the clock past a
+  grace period. P5 is now "give the service the same seam", which is smaller
+  than it was and should follow `today_tracker.dart`'s naming rather than
+  invent a second vocabulary for the same idea.
 - **Branch protection** — `e2e flows` should join `analyze · format · test`
   as a required check once it has one green run on `main` (§4.4). Needs repo
   admin; not something this PR can do.

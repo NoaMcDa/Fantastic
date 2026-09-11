@@ -59,60 +59,73 @@ class _OnboardingScreen2State extends State<OnboardingScreen2> {
       onNext: _onNext,
       child: Form(
         key: _formKey,
-        child: ListView(
+        // A `SingleChildScrollView` + `Column`, never a `ListView`. A
+        // `ListView` builds lazily, and a `TextFormField` it has disposed
+        // deregisters itself from the enclosing `Form` — so `validate()`
+        // silently skips it and returns true for a field the user never
+        // filled. `_onNext` then parses an empty controller and throws. The
+        // fields here fit without scrolling at the default text scale, but a
+        // large accessibility scale is exactly the case that pushes one past
+        // the viewport's cache extent. A `Column` builds every child eagerly,
+        // so every field stays registered however far it is scrolled.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.only(top: 8, bottom: 8),
-          children: [
-            _SexSelector(
-              value: _sex,
-              onChanged: (sex) => setState(() => _sex = sex),
-            ),
-            const SizedBox(height: 24),
-            TextFormField(
-              key: const Key('age_field'),
-              controller: _ageController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'גיל'),
-              validator: OnboardingValidators.age,
-              // The field holds digits, and a bare digit run is reordered
-              // inside the RTL layout without this.
-              textDirection: TextDirection.ltr,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              key: const Key('weight_field'),
-              controller: _weightController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _SexSelector(
+                value: _sex,
+                onChanged: (sex) => setState(() => _sex = sex),
               ),
-              decoration: const InputDecoration(labelText: 'משקל (ק״ג)'),
-              validator: OnboardingValidators.weightKg,
-              textDirection: TextDirection.ltr,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              key: const Key('height_field'),
-              controller: _heightController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+              const SizedBox(height: 24),
+              TextFormField(
+                key: const Key('age_field'),
+                controller: _ageController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'גיל'),
+                validator: OnboardingValidators.age,
+                // The field holds digits, and a bare digit run is reordered
+                // inside the RTL layout without this.
+                textDirection: TextDirection.ltr,
               ),
-              decoration: const InputDecoration(labelText: 'גובה (ס״מ)'),
-              validator: OnboardingValidators.heightCm,
-              textDirection: TextDirection.ltr,
-            ),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              key: const Key('already_on_keto_switch'),
-              value: _alreadyOnKeto,
-              onChanged: _onAlreadyOnKetoChanged,
-              title: const Text('כבר בקטו?'),
-              subtitle: const Text('נמשיך את הרצף מהיום שהתחלתם'),
-              contentPadding: EdgeInsets.zero,
-            ),
-            // Mounted only while the toggle is on, so a date left behind by
-            // a toggle the user changed their mind about cannot be read: the
-            // state is cleared in the same `setState` that hides the row.
-            if (_alreadyOnKeto) _startDateTile(context),
-          ],
+              const SizedBox(height: 16),
+              TextFormField(
+                key: const Key('weight_field'),
+                controller: _weightController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(labelText: 'משקל (ק״ג)'),
+                validator: OnboardingValidators.weightKg,
+                textDirection: TextDirection.ltr,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                key: const Key('height_field'),
+                controller: _heightController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(labelText: 'גובה (ס״מ)'),
+                validator: OnboardingValidators.heightCm,
+                textDirection: TextDirection.ltr,
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                key: const Key('already_on_keto_switch'),
+                value: _alreadyOnKeto,
+                onChanged: _onAlreadyOnKetoChanged,
+                title: const Text('כבר בקטו?'),
+                subtitle: const Text('נמשיך את הרצף מהיום שהתחלתם'),
+                contentPadding: EdgeInsets.zero,
+              ),
+              // Mounted only while the toggle is on, so a date left behind
+              // by a toggle the user changed their mind about cannot be read:
+              // the state is cleared in the same `setState` that hides the
+              // row.
+              if (_alreadyOnKeto) _startDateTile(context),
+            ],
+          ),
         ),
       ),
     );
@@ -152,7 +165,10 @@ class _OnboardingScreen2State extends State<OnboardingScreen2> {
       // day, and `OnboardingService` would ignore one anyway.
       lastDate: now,
     );
-    if (picked != null) {
+    // The picker is a route, and this screen can be gone by the time it
+    // closes — the router restarts the flow whenever a step loses its
+    // navigation `extra`. `setState` on a disposed `State` throws.
+    if (picked != null && mounted) {
       setState(() => _ketoStartDate = picked);
     }
   }

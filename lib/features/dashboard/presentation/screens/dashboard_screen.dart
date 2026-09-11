@@ -1,3 +1,4 @@
+import 'package:fantastic/core/time/today_tracker.dart';
 import 'package:fantastic/features/adaptation/application/providers/streak_providers.dart';
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
 import 'package:fantastic/features/adaptation/presentation/widgets/phase_badge_widget.dart';
@@ -19,19 +20,21 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  /// Today, resolved once.
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
+    with TodayTracker {
+  /// Today, cached and rolled over when the app resumes on a later day.
   ///
   /// Held in state and stripped to midnight rather than calling
   /// `DateTime.now()` in `build`. The date-keyed providers are families keyed
   /// on this value, so a fresh wall-clock time each build would allocate a new
   /// provider every frame and refetch forever.
-  late final DateTime _date = _today();
-
-  static DateTime _today() {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day);
-  }
+  ///
+  /// It is not `late final`, though, and the difference is not cosmetic: this
+  /// screen launches two writes — the symptom check-in and the meal sheet —
+  /// and a `State` created before midnight and resumed after it would file
+  /// both under yesterday while the header and the strip both said today.
+  /// [TodayTracker] is what keeps the cached value honest.
+  DateTime get _date => today;
 
   @override
   Widget build(BuildContext context) {

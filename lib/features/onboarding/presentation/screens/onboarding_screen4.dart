@@ -66,48 +66,55 @@ class _OnboardingScreen4State extends ConsumerState<OnboardingScreen4> {
       onNext: _saving ? null : _onConfirm,
       child: Form(
         key: _formKey,
-        child: ListView(
+        // A `SingleChildScrollView` + `Column`, never a `ListView` — see
+        // `OnboardingScreen2` for why a lazy list under a `Form` lets
+        // `validate()` skip a field it has disposed, after which the
+        // non-null assertions in `_onConfirm` throw.
+        child: SingleChildScrollView(
           padding: const EdgeInsets.only(top: 8, bottom: 8),
-          children: [
-            Text(
-              'חישבנו יעדים יומיים לפי הנתונים שמסרתם. אפשר לשנות אותם '
-              'עכשיו, וגם בהמשך.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 24),
-            _targetField(
-              key: const Key('fat_target_field'),
-              controller: _fatController,
-              label: 'שומן יומי (גרם)',
-            ),
-            const SizedBox(height: 16),
-            _targetField(
-              key: const Key('carbs_target_field'),
-              controller: _netCarbsController,
-              // Calculated as the fixed induction allowance and editable
-              // anyway: #73 calls 20 g "not user-adjustable" and #72 renders
-              // it in an editable field. The editable field wins — a target
-              // the dashboard judges the user against has to be one they
-              // agreed to (`design/m4_preflight.md` §5.4).
-              label: 'פחמימות נטו (גרם)',
-            ),
-            const SizedBox(height: 16),
-            _targetField(
-              key: const Key('protein_target_field'),
-              controller: _proteinController,
-              label: 'חלבון (גרם)',
-            ),
-            if (_saveError != null) ...[
-              const SizedBox(height: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Text(
-                _saveError!,
-                style: TextStyle(color: theme.colorScheme.error),
-                textAlign: TextAlign.center,
+                'חישבנו יעדים יומיים לפי הנתונים שמסרתם. אפשר לשנות אותם '
+                'עכשיו, וגם בהמשך.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
+              const SizedBox(height: 24),
+              _targetField(
+                key: const Key('fat_target_field'),
+                controller: _fatController,
+                label: 'שומן יומי (גרם)',
+              ),
+              const SizedBox(height: 16),
+              _targetField(
+                key: const Key('carbs_target_field'),
+                controller: _netCarbsController,
+                // Calculated as the fixed induction allowance and editable
+                // anyway: #73 calls 20 g "not user-adjustable" and #72
+                // renders it in an editable field. The editable field wins —
+                // a target the dashboard judges the user against has to be
+                // one they agreed to (`design/m4_preflight.md` §5.4).
+                label: 'פחמימות נטו (גרם)',
+              ),
+              const SizedBox(height: 16),
+              _targetField(
+                key: const Key('protein_target_field'),
+                controller: _proteinController,
+                label: 'חלבון (גרם)',
+              ),
+              if (_saveError != null) ...[
+                const SizedBox(height: 16),
+                Text(
+                  _saveError!,
+                  style: TextStyle(color: theme.colorScheme.error),
+                  textAlign: TextAlign.center,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -28,10 +28,10 @@ Future<void> main() async {
     // Before runApp, so the router's very first redirect already knows
     // whether this is a first launch. The one asynchronous read the gate
     // needs, done here rather than inside go_router's redirect — see
-    // `OnboardingGate`. A failure propagates to StartupFailureApp with the
-    // database open below it: if the profile cannot be read, onboarding
-    // cannot be written either, and silently re-running the flow would
-    // overwrite targets that are still on disk.
+    // `OnboardingGate`. It swallows its own failures and leaves the gate
+    // shut: a profile that will not decode is not a database that will not
+    // open, and reporting it as one left the app permanently on the failure
+    // screen with no way back.
     await seedOnboardingGate(container);
 
     // Before runApp, so a notification tapped from a cold start has a plugin

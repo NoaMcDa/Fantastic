@@ -154,19 +154,57 @@ class _SymptomLogSheetState extends ConsumerState<SymptomLogSheet> {
       _saveError = null;
     });
 
-    final notes = _notesController.text.trim();
+    final service = ref.read(symptomLoggingServiceProvider);
+
+    // The record this save is layered on top of.
+    //
+    // Usually the one the caller handed in. But the strip stays tappable when
+    // its read **failed** or is still in flight, and in both cases it passes
+    // `existing: null` — which does not mean the day is blank, only that its
+    // contents are unknown. `save` upserts on the date, so trusting that null
+    // would overwrite a stored day's note and scores with defaults: the very
+    // data loss `design/m5_preflight.md` §1.3 was written about, surviving on
+    // the failure path. One keyed record read settles it.
+    var base = widget.existing;
+    if (base == null) {
+      try {
+        base = await service.symptomsForDate(widget.date);
+      } on Object catch (_) {
+        // Still unreadable. Go ahead with the write the user asked for — a
+        // store this broken will almost certainly reject it too, and the
+        // catch below is what tells them.
+      }
+      if (!mounted) {
+        return;
+      }
+    }
+
+    final typed = _notesController.text.trim();
+    // An empty field clears the note only when the user could see what they
+    // were clearing. A note recovered just above was never on screen — the
+    // sheet seeded its field from `widget.existing`, which was null — so an
+    // empty field there is silence, not an instruction to delete it.
+    final String? notes;
+    if (typed.isNotEmpty) {
+      notes = typed;
+    } else if (widget.existing != null) {
+      notes = null;
+    } else {
+      notes = base?.notes;
+    }
+
     final log = buildSymptomLog(
       date: widget.date,
       scores: _scores,
       // Both carried through from the record being edited. `save` upserts on
       // the date, so a log rebuilt without them drops the note the user typed
       // and re-keys nothing — see `design/m5_preflight.md` §1.3.
-      id: widget.existing?.id,
-      notes: notes.isEmpty ? null : notes,
+      id: base?.id,
+      notes: notes,
     );
 
     try {
-      await ref.read(symptomLoggingServiceProvider).logSymptoms(log);
+      await service.logSymptoms(log);
     } on Object catch (_) {
       // Stays open with the user's answers intact. Closing on failure would
       // discard them and tell the user they were saved — the reasoning

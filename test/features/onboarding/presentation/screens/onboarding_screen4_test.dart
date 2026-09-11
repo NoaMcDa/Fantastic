@@ -233,6 +233,48 @@ void main() {
 
       expect(lastPushedLocation, isNull);
     });
+
+    // `OnboardingScreen2`'s counterpart, for the same reason: a lazy list
+    // under a `Form` lets `validate()` skip a field it has disposed, and
+    // `_onConfirm` then trips the non-null assertions behind
+    // `positiveFinite(...)!`.
+    testWidgets('no lazy list sits between the Form and its fields', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+
+      expect(
+        find.descendant(of: find.byType(Form), matching: find.byType(ListView)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(Form),
+          matching: find.byType(SingleChildScrollView),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a scrolled-away emptied field is still validated', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'שומן יומי (גרם)'),
+        '',
+      );
+      await tester.drag(
+        find.byType(SingleChildScrollView),
+        const Offset(0, -400),
+      );
+      await tester.pump();
+      await confirm(tester);
+
+      expect(find.text('יש להזין מספר גדול מאפס'), findsOneWidget);
+      expect(lastPushedLocation, isNull);
+    });
   });
 
   group('when the save fails', () {

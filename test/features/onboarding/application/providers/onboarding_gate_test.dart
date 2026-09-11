@@ -94,12 +94,12 @@ void main() {
       verify(repository.load).called(1);
     });
 
-    // It runs inside `main`'s try, beside the database open. A profile that
-    // cannot be read means onboarding cannot be written either, and
-    // silently re-running the flow would overwrite targets still on disk —
-    // so the failure surfaces as StartupFailureApp rather than as a second
-    // onboarding.
-    test('a storage failure propagates rather than defaulting', () async {
+    // It runs inside `main`'s try, beside the database open — and letting it
+    // throw put the app on StartupFailureApp saying the *database* could not
+    // be opened. `load()` also throws when a stored record will not decode,
+    // which is not that, and the screen it produced was permanent: nothing
+    // was left to fix the profile from. Onboarding is the recovery path.
+    test('a storage failure leaves the gate closed', () async {
       final container = containerWith(
         () async => throw const PersistenceException(
           'UserProfileRepository.load',
@@ -107,10 +107,18 @@ void main() {
         ),
       );
 
-      await expectLater(
-        seedOnboardingGate(container),
-        throwsA(isA<PersistenceException>()),
+      await expectLater(seedOnboardingGate(container), completes);
+      expect(container.read(onboardingGateProvider), isFalse);
+    });
+
+    // The same guarantee for the other half of `guardPersistence`'s remit: a
+    // codec that throws an `Error` on stored data, not an `Exception`.
+    test('a decode failure leaves the gate closed', () async {
+      final container = containerWith(
+        () async => throw ArgumentError('no enum value named "unicorn"'),
       );
+
+      await expectLater(seedOnboardingGate(container), completes);
       expect(container.read(onboardingGateProvider), isFalse);
     });
   });
