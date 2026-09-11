@@ -1,3 +1,5 @@
+import 'package:fantastic/core/utils/numeric_input.dart';
+
 /// Form validation for the onboarding numeric fields.
 ///
 /// Static and pure, so the rules are testable without pumping a widget and
@@ -66,14 +68,11 @@ abstract final class OnboardingValidators {
   /// [value] as a positive, finite double, or null if it is not one.
   ///
   /// The single parse every caller goes through, so the `Infinity`/`NaN`
-  /// check cannot be forgotten at one call site.
-  static double? positiveFinite(String? value) {
-    final parsed = double.tryParse((value ?? '').trim());
-    if (parsed == null || parsed.isNaN || parsed.isInfinite || parsed <= 0) {
-      return null;
-    }
-    return parsed;
-  }
+  /// check cannot be forgotten at one call site. The implementation moved to
+  /// `NumericInput` when #257 added a second screen that takes a number; this
+  /// stays as the name onboarding's own callers already use.
+  static double? positiveFinite(String? value) =>
+      NumericInput.positiveFinite(value);
 
   static String? _inRange(
     String? value, {

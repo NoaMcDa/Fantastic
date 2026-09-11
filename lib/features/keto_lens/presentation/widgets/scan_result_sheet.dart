@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/features/diary/presentation/widgets/add_meal_bottom_sheet.dart';
+import 'package:fantastic/core/utils/numeric_input.dart';
 import 'package:fantastic/features/keto_lens/domain/models/parsed_label.dart';
+import 'package:fantastic/features/keto_lens/domain/models/serving_basis.dart';
 import 'package:fantastic/features/keto_lens/domain/models/scan_result.dart';
 import 'package:fantastic/features/keto_lens/presentation/widgets/verdict_badge_widget.dart';
 import 'package:flutter/material.dart';
@@ -63,59 +65,14 @@ class ScanResultSheet extends StatelessWidget {
           children: switch (result) {
             // A sealed switch: a third ScanResult variant would fail to
             // compile here rather than fall through to a blank sheet.
-            final ScanSucceeded success => _success(context, success),
+            final ScanSucceeded success => [
+              _SuccessBody(success: success, date: date),
+            ],
             final ScanFailed failure => _failure(context, failure),
           },
         ),
       ),
     );
-  }
-
-  List<Widget> _success(BuildContext context, ScanSucceeded success) {
-    final label = success.label;
-    final verdict = success.verdict;
-
-    return [
-      Center(
-        child: VerdictBadgeWidget(
-          badge: verdict.badge,
-          recognisedNothing: verdict.recognisedNothing,
-        ),
-      ),
-      if (label.hasMacros) ...[
-        const SizedBox(height: 20),
-        _MacroStrip(label: label),
-        const SizedBox(height: 8),
-        Text(
-          // The label's figures are per 100 g; a meal entry is what was
-          // eaten. Nothing in the pipeline reads a serving size, so the
-          // sheet says so rather than letting the prefill imply otherwise.
-          'הערכים מהתווית — בדקו את גודל המנה לפני השמירה',
-          style: Theme.of(context).textTheme.bodySmall,
-          textAlign: TextAlign.center,
-        ),
-      ],
-      if (verdict.flaggedIngredients.isNotEmpty) ...[
-        const SizedBox(height: 20),
-        Text(
-          'רכיבים בעייתיים',
-          style: Theme.of(context).textTheme.titleMedium
-              ?.copyWith(color: VerdictBadgeWidget.colourFor(verdict.badge)),
-        ),
-        const SizedBox(height: 8),
-        for (final ingredient in verdict.flaggedIngredients)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Text('• $ingredient'),
-          ),
-      ],
-      const SizedBox(height: 24),
-      FilledButton(
-        key: const Key('add_to_diary_button'),
-        onPressed: () => _addToDiary(context, label),
-        child: const Text('הוסף ליומן'),
-      ),
-    ];
   }
 
   List<Widget> _failure(BuildContext context, ScanFailed failure) {
@@ -182,7 +139,159 @@ class ScanResultSheet extends StatelessWidget {
       'הפכו את האריזה וצלמו את טבלת הערכים התזונתיים בגב המוצר.',
   };
 
-  void _addToDiary(BuildContext context, ParsedLabel label) {
+  /// What the macro figures are per, in Hebrew.
+  ///
+  /// The `unknown` string is M6's original caption, unchanged: #257's
+  /// Definition of Done requires that an unreadable label keeps exactly the
+  /// behaviour and the wording it had, because asking the user to check is
+  /// still the right answer when the app cannot tell.
+  @visibleForTesting
+  static String basisCaption(ServingBasis basis) => switch (basis) {
+    ServingBasis.per100g => 'הערכים בתווית הם ל-100 גרם',
+    ServingBasis.per100ml => 'הערכים בתווית הם ל-100 מ"ל',
+    ServingBasis.perServing => 'הערכים בתווית הם למנה אחת',
+    ServingBasis.unknown => 'הערכים מהתווית — בדקו את גודל המנה לפני השמירה',
+  };
+
+  /// The amount field's label. Only reachable for a per-100 basis.
+  @visibleForTesting
+  static String amountLabel(ServingBasis basis) => switch (basis) {
+    ServingBasis.per100ml => 'כמה מ"ל שתיתם?',
+    _ => 'כמה גרם אכלתם?',
+  };
+}
+
+/// The success half of the sheet, with the amount control that #257 added.
+///
+/// Stateful because the amount is user input. `ScanResultSheet` itself stays
+/// stateless — the state is genuinely local to this body, and keeping it here
+/// means the failure path has no state to reason about at all.
+class _SuccessBody extends StatefulWidget {
+  const _SuccessBody({required this.success, required this.date});
+
+  final ScanSucceeded success;
+  final DateTime date;
+
+  @override
+  State<_SuccessBody> createState() => _SuccessBodyState();
+}
+
+class _SuccessBodyState extends State<_SuccessBody> {
+  late final TextEditingController _amount;
+
+  ParsedLabel get _label => widget.success.label;
+
+  @override
+  void initState() {
+    super.initState();
+    // The label's own declared serving where it printed one, else 100 — which
+    // is a no-op scale, so a user who ignores this field gets exactly the
+    // behaviour that shipped in M6 rather than a surprise.
+    _amount = TextEditingController(
+      text: _formatGrams(_label.servingGrams ?? _referenceAmount),
+    );
+  }
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    super.dispose();
+  }
+
+  /// What the printed figures describe: 100 g, 100 ml, or one serving.
+  double get _referenceAmount => 100;
+
+  /// The multiplier applied to every macro before it reaches the diary.
+  ///
+  /// 1.0 unless the label said its figures are per 100 units *and* the user's
+  /// amount parses. Both halves matter: an unreadable basis must not scale
+  /// (#257's own Definition of Done says an `unknown` label keeps today's
+  /// behaviour), and an empty or nonsense field must not silently log zero.
+  double get _scale {
+    if (!_label.basis.isPerHundred) return 1;
+    final grams = NumericInput.positiveFinite(_amount.text);
+    if (grams == null) return 1;
+    return grams / _referenceAmount;
+  }
+
+  double? _scaled(double? value) => value == null ? null : value * _scale;
+
+  @override
+  Widget build(BuildContext context) {
+    final verdict = widget.success.verdict;
+    final scale = _scale;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: VerdictBadgeWidget(
+            badge: verdict.badge,
+            recognisedNothing: verdict.recognisedNothing,
+          ),
+        ),
+        if (_label.hasMacros) ...[
+          const SizedBox(height: 20),
+          // The strip shows what will be LOGGED, not what is printed, so the
+          // number the user is about to save is the number in front of them.
+          // The caption below says what it was scaled from.
+          _MacroStrip(
+            fatG: _scaled(_label.fatG),
+            netCarbsG: _scaled(_label.netCarbsG),
+            proteinG: _scaled(_label.proteinG),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            key: const Key('scan_basis_caption'),
+            ScanResultSheet.basisCaption(_label.basis),
+            style: Theme.of(context).textTheme.bodySmall,
+            textAlign: TextAlign.center,
+          ),
+          if (_label.basis.isPerHundred) ...[
+            const SizedBox(height: 16),
+            TextField(
+              key: const Key('scan_amount_field'),
+              controller: _amount,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              // Rebuild on every keystroke so the strip above tracks the
+              // field. There is no Save-then-discover step.
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: ScanResultSheet.amountLabel(_label.basis),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+          ],
+        ],
+        if (verdict.flaggedIngredients.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          Text(
+            'רכיבים בעייתיים',
+            style: Theme.of(context).textTheme.titleMedium
+                ?.copyWith(color: VerdictBadgeWidget.colourFor(verdict.badge)),
+          ),
+          const SizedBox(height: 8),
+          for (final ingredient in verdict.flaggedIngredients)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text('\u2022 $ingredient'),
+            ),
+        ],
+        const SizedBox(height: 24),
+        FilledButton(
+          key: const Key('add_to_diary_button'),
+          onPressed: () => _addToDiary(context, scale),
+          child: const Text('הוסף ליומן'),
+        ),
+      ],
+    );
+  }
+
+  void _addToDiary(BuildContext context, double scale) {
     // The Navigator's own context outlives this sheet's, so the add-meal
     // sheet has somewhere to open after the pop.
     final navigator = Navigator.of(context);
@@ -191,34 +300,50 @@ class ScanResultSheet extends StatelessWidget {
     unawaited(
       AddMealBottomSheet.show(
         host,
-        date: date,
+        date: widget.date,
         initialName: 'מוצר סרוק',
         // Null stays null rather than becoming 0: a macro the parser did
         // not find is unknown, and prefilling zero would have the user
         // save a fat-free tahini without noticing. The field is left blank
-        // and the form's own validator asks for it.
-        initialFatG: label.fatG,
-        initialNetCarbsG: label.netCarbsG,
-        initialProteinG: label.proteinG,
+        // and the form's own validator asks for it. Scaling preserves that —
+        // null times anything is still null.
+        initialFatG: _scaled(_label.fatG),
+        initialNetCarbsG: _scaled(_label.netCarbsG),
+        initialProteinG: _scaled(_label.proteinG),
       ),
     );
   }
 }
 
-/// Fat / net carbs / protein, side by side.
-class _MacroStrip extends StatelessWidget {
-  const _MacroStrip({required this.label});
+/// Formats a gram figure for the amount field without a trailing `.0`.
+String _formatGrams(double grams) =>
+    grams == grams.roundToDouble() ? grams.round().toString() : '$grams';
 
-  final ParsedLabel label;
+/// Fat / net carbs / protein, side by side.
+///
+/// Takes three figures rather than a [ParsedLabel] because since #257 it shows
+/// what will be *logged* — the label's numbers scaled to the amount eaten —
+/// and a `ParsedLabel` holds only what was printed. Passing the label and
+/// scaling in here would have put the multiplier in two places.
+class _MacroStrip extends StatelessWidget {
+  const _MacroStrip({
+    required this.fatG,
+    required this.netCarbsG,
+    required this.proteinG,
+  });
+
+  final double? fatG;
+  final double? netCarbsG;
+  final double? proteinG;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _Macro(name: 'שומן', grams: label.fatG),
-        _Macro(name: 'פחמימות נטו', grams: label.netCarbsG),
-        _Macro(name: 'חלבון', grams: label.proteinG),
+        _Macro(name: 'שומן', grams: fatG),
+        _Macro(name: 'פחמימות נטו', grams: netCarbsG),
+        _Macro(name: 'חלבון', grams: proteinG),
       ],
     );
   }

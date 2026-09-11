@@ -216,18 +216,19 @@ explicit if anyone ever formats a grace deadline.
   this belongs.
 - **The streak resets lazily.** An expired grace period is only noticed on the
   next evaluation, so the banner reads "פחות מדקה" until the user logs
-  something. A launch-time evaluation would fix it.
-  **[Corrected, post-M5 audit] This understated it in one direction and has
-  since been half-fixed.** "Noticed late" was not the whole story: when the
-  user did return and log a compliant day, `recordCompliantDay` never checked
-  the expiry at all, so the reset *never happened* — a breach whose window had
-  lapsed a week earlier simply resumed the streak. Worse, nothing anywhere
-  checked contiguity, so a skipped day did not break the streak either and
-  `currentStreak` was a lifetime count of compliant days. Both are fixed by
-  `AdaptationPhaseService.reconcile`, which every write path now runs first.
-  **What remains of this gap is only the display half**: reconciliation is not
-  applied on read, so a stale number can sit on the ring until the user's next
-  logged meal.
+  something. A launch-time evaluation would fix it. *(Partly closed — see
+  "Defects found after closure" below: both branches now notice an expired
+  window, so the reset lands on the next evaluation whatever it is. The banner
+  still reads "פחות מדקה" until then.)*
+  **[Post-M5 audit] The other half of the same gap: nothing checked
+  contiguity either.** A skipped day did not break the streak at all, so
+  `currentStreak` was a lifetime count of compliant days — three in January
+  and one in February read as four. Fixed by
+  `AdaptationPhaseService.reconcile`, which both write paths now run first and
+  which folds the expired-window rule above into the same question. **What
+  remains is only the display half**: reconciliation is applied on write, not
+  on read, so a stale number can sit on the ring until the user's next logged
+  meal.
 - **Water and electrolytes still have no logging flow** (inherited from M2), so
   the gauges read zero and every electrolyte shows a deficit.
 - **`/diary/<date>` does not exist**, so #67's calendar days are not tappable.
@@ -241,6 +242,82 @@ explicit if anyone ever formats a grace deadline.
 - **`EntityNotFoundException` still has no throw site**, from M1.
 - **CI does not check codegen freshness.** Two `.g.dart` files were stale on
   `main` during M3 — harmless, but nothing catches it. `cicd_plan.md` Phase 1.
+
+---
+
+## Defects found after closure
+
+A bug sweep over the whole milestone after M6 closed. Five defects, none of
+which `analyze` or the 663 green tests could see — three of them in the two
+places this project has least ability to check: a grace period that only one
+of two branches inspected, and a notification stack no device has ever run.
+
+### 1. An expired grace period was invisible to the compliant path
+
+`AdaptationPhaseService.recordCompliantDay` never looked at `gracePeriodEnd`.
+Only `handleBreach` did. So a user who breached, let the whole 24 hours run
+out and then logged a good meal **carried on as if the lapse had never
+happened** — a twelve-day streak became thirteen, and the phase went with it.
+
+The reset is lazy by design: nothing evaluates the state machine while the
+user logs nothing, so an expired window is first seen on the *next*
+evaluation — and that is at least as likely to be a compliant meal as a
+breach. Both branches now share one `_hasExpired` check.
+
+**Its own test hid it.** `StreakStateFixture.inGracePeriod()` defaults to an
+expiry of 2026-09-10 12:00, two and a half hours *before* the service suite's
+fixed `now`, so a test named *"resuming inside a grace period keeps the streak
+going"* was in fact exercising a window that had already closed — and passing.
+The suite now states open-versus-closed explicitly, and the fixture's doc says
+why it must.
+
+### 2. Only iOS was ever asked for notification permission
+
+`NotificationService.requestPermission` resolved
+`IOSFlutterLocalNotificationsPlugin` and nothing else. On Android 13 (API 33)
+and newer, `POST_NOTIFICATIONS` is a runtime permission: nothing requested it,
+the reminder was scheduled, the OS dropped it, and there was **no symptom to
+chase**. macOS was the same story under a different class name. Each platform
+now gets its own prompt; Windows needs no runtime grant.
+
+### 3. The Android reminder could not have been delivered at all
+
+Two independent reasons, both invisible to every check this repo runs:
+
+- **`AndroidManifest.xml` declared none of what a scheduled notification
+  needs.** Since `flutter_local_notifications` 16 the plugin ships only
+  `POST_NOTIFICATIONS` and `VIBRATE` in its own manifest; the app must declare
+  `ScheduledNotificationReceiver` itself, or the alarm fires into nothing.
+  `RECEIVE_BOOT_COMPLETED` and `ScheduledNotificationBootReceiver` are what
+  re-arm a pending reminder after a reboot — and the app only reschedules at
+  launch, so a phone restarted overnight was silent.
+- **`AndroidScheduleMode.exactAllowWhileIdle` needs an exact-alarm
+  permission** the app neither declared nor requested. Without one the plugin
+  logs an error and schedules *nothing*. The reminder is now `inexact`: a
+  daily nudge does not need Android 14's alarm-clock privileges, and
+  `USE_EXACT_ALARM` is audited on store submission.
+
+### 4. Deleting a meal dated the breach to midnight
+
+`MealLoggingService.deleteMeal` has no timestamp to read — the entry is gone —
+so it passed the caller's date, which the diary holds stripped to midnight.
+Handing that to `evaluateToday` opened a grace period expiring at midnight
+*tomorrow*: a meal deleted at 22:00 bought two hours to recover instead of
+twenty-four. The delete path now evaluates at the wall clock. `logMeal` keeps
+using the meal's own timestamp.
+
+### 5. The streak ring collapsed to a spinner on every save
+
+`StreakRingWidget` branched on `isLoading`. A **refresh** is `isLoading` with
+the previous value still attached, and every meal write produces one —
+`AddMealBottomSheet` invalidates `todaysDailyLogProvider` the moment the save
+returns. So the ring vanished behind a spinner on each save and then replayed
+its 600 ms sweep from zero. The check is now `isLoading && !hasValue`.
+
+This is the same riverpod-3 `AsyncValue` shape that cost M3 three issues,
+arriving from the other side: that time the trap was `isLoading` being true
+*with an error*; here it is `isLoading` being true *with a value*. **Neither
+`isLoading` nor `hasError` alone is ever the whole question.**
 
 ---
 

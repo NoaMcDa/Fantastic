@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:fantastic/features/keto_lens/data/parsers/hebrew_text_normaliser.dart';
 import 'package:fantastic/features/keto_lens/domain/models/parsed_label.dart';
+import 'package:fantastic/features/keto_lens/domain/models/serving_basis.dart';
 import 'package:fantastic/features/keto_lens/domain/services/label_parser.dart';
 
 /// Extracts macros and an ingredient list from the raw text of an Israeli
@@ -41,6 +42,29 @@ class HebrewLabelParser implements LabelParser {
 
   /// `חלבון` (final nun) and `חלבונים` (medial nun).
   static final RegExp _protein = RegExp('חלבו[נן]');
+
+  /// `ל-100 גרם`, `ל100 גרם`, `100 גר'`, `100 ג'`, `per 100 g`.
+  ///
+  /// Anchored on the number rather than the `ל` prefix: OCR drops the hyphen
+  /// and sometimes the prefix, and `100` immediately before a gram word is not
+  /// something a label says for any other reason.
+  static final RegExp _basisPer100g = RegExp(
+    "100\\s*(?:גרם|גר'|ג'|gr\\b|g\\b)",
+  );
+
+  /// `ל-100 מ"ל`, `100 מל`, `100 ml`.
+  static final RegExp _basisPer100ml = RegExp('100\\s*(?:מ"ל|מל|ml\\b)');
+
+  /// `למנה`, `למנת`, `לכל מנה` — the figures already describe one serving.
+  ///
+  /// The `ל` must be attached. `גודל מנה` contains the letters `ל מנה` with a
+  /// space, and matching that would read every label that declares a serving
+  /// *weight* as though its macros were per serving — turning the most useful
+  /// label into the most dangerous one.
+  static final RegExp _basisPerServing = RegExp('למנה|למנת|לכל מנה');
+
+  /// `גודל מנה` / `משקל מנה` — the declared serving weight.
+  static final RegExp _servingSize = RegExp('גודל מנה|משקל מנה|גודל המנה');
 
   /// Words that mark a *sub*-row of the fat block rather than total fat.
   ///
@@ -108,6 +132,7 @@ class HebrewLabelParser implements LabelParser {
       final carbs = _valueFor(lines, _carbs);
       final fibre = _valueFor(lines, _fibre);
       final protein = _valueFor(lines, _protein);
+      final basis = _basisFor(lines);
 
       return ParsedLabel(
         fatG: fat,
@@ -120,6 +145,11 @@ class HebrewLabelParser implements LabelParser {
         proteinG: protein,
         ingredients: _ingredients(lines),
         rawText: ocrText,
+        basis: basis,
+        // Read even when the basis is unknown: a two-column label is exactly
+        // the case where the declared serving weight is most useful to show,
+        // and it costs nothing to carry.
+        servingGrams: _valueFor(lines, _servingSize),
       );
     } on Object {
       // The interface promises `parse` never throws: garbled input is a
@@ -135,6 +165,28 @@ class HebrewLabelParser implements LabelParser {
   /// Walks lines in order. A line whose keyword occurrence is disqualified is
   /// not abandoned — the next occurrence *on the same line* is tried, because
   /// a single-line OCR dump holds the whole table.
+  /// Which basis the label's figures are printed against.
+  ///
+  /// Deliberately refuses to guess. Exactly one marker in the text resolves to
+  /// that basis; **zero or more than one resolves to [ServingBasis.unknown]**
+  /// — and more-than-one is the common, dangerous case, because a great many
+  /// Israeli labels print two columns, per 100 g *and* per serving, with no
+  /// reliable way to tell from flattened OCR text which column a number came
+  /// from.
+  ///
+  /// Picking a column there would produce a plausible, wrong, silently-logged
+  /// number. `unknown` produces a question instead. #257 exists because the
+  /// first of those shipped.
+  static ServingBasis _basisFor(List<String> lines) {
+    final text = lines.join('\n');
+    final found = <ServingBasis>{
+      if (_basisPer100g.hasMatch(text)) ServingBasis.per100g,
+      if (_basisPer100ml.hasMatch(text)) ServingBasis.per100ml,
+      if (_basisPerServing.hasMatch(text)) ServingBasis.perServing,
+    };
+    return found.length == 1 ? found.single : ServingBasis.unknown;
+  }
+
   static double? _valueFor(
     List<String> lines,
     RegExp keyword, {

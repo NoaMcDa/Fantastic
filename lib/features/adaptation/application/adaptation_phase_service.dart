@@ -44,26 +44,41 @@ class AdaptationPhaseService {
   /// without this guard three meals would leave a three-day streak. A day
   /// already banked returns the stored state untouched, with no write.
   ///
-  /// **Advances by one from the [reconcile]d state, not from the stored one.**
-  /// A streak that a skipped day has already broken restarts at 1 here rather
-  /// than resuming where it left off.
+  /// **A grace period that closed before [date] has already cost the streak.**
+  /// The window is what the user was given to get back on plan; a compliant
+  /// day logged after it closed starts a new streak at 1 rather than resuming
+  /// the old one. Checking it here and not only in [handleBreach] is what
+  /// makes that true: the reset is lazy — nothing evaluates the state machine
+  /// while the user logs nothing — so the *next* evaluation is where an
+  /// expired window has to be noticed, and it is at least as likely to be a
+  /// compliant meal as a breach.
+  ///
+  /// **So has a skipped day**, whether or not any window was ever opened —
+  /// see [reconcile]. Both cases are the same question, asked of a state that
+  /// nothing has evaluated since the user last logged something.
   ///
   /// Known limitation: a day banked early cannot be un-banked by a later
   /// breach on the same day. Reversing it would need the previous
   /// `lastCompliantDate` to restore, which the singleton record does not keep.
   /// Deferred with the end-of-day evaluation job #58's background describes.
   Future<StreakState> recordCompliantDay(DateTime date) async {
-    final current = reconcile(await _load(), date);
+    final current = await _load();
     final day = _dateOnly(date);
     if (_isSameDay(current.lastCompliantDate, day)) {
       return current;
     }
 
-    final streak = current.currentStreak + 1;
+    // Rebuilt rather than copied, for the same reason [handleBreach] does it:
+    // every field but the personal best returns to its initial value, and a
+    // field added to StreakState later resets correctly without anyone
+    // remembering to clear it.
+    final base = reconcile(current, date);
+
+    final streak = base.currentStreak + 1;
     return _repository.save(
-      current.copyWith(
+      base.copyWith(
         currentStreak: streak,
-        highestStreak: math.max(current.highestStreak, streak),
+        highestStreak: math.max(base.highestStreak, streak),
         phase: _phaseFor(streak),
         lastCompliantDate: day,
         inGracePeriod: false,
@@ -89,19 +104,14 @@ class AdaptationPhaseService {
   ///    leaving the streak intact. A second breach inside an open window is a
   ///    no-op — one lapse, one penalty.
   Future<StreakState> handleBreach(DateTime now) async {
-    // Reconciled first, so a breach arriving after a skipped day is applied to
-    // the streak the skip already broke rather than to a stale one. The reset
-    // reaches storage either way: a reconciled state is never in a grace
-    // period, so the third branch below always writes.
-    final current = reconcile(await _load(), now);
+    final current = await _load();
 
     if (_isSameDay(current.lastCompliantDate, _dateOnly(now))) {
       return current;
     }
 
     if (current.inGracePeriod) {
-      final end = current.gracePeriodEnd;
-      if (end == null || !now.isAfter(end)) {
+      if (!_hasExpired(current, now)) {
         return current;
       }
       // Rebuilt rather than copied: every field but the personal best returns
@@ -112,73 +122,25 @@ class AdaptationPhaseService {
       );
     }
 
+    // Reached only when no window is open, so the streak here is broken by a
+    // skipped day or not at all. A breach after a gap opens its window against
+    // the streak the gap already cost, never against the stale number.
+    final base = reconcile(current, now);
+
     return _repository.save(
-      current.copyWith(
-        inGracePeriod: true,
-        gracePeriodEnd: now.add(gracePeriod),
-      ),
+      base.copyWith(inGracePeriod: true, gracePeriodEnd: now.add(gracePeriod)),
     );
   }
 
   /// Routes [date] to [recordCompliantDay] or [handleBreach].
   ///
-  /// [date] carries the time of day, which [handleBreach] compares against the
-  /// grace-period expiry — a midnight-normalised value would judge the window
-  /// by its start rather than by when the breach happened.
+  /// [date] carries the time of day, which **both** branches compare against
+  /// the grace-period expiry — a midnight-normalised value would judge the
+  /// window by its start rather than by when the evaluation happened. That is
+  /// why `MealLoggingService` passes the wall clock on the delete path, where
+  /// the only date it holds has been stripped to midnight.
   Future<StreakState> evaluateToday(DateTime date, {required bool compliant}) =>
       compliant ? recordCompliantDay(date) : handleBreach(date);
-
-  /// [state] as the passage of time alone has left it, at [now].
-  ///
-  /// Pure, and the only thing in the app that applies a rule nothing else
-  /// can: **a skipped day breaks the streak.** Every other transition is
-  /// driven by a meal being logged, so without this a user could log a
-  /// compliant day in January, vanish until March, log one more, and be told
-  /// they were on a two-day streak. `currentStreak` was a lifetime count of
-  /// compliant days, not a streak.
-  ///
-  /// A day counts as skipped once a whole calendar day has passed with
-  /// nothing banked — so [lastCompliantDate] of today or yesterday is intact,
-  /// and anything older is broken. Yesterday has to stay intact: today is
-  /// still winnable until midnight.
-  ///
-  /// **An open grace window survives the gap it creates.** A day the user
-  /// *breached* is not a day they skipped — the 24-hour window is exactly
-  /// what a breach buys them, and `CLAUDE.md` promises the streak resumes if
-  /// a compliant day lands inside it. So a state inside an unexpired window
-  /// is intact however old its last compliant day is.
-  ///
-  /// Resetting rebuilds from scratch rather than copying, so a field added to
-  /// [StreakState] later resets correctly without anyone remembering to clear
-  /// it. [StreakState.highestStreak] is carried across: it is a personal
-  /// best, not current state.
-  ///
-  /// **Reconciliation happens on write, not on read.** Nothing persists this
-  /// until the user's next logged meal, so a stored record can sit stale in
-  /// between and the ring will show the old number until then — the "streak
-  /// resets lazily" gap `design/m3_handoff.md` records. Applying it on read
-  /// would mean a provider calling `DateTime.now()`, which makes every widget
-  /// test that stubs a streak time-dependent.
-  StreakState reconcile(StreakState state, DateTime now) {
-    final last = state.lastCompliantDate;
-    if (last == null) {
-      // Nothing has ever been banked, so there is no streak to break.
-      return state;
-    }
-
-    final today = _dateOnly(now);
-    if (_isSameDay(last, today) || _isSameDay(last, _dayBefore(today))) {
-      return state;
-    }
-
-    if (state.inGracePeriod &&
-        state.gracePeriodEnd != null &&
-        !now.isAfter(state.gracePeriodEnd!)) {
-      return state;
-    }
-
-    return StreakState(highestStreak: state.highestStreak);
-  }
 
   /// The stored state, or the first-launch seed.
   ///
@@ -186,15 +148,6 @@ class AdaptationPhaseService {
   /// [StreakRepository.load].
   Future<StreakState> _load() async =>
       await _repository.load() ?? StreakState.initial();
-
-  /// The calendar day before [day].
-  ///
-  /// Built by subtracting from the day-of-month, never with a
-  /// `Duration(days: 1)`: a duration is a fixed 24 hours and lands on the
-  /// wrong day across a daylight-saving change. `DateTime` normalises a
-  /// non-positive day into the previous month.
-  static DateTime _dayBefore(DateTime day) =>
-      DateTime(day.year, day.month, day.day - 1);
 
   static AdaptationPhase _phaseFor(int streak) {
     if (streak >= deepKetosisFromDay) {
@@ -205,6 +158,80 @@ class AdaptationPhaseService {
     }
     return AdaptationPhase.induction;
   }
+
+  /// Whether [state]'s grace period was open and had already closed by [at].
+  ///
+  /// Strictly after, so an evaluation landing on the exact expiry instant is
+  /// still inside the window — the user is given the boundary, not denied it.
+  ///
+  /// An `inGracePeriod` with no [StreakState.gracePeriodEnd] cannot be judged
+  /// expired: there is no instant to compare against, and guessing would
+  /// reset a streak on a malformed record. Both callers leave such a state
+  /// alone, which is what they did before this was factored out.
+  /// [state] as the passage of time alone has left it, at [now].
+  ///
+  /// Pure, and the only thing in the app that applies a rule no logged meal
+  /// implies: **a skipped day breaks the streak.** Every other transition is
+  /// driven by a meal, so without this a user could log a compliant day in
+  /// January, vanish until March, log one more, and be told they were on a
+  /// two-day streak — `currentStreak` was a lifetime count of compliant days,
+  /// not a streak.
+  ///
+  /// A day counts as skipped once a whole calendar day has passed with nothing
+  /// banked, so [StreakState.lastCompliantDate] of today or yesterday is
+  /// intact and anything older is broken. Yesterday has to stay intact: today
+  /// is still winnable until midnight.
+  ///
+  /// **An open grace window survives the gap it creates.** A day the user
+  /// *breached* is not a day they skipped — the 24-hour window is exactly what
+  /// a breach buys them, and `CLAUDE.md` promises the streak resumes if a
+  /// compliant day lands inside it. A window that has *closed* breaks the
+  /// streak on its own, whatever the calendar says (#283).
+  ///
+  /// The reset rebuilds rather than copies, so a field added to [StreakState]
+  /// later resets correctly without anyone remembering to clear it.
+  /// [StreakState.highestStreak] is carried across: a personal best is
+  /// history, not current state.
+  ///
+  /// **Applied on write, not on read.** Nothing persists this until the user's
+  /// next logged meal, so the ring can show a stale number until then — the
+  /// "streak resets lazily" gap `design/m3_handoff.md` records. Applying it on
+  /// read would put `DateTime.now()` inside a provider and make every widget
+  /// test that stubs a streak time-dependent.
+  StreakState reconcile(StreakState state, DateTime now) =>
+      _isBroken(state, now)
+      ? StreakState(highestStreak: state.highestStreak)
+      : state;
+
+  /// Whether time alone has already cost [state] its streak, at [at].
+  static bool _isBroken(StreakState state, DateTime at) =>
+      _hasExpired(state, at) ||
+      (!state.inGracePeriod && _skippedADay(state, at));
+
+  /// Whether a whole calendar day has passed with nothing banked.
+  static bool _skippedADay(StreakState state, DateTime at) {
+    final last = state.lastCompliantDate;
+    if (last == null) {
+      // Nothing has ever been banked, so there is no streak to break.
+      return false;
+    }
+    final today = _dateOnly(at);
+    return !_isSameDay(last, today) && !_isSameDay(last, _dayBefore(today));
+  }
+
+  static bool _hasExpired(StreakState state, DateTime at) {
+    final end = state.gracePeriodEnd;
+    return state.inGracePeriod && end != null && at.isAfter(end);
+  }
+
+  /// The calendar day before [day].
+  ///
+  /// Built by subtracting from the day-of-month, never with a
+  /// `Duration(days: 1)`: a duration is a fixed 24 hours and lands on the
+  /// wrong day across a daylight-saving change. `DateTime` normalises a
+  /// non-positive day into the previous month.
+  static DateTime _dayBefore(DateTime day) =>
+      DateTime(day.year, day.month, day.day - 1);
 
   static DateTime _dateOnly(DateTime value) =>
       DateTime(value.year, value.month, value.day);

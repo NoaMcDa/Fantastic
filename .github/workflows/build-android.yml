@@ -1,0 +1,137 @@
+name: Build Android
+
+# Android is the one shipping target no developer on this project can build:
+# the container this repository is worked in has no Android SDK, and the SDK is
+# only distributed from a host that environment cannot reach. Everything under
+# `android/` was therefore hand-written and compiled by nobody until this
+# workflow existed. It is the only thing standing between a merge and an
+# Android target that does not assemble.
+#
+# Deliberately a separate file from `ci.yml` rather than another job in it:
+# `ci.yml` is the fast gate (format, analyze, test, web) and finishes in
+# minutes, while a cold Gradle build spends most of its time downloading an
+# SDK, an NDK and an AGP. Keeping them apart means an Android regression is
+# named as one in the checks list, and a formatting slip still fails in
+# seconds.
+#
+# Scope note: this is a *build* gate, not a device gate. Nothing here runs the
+# app. `design/cicd_plan.md` §7.1 parks emulator/simulator suites and all of
+# CD, and this workflow deliberately stays on the near side of that line.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Same rule as ci.yml: a newer push to the same PR makes the in-flight run
+# obsolete, but a run on main is a record worth keeping.
+concurrency:
+  group: build-android-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-android:
+    name: assemble debug · assemble release · verify assets
+    runs-on: ubuntu-latest
+    # ubuntu-latest already carries an Android SDK, so this costs free-tier
+    # Linux minutes only — no macOS multiplier (design/cicd_plan.md §8).
+    # A cold run pays for a Gradle distribution, an AGP and an NDK download;
+    # the cache below makes a warm one much cheaper.
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Pinned rather than "whatever the image ships": AGP 8.13.1's floor
+          # is 17, it is what `compileOptions`/`jvmTarget` in
+          # android/app/build.gradle.kts target, and it is the version Flutter
+          # 3.47.3's DependencyVersionChecker names. A runner image bumping
+          # its default JDK should not silently change what this gate proves.
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Exactly the pin ci.yml uses. The Android toolchain versions in
+          # android/settings.gradle.kts were chosen against this Flutter's
+          # supported window, so the two pins have to move together.
+          flutter-version: 3.47.3
+          channel: stable
+          cache: true
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          # The Gradle distribution is pinned by gradle-wrapper.properties and
+          # the plugin classpath by settings.gradle.kts, so those two files are
+          # the cache identity. pubspec.lock joins them because a plugin set
+          # change pulls new AARs.
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties', 'android/settings.gradle.kts', 'pubspec.lock') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Accept Android SDK licences
+        # The runner image pre-accepts these, but AGP downloads the NDK that
+        # `jni` (reached through path_provider_android 2.3.1) needs for its
+        # CMake build, and an unaccepted licence turns that into a build
+        # failure several minutes in. Cheap insurance, and a no-op when the
+        # image already did it.
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Build debug APK
+        # Debug first: it skips R8 and is the fastest thing that proves the
+        # Gradle configuration, the manifest merge, the plugin set and the
+        # native libraries all assemble.
+        run: flutter build apk --debug --no-pub
+
+      - name: Debug APK carries the Hebrew OCR model and libtesseract
+        # The scanner is the point of the app, and both halves of it are
+        # packaged rather than compiled — which means `flutter analyze`, and
+        # the build step above, can both pass with a lens that finds nothing
+        # to read on a real device.
+        #
+        # Two assertions, one per half:
+        #   * assets/tessdata/heb.traineddata and assets/tessdata_config.json
+        #     are what `flutter_tesseract_ocr` reads through rootBundle before
+        #     every scan (it copies them to the app documents directory). Drop
+        #     either from pubspec.yaml's asset list and the app still builds.
+        #   * libtesseract.so comes from the prebuilt tesseract4android AAR the
+        #     plugin pulls in through a flatDir repository — the one dependency
+        #     in this app resolved from a file rather than a coordinate, and so
+        #     the one most able to vanish quietly.
+        run: |
+          set -euo pipefail
+          apk=build/app/outputs/flutter-apk/app-debug.apk
+          test -f "$apk" || { echo "::error::no APK at $apk"; exit 1; }
+          entries=$(unzip -Z1 "$apk")
+
+          for required in \
+            assets/flutter_assets/assets/tessdata/heb.traineddata \
+            assets/flutter_assets/assets/tessdata_config.json \
+            lib/arm64-v8a/libtesseract.so
+          do
+            if ! grep -qxF "$required" <<< "$entries"; then
+              echo "::error::$required is missing from $apk"
+              exit 1
+            fi
+            echo "ok: $required"
+          done
+
+      - name: Build release APK
+        # Not redundant with the debug build. Release is the configuration
+        # that runs R8, and a missing keep rule in a plugin is invisible until
+        # something is actually shrunk. It signs with the debug keystore, per
+        # the TODO in android/app/build.gradle.kts — this proves the APK
+        # assembles, not that it is shippable.
+        run: flutter build apk --release --no-pub

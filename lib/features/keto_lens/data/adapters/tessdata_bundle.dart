@@ -16,8 +16,10 @@ import 'package:flutter/services.dart' show rootBundle;
 /// float model in `tessdata_best` is 3.5 MB for accuracy nobody here has
 /// measured; see `design/m6_platform_research.md` Part 6.
 ///
-/// Desktop only. The mobile plugin does its own asset copy, and the browser
-/// fetches `web/tesseract/heb.traineddata` over same-origin HTTP.
+/// Desktop only. On Android the plugin does its own asset copy; on iOS it
+/// reads a `tessdata` folder reference copied into the `.app` by
+/// `ios/Runner.xcodeproj` instead. The browser fetches
+/// `web/tesseract/heb.traineddata` over same-origin HTTP.
 abstract final class TessdataBundle {
   /// Where the asset lives in the bundle.
   static const String assetKey = 'assets/tessdata/heb.traineddata';
@@ -49,10 +51,32 @@ abstract final class TessdataBundle {
     // traineddata does not fail loudly — Tesseract returns empty text.
     if (!file.existsSync() || await file.length() != expected) {
       await dir.create(recursive: true);
-      await file.writeAsBytes(
-        data.buffer.asUint8List(data.offsetInBytes, expected),
-        flush: true,
+
+      // Write to a private name, then rename. `rename` is atomic within a
+      // filesystem, so a reader either sees the previous file or the complete
+      // new one, never a half-written one.
+      //
+      // The in-process `_pending` future serialises callers inside one app,
+      // but not across processes — two instances, or two parallel test
+      // suites, share this directory. That is not hypothetical: it produced
+      // exactly one unreproducible OCR failure during development, which is
+      // the worst way for a race to announce itself.
+      final staging = File(
+        '${file.path}.${pid}_${DateTime.now().microsecondsSinceEpoch}',
       );
+      try {
+        await staging.writeAsBytes(
+          data.buffer.asUint8List(data.offsetInBytes, expected),
+          flush: true,
+        );
+        await staging.rename(file.path);
+      } on Object {
+        // Losing the race is not an error: whoever won wrote the same bytes.
+        if (staging.existsSync()) {
+          await staging.delete();
+        }
+        rethrow;
+      }
     }
     return dir.path;
   }

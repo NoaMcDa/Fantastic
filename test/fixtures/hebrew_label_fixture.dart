@@ -112,4 +112,52 @@ Extra Virgin Olive Oil
 Ilil |I| l1
 ~~~ ### ~~~
 0O0 |||''';
+
+  /// A two-column label: per 100 g **and** per serving, side by side.
+  ///
+  /// The case #257 exists to make safe. OCR flattens the columns, so there is
+  /// no reliable way to tell which column a given number came from — and
+  /// picking one produces a plausible, wrong, silently-logged figure. The
+  /// parser must resolve this to [ServingBasis.unknown].
+  static const String twoColumnBasis = '''
+עוגיות שוקולד צ'יפס
+ערכים תזונתיים ל-100 גרם ולמנה
+גודל מנה 25 גרם
+שומנים 24 גרם
+פחמימות 60 גרם
+סיבים תזונתיים 3 גרם
+חלבונים 7 גרם''';
+
+  /// A label whose figures are per serving only, with a declared weight.
+  ///
+  /// Must NOT be scaled: the numbers already describe one serving.
+  static const String perServingOnly = '''
+חטיף אגוזים
+ערכים תזונתיים למנה
+גודל מנה 40 גרם
+שומנים 18 גרם
+פחמימות 6 גרם
+סיבים תזונתיים 2 גרם
+חלבונים 5 גרם''';
+
+  /// A drink, declared per 100 ml.
+  static const String per100ml = '''
+משקה שקדים ללא סוכר
+ערכים תזונתיים ל-100 מ"ל
+שומנים 1.1 גרם
+פחמימות 0.4 גרם
+חלבונים 0.5 גרם''';
+
+  /// A per-100 g label that also declares its serving weight.
+  ///
+  /// The best case: the basis is unambiguous AND the amount field can be
+  /// prefilled with what the package calls a serving.
+  static const String per100gWithServing = '''
+חטיף חלבון
+ערכים תזונתיים ל-100 גרם
+גודל מנה 30 גרם
+שומנים 20 גרם
+פחמימות 10 גרם
+סיבים תזונתיים 4 גרם
+חלבונים 30 גרם''';
 }
