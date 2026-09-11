@@ -5,7 +5,7 @@ name: Build macOS
 # macOS runner minutes bill at 10x (design/cicd_plan.md §8, where a nightly
 # macOS job was measured at 3x the whole free tier), so this runs only when a
 # change could plausibly break the macOS build: the platform folder itself, the
-# Dart the build compiles, the dependency set the Podfile is generated from, the
+# Dart the build compiles, the dependency set its native plugins come from, the
 # probe this workflow runs, or the workflow file. Everything else — design docs,
 # tests, the other five platform folders — costs nothing.
 #
@@ -34,8 +34,8 @@ jobs:
   build:
     name: build macOS · probe libtesseract
     runs-on: macos-latest
-    # A cold run pays a pod install, a full release xcodebuild and a Homebrew
-    # install. 45 caps a hang without cutting an honest cold build short.
+    # A cold run pays a full release xcodebuild and a Homebrew install. 45 caps
+    # a hang without cutting an honest cold build short.
     timeout-minutes: 45
 
     steps:
@@ -61,20 +61,36 @@ jobs:
         # project's Release config carries CODE_SIGN_IDENTITY = "-", so
         # xcodebuild ad-hoc signs the bundle. Signing, notarisation and any
         # Apple account are Phase 4/5 work and stay parked (cicd_plan §7.1).
-        #
-        # macos/Podfile is not committed and does not need to be: the flutter
-        # tool writes it from its own template during this step, whenever a
-        # project with plugins has none. CocoaPods has never run against this
-        # project before, on any platform, so this step is also the first
-        # evidence that the plugin set resolves for macOS at all.
         run: flutter build macos --release
 
-      - name: Record the generated Podfile
-        # Not committed (above), so print it — otherwise the only artefact of
-        # the first CocoaPods run this project has ever had disappears with the
-        # runner.
+      - name: How the Darwin plugins were integrated
+        # The first run of this workflow found no macos/Podfile, and that is
+        # correct rather than a failure: `flutter create` generated this project
+        # with a FlutterGeneratedPluginSwiftPackage local Swift package (see
+        # macos/Runner.xcodeproj/project.pbxproj), so plugins integrate through
+        # SwiftPM and CocoaPods is never invoked. It works here because every
+        # macOS plugin in the lockfile qualifies: file_selector_macos and
+        # flutter_local_notifications both ship a Package.swift, and
+        # path_provider_foundation declares a dartPluginClass with no native
+        # code at all.
+        #
+        # That matters beyond curiosity. design/cicd_plan.md §10 and
+        # design/m6_platform_handoff.md both flag "ios/ still has no Podfile,
+        # CocoaPods has never run" as an outstanding risk; on this Flutter pin a
+        # Podfile may simply never be needed. This step keeps the evidence in
+        # the log, and will start printing a Podfile the day a plugin without
+        # SwiftPM support is added — which is exactly when someone should look.
         if: ${{ !cancelled() }}
-        run: cat macos/Podfile || echo 'no Podfile was generated'
+        run: |
+          if [ -f macos/Podfile ]; then
+            echo 'CocoaPods: macos/Podfile was generated'
+            cat macos/Podfile
+          else
+            echo 'CocoaPods: not used — no macos/Podfile'
+          fi
+          echo '--- FlutterGeneratedPluginSwiftPackage ---'
+          cat macos/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift \
+            || echo 'no generated Swift package'
 
       - name: Install Tesseract
         # Not a build dependency — nothing links against it. It is here so the
@@ -90,8 +106,9 @@ jobs:
       - name: Probe the dylib candidates
         # The assertion. Exits non-zero unless at least one candidate opens for
         # libtesseract AND at least one for leptonica, and prints every hit and
-        # miss so a list where only the last entry works is distinguishable
-        # from one where all four do.
+        # miss so a list where only one entry works is distinguishable from one
+        # where all of them do. On the first run exactly one did, per library,
+        # which is why the list grew versioned Homebrew paths.
         #
         # This is also what keeps the OCR test below from passing by skipping:
         # `isAvailable` is the same DynamicLibrary.open probe, so if it were
@@ -99,39 +116,26 @@ jobs:
         if: ${{ !cancelled() }}
         run: dart run tool/tesseract_dylib_probe.dart
 
-      - name: Probe the dylib candidates inside the App Sandbox
-        # INFORMATIONAL — never fails the job, and read the caveats.
-        #
-        # The shipped app is sandboxed: macos/Runner/Release.entitlements sets
-        # com.apple.security.app-sandbox. The sandbox denies file reads outside
-        # the app container bar a fixed set of system paths, and /opt/homebrew
-        # is not one of them — so a sandboxed build may be unable to open the
-        # very dylib the step above just proved is present. That would mean the
-        # macOS app reports "install Tesseract" on a machine where Tesseract is
-        # installed.
-        #
-        # Signing this probe with the app's own entitlements file is the
-        # closest thing to an answer that does not require launching a GUI app
-        # on the runner. Two caveats, both real:
-        #   * a bare executable is not an app bundle, so sandbox startup may
-        #     fail outright for want of a container — that outcome is
-        #     inconclusive, not evidence;
-        #   * the systemTemp line means less here than in a real app. launchd
-        #     redirects TMPDIR into the container for a bundled app; a binary
-        #     run from this shell inherits the shell's TMPDIR, which the
-        #     sandbox then denies. A failure there is expected and does not
-        #     imply TessdataBundle is broken.
-        if: ${{ !cancelled() }}
-        run: |
-          dart compile exe tool/tesseract_dylib_probe.dart -o "$RUNNER_TEMP/probe"
-          codesign --force --sign - \
-            --entitlements macos/Runner/Release.entitlements \
-            "$RUNNER_TEMP/probe"
-          codesign -d --entitlements - "$RUNNER_TEMP/probe" || true
-          set +e
-          "$RUNNER_TEMP/probe"
-          echo "sandboxed probe exited $?"
-          set -e
+      # There is deliberately no App Sandbox probe here, and the absence is a
+      # finding rather than an omission.
+      #
+      # The shipped app is sandboxed — macos/Runner/Release.entitlements sets
+      # com.apple.security.app-sandbox — and the sandbox denies file reads
+      # outside the app container bar a fixed set of system paths, none of which
+      # is /opt/homebrew. So a sandboxed build may be unable to open the very
+      # dylib the step above proves is present, and would then tell a user to
+      # "install Tesseract" on a machine where Tesseract is installed.
+      #
+      # The first run of this workflow tried to settle that by codesigning the
+      # probe with the app's own entitlements and running it. It does not work
+      # and cannot: the binary was signed correctly (codesign -d confirmed all
+      # three entitlements) and then died at startup with SIGTRAP, exit 133 —
+      # a bare executable is not an app bundle and has no container for
+      # libsystem_secinit to attach it to. That is inconclusive, not evidence,
+      # and a step that is known never to answer anything is noise.
+      #
+      # Answering it needs the real .app launched on a real Mac, which is also
+      # what nothing in this project has ever done.
 
       - name: Hebrew OCR through libtesseract, on macOS
         # The FFI adapter reading a real rendered Hebrew label, on a real Mac.

@@ -19,10 +19,19 @@ abstract final class TesseractLibraryCandidates {
   /// resolves to 5. The unversioned name is the fallback a dev install or a
   /// Homebrew prefix usually provides.
   ///
-  /// **The absolute paths are not redundant on macOS.** dyld resolves a bare
-  /// leaf name against `DYLD_FALLBACK_LIBRARY_PATH`, which is
-  /// `~/lib:/usr/local/lib:/usr/lib` — so an Intel Homebrew prefix is found by
-  /// name and an Apple-silicon one, at `/opt/homebrew`, never is.
+  /// **The absolute paths are not redundant on macOS, they are the only ones
+  /// that work.** Measured on an Apple-silicon runner with Homebrew tesseract
+  /// 5.5.3 installed: of the four original candidates exactly one opened,
+  /// `/opt/homebrew/lib/libtesseract.dylib`. dyld resolves a bare leaf name
+  /// against `DYLD_FALLBACK_LIBRARY_PATH` — `~/lib:/usr/local/lib:/usr/lib` —
+  /// which does not contain `/opt/homebrew`, so every unqualified name misses.
+  ///
+  /// The versioned absolute paths were added afterwards for the same reason the
+  /// versioned sonames exist on Linux: the one entry that worked is an
+  /// unversioned symlink, and a list with a single point of failure is a list
+  /// one `brew` layout change away from reporting "Tesseract is not installed"
+  /// on a machine where it is. `libtesseract.5.dylib` is the real file behind
+  /// that symlink.
   static List<String> get tesseract {
     if (Platform.isWindows) {
       return const [
@@ -36,7 +45,9 @@ abstract final class TesseractLibraryCandidates {
         'libtesseract.5.dylib',
         'libtesseract.dylib',
         '/opt/homebrew/lib/libtesseract.dylib',
+        '/opt/homebrew/lib/libtesseract.5.dylib',
         '/usr/local/lib/libtesseract.dylib',
+        '/usr/local/lib/libtesseract.5.dylib',
       ];
     }
     return const ['libtesseract.so.5', 'libtesseract.so.4', 'libtesseract.so'];
@@ -44,6 +55,12 @@ abstract final class TesseractLibraryCandidates {
 
   /// Leptonica, which owns image decoding. Tesseract's own `SetImage2` takes a
   /// `Pix*`, so reading a PNG or JPEG means calling `pixRead` here first.
+  ///
+  /// Same measurement, same answer: only
+  /// `/opt/homebrew/lib/libleptonica.dylib` opened. Note that the versioned
+  /// file Homebrew 1.87.0 installs is `libleptonica.6.dylib` and **not**
+  /// `liblept.5.dylib` — that spelling is a Linux-era name kept only because an
+  /// older formula used it, and a miss costs one failed `dlopen`.
   static List<String> get leptonica {
     if (Platform.isWindows) {
       return const ['liblept-5.dll', 'leptonica-1.84.1.dll', 'liblept.dll'];
@@ -53,7 +70,9 @@ abstract final class TesseractLibraryCandidates {
         'liblept.5.dylib',
         'libleptonica.dylib',
         '/opt/homebrew/lib/libleptonica.dylib',
+        '/opt/homebrew/lib/libleptonica.6.dylib',
         '/usr/local/lib/libleptonica.dylib',
+        '/usr/local/lib/libleptonica.6.dylib',
       ];
     }
     return const ['liblept.so.5', 'libleptonica.so.6', 'liblept.so'];
