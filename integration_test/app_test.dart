@@ -6,6 +6,7 @@ import 'flows/keto_lens_flow.dart' as keto_lens;
 import 'flows/meal_logging_flow.dart' as meal_logging;
 import 'flows/navigation_smoke_flow.dart' as navigation_smoke;
 import 'flows/onboarding_flow.dart' as onboarding;
+import 'flows/profile_flow.dart' as profile;
 import 'flows/storage_failure_flow.dart' as storage_failure;
 import 'flows/streak_flow.dart' as streak;
 import 'flows/symptom_diary_flow.dart' as symptom_diary;
@@ -45,5 +46,6 @@ void main() {
   group('symptom diary', symptom_diary.main);
   group('keto lens', keto_lens.main);
   group('grace period', grace_period.main);
+  group('profile', profile.main);
   group('storage failure', storage_failure.main);
 }
