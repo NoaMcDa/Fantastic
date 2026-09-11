@@ -245,7 +245,8 @@ Shared code (constants, utilities, theming) lives in `lib/core/`.
 | Recipe converter | `lib/features/recipe/` |
 | Israeli keto directory | `lib/features/directory/` |
 
-`lib/features/profile/` is still a placeholder — the Profile tab has no screen yet.
+The Profile tab has a screen (#310) and carries M15's estimation settings — the only
+place in the app that turns on sending anything anywhere.
 
 **A meal can be logged from the dashboard and from the diary, and both go through
 `AddMealFab`** (`lib/features/diary/presentation/widgets/add_meal_fab.dart`) — never a
@@ -253,6 +254,32 @@ Shared code (constants, utilities, theming) lives in `lib/core/`.
 state told the user to tap it; see `design/user_bugs_handoff.md`. Each host passes its own key
 (`add_meal_fab`, `add_meal_fab_diary`) because the tab shell keeps the outgoing screen mounted
 during a transition, and clears a scrolling body with `AddMealFab.bodyClearance`.
+
+**The `+` asks *how* before *what*, and the chooser lives inside `AddMealFab`** so both hosts
+get all three modes by construction (M15):
+
+| Mode | Sheet | What it does |
+|---|---|---|
+| `הזנה ידנית` | `AddMealBottomSheet` | Type the macros. Unchanged since M2, and the whole milestone's regression surface |
+| `תיאור הארוחה` | `AddMealDescriptionSheet` | Type Hebrew, review the itemised estimate, hand the total to the form |
+| `צילום` | `AddMealPhotoSheet` | **Label OCR first**, estimate second, photo attached |
+
+**All three end in the same editable form**, which owns validation and saving — there is one
+validator in the app, and a second form would drift from it. `AddMealBottomSheet` also runs in
+**edit mode**: passing `existing` seeds every field from a stored meal and makes the save an
+`updateMeal` rather than an append. Tapping a meal card is what opens it.
+
+**The photo mode tries the label before it tries the network, always.** A nutrition panel is
+text and Keto Lens reads it for free, offline, from printed figures; a plate of food can only
+be guessed at. Estimating first would spend a request, a quota slot and the user's privacy on
+something the app could have read exactly. `integration_test/flows/add_meal_photo_flow.dart`
+asserts the estimator is called **zero** times when a scan succeeds — the only end-to-end check
+of that rule.
+
+**An estimate is never saved without being shown item by item**, and the total the review shows
+is the total that gets logged (#257's rule). An item the estimator could not identify is
+rendered, greyed and marked — a silently dropped `לחם` turns a 40 g-carb meal into a 2 g one
+and the day still reads compliant.
 
 ## MVP Scope
 
@@ -305,6 +332,7 @@ in a named store, addressed by an `int` key.
 | `SymptomLog` — energy, clarity, hunger, physical, mood (1–5 scales) | `symptom_logs` | `dateIndex(date)` |
 | `StreakState` — current/highest streak, phase, grace-period state | `streak_state` | `StreakStateMapper.singletonId` (0) |
 | `UserProfile` — sex, age, weight, height, goal, macro targets, keto start date | `user_profile` | `UserProfileMapper.singletonId` |
+| `EstimationSettings` — the user's own API key and the consent flag | `estimation_settings` | singleton |
 
 **Keying a one-record-per-day collection on its own date is what makes `save` an
 upsert.** Isar needed `@Index(unique: true)` plus the generated `putByDateIndex`
@@ -324,6 +352,22 @@ with static `toRecord(domain)` / `fromRecord(key, record)` and a public
 `dateIndex(DateTime)` encoding `year * 10000 + month * 100 + day`. `dateIndex`
 is public because the repository builds its keys and filters with it and must
 use the same encoding the record was written with.
+
+**`MealEntry.source` records where a meal's macros came from** — `manual`,
+`scannedLabel`, `estimatedFromText`, `estimatedFromPhoto` — because a number
+the user typed and a number a model guessed are not the same datum, and
+`MealLoggingService` feeds all of them into the streak. Stored by `.name`; a
+pre-M15 record with no `source` key decodes as `manual`. **A value is not
+fixed for the life of a meal**: `AddMealBottomSheet.sourceAfterEdit` is the one
+place it changes, and an edit that alters a macro re-sources the meal to
+`manual` — once a human has corrected a figure, a badge still calling it a
+guess is false, and a badge that lies trains people to ignore it. An edit that
+changes only the name leaves it alone. `MealCard` renders it through
+`MacroSourceCopy`, and shows **nothing** for `manual`.
+
+**`MealEntry.imageRef` holds the picker's own path and may dangle.** Nothing is
+copied into app storage and nothing renders it yet; a later reader must treat a
+missing file as normal rather than as corruption.
 
 Record values must be JSON-compatible — `null`, `num`, `String`, `bool`, `List`,
 `Map`. Three rules follow, and all three are enforced by the mapper tests:
@@ -379,6 +423,11 @@ The guard catches `Object`, not `Exception`. sembast's own `DatabaseException` d
 **Shipped in M6, re-engined for every platform since.** On-device Hebrew text
 recognition via **Tesseract** — no network call is made during a scan, and Epic
 #10's first architectural invariant forbids adding one.
+
+**M15's macro estimation is a different feature and does not relax that.** A
+scan still makes no request. Estimation is opt-in, needs the user's own key,
+and lives entirely behind `LlmChatClient` — named in exactly two files. See
+`design/m15_meal_entry_research.md` §4 and `design/technology.md`.
 
 **ML Kit was removed, and the reason matters: it has no Hebrew script model.**
 Its enum is `latin, chinese, devanagiri, japanese, korean`, and the adapter was
@@ -602,7 +651,7 @@ Full testing strategy in `design/tests.md`. Summary:
 | `application/` | Unit — mock interfaces | `dart test` + `mocktail` | 100% public methods |
 | `data/` | Repository contract tests | In-memory sembast | Contract suite |
 | `presentation/` | Widget tests | `flutter_test` + provider overrides | Critical paths |
-| Full flows | End-to-end | `integration_test` on `flutter-tester`, headless | 14 tests, per PR |
+| Full flows | End-to-end | `integration_test` on `flutter-tester`, headless | 35 tests, per PR |
 
 - **CI runs the suite; you do not have to.** Push, open the PR, watch the run, and fix any failure on the same branch — see the Developer Workflow above
 - All fixtures live in `test/fixtures/` — never construct domain objects inline in tests
@@ -697,7 +746,7 @@ repo-admin operation from a session.
 | M12 — Menu Analyzer | `epic:m12-menu-analyzer` | #121–#122 | 2 |
 | M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |
 | M14 — Backup & Restore | `epic:m14-backup` | #123–#124 | 2 |
-| M15 — Meal Entry | `epic:m15-meal-entry` | #315–#326 | 12 |
+| M15 — Meal Entry | `epic:m15-meal-entry` | #315–#328 | 14 — **complete** |
 | Login — accounts & identity | `epic:login` | #206–#226 | 16 |
 
 **M9–M15 are numbered by recommended build order, not by dependency** — they are
@@ -816,7 +865,7 @@ flutter test -d flutter-tester integration_test/app_test.dart --no-pub
 **No simulator, and not nightly** — the nightly-on-an-iOS-simulator scoping
 every other document used to state is superseded by `design/m8_preflight.md`
 Part 0. The suite drives the real app (real router, real provider graph, real
-repositories, real in-memory sembast) headless, in ~35 s.
+repositories, real in-memory sembast) headless, in ~2 min.
 
 Two parts of that command are load-bearing:
 
