@@ -1,5 +1,6 @@
 import 'package:fantastic/core/database/database_factory.dart';
 import 'package:fantastic/core/database/database_provider.dart';
+import 'package:fantastic/core/providers/notification_providers.dart';
 import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
@@ -19,9 +20,15 @@ Future<void> main() async {
   // on the device it broke on.
   try {
     final db = await openAppDatabase();
+    final container = ProviderContainer(
+      overrides: [databaseProvider.overrideWithValue(db)],
+    );
+    // Before runApp, so a notification tapped from a cold start has a plugin
+    // to be delivered to. A no-op on web — see NotificationService.
+    await container.read(notificationServiceProvider).initialise();
     runApp(
-      ProviderScope(
-        overrides: [databaseProvider.overrideWithValue(db)],
+      UncontrolledProviderScope(
+        container: container,
         child: const FantasticApp(),
       ),
     );
