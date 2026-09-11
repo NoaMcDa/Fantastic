@@ -1,5 +1,5 @@
 import 'package:fantastic/core/router/app_shell.dart';
-import 'package:fantastic/features/adaptation/presentation/adaptation_placeholder.dart';
+import 'package:fantastic/features/adaptation/presentation/screens/phase_detail_screen.dart';
 import 'package:fantastic/features/dashboard/presentation/screens/dashboard_screen.dart';
 import 'package:fantastic/features/diary/presentation/screens/diary_screen.dart';
 import 'package:fantastic/features/directory/presentation/directory_placeholder.dart';
@@ -41,7 +41,16 @@ GoRouter appRouter(Ref ref) => GoRouter(
         GoRoute(path: '/diary', builder: (_, _) => const DiaryScreen()),
         GoRoute(
           path: '/adaptation',
-          builder: (_, _) => const AdaptationPlaceholder(),
+          builder: (_, _) => const PhaseDetailScreen(),
+          routes: [
+            // #64's badge pushes '/adaptation/phase'. The tab already *is*
+            // the phase screen, so rather than registering a second copy
+            // outside the shell — which would lose the tab bar and stack a
+            // duplicate on top of itself — the child path redirects onto the
+            // tab. Kept as a child route so AppShell's prefix matching still
+            // resolves it to the adaptation tab.
+            GoRoute(path: 'phase', redirect: (_, _) => '/adaptation'),
+          ],
         ),
         GoRoute(
           path: '/profile',

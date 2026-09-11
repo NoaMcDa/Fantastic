@@ -34,11 +34,17 @@ class StreakRingWidget extends ConsumerWidget {
     // Loading and failure both reserve the space rather than collapsing. The
     // streak is not worth an error message of its own — the macro card above
     // already reports a failed read, and two would say the same thing twice.
-    if (streakAsync.isLoading || logAsync.isLoading) {
-      return const _RingSpace(child: CircularProgressIndicator());
-    }
+    //
+    // Failure is checked first, and this order is load-bearing: riverpod 3
+    // reports a provider that failed before ever producing a value as
+    // `AsyncLoading` with an error attached, so both flags are true at once.
+    // Checking `isLoading` first leaves a spinner turning forever on a
+    // failure that has already happened.
     if (streakAsync.hasError || logAsync.hasError) {
       return const _RingSpace();
+    }
+    if (streakAsync.isLoading || logAsync.isLoading) {
+      return const _RingSpace(child: CircularProgressIndicator());
     }
 
     final log = logAsync.value;
