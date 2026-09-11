@@ -292,3 +292,64 @@ final class LlmChatClientProvider
 }
 
 String _$llmChatClientHash() => r'21a8e5e47514333775d167fc8858870586260f42';
+
+/// The composition root for estimation, and the only place a concrete
+/// estimator is named.
+///
+/// A backend that owns the prompt as well becomes a second `MacroEstimator`
+/// implementation selected here — no edit anywhere above this line. Returns
+/// the interface for the same reason every repository provider does.
+
+@ProviderFor(macroEstimator)
+const macroEstimatorProvider = MacroEstimatorProvider._();
+
+/// The composition root for estimation, and the only place a concrete
+/// estimator is named.
+///
+/// A backend that owns the prompt as well becomes a second `MacroEstimator`
+/// implementation selected here — no edit anywhere above this line. Returns
+/// the interface for the same reason every repository provider does.
+
+final class MacroEstimatorProvider
+    extends $FunctionalProvider<MacroEstimator, MacroEstimator, MacroEstimator>
+    with $Provider<MacroEstimator> {
+  /// The composition root for estimation, and the only place a concrete
+  /// estimator is named.
+  ///
+  /// A backend that owns the prompt as well becomes a second `MacroEstimator`
+  /// implementation selected here — no edit anywhere above this line. Returns
+  /// the interface for the same reason every repository provider does.
+  const MacroEstimatorProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'macroEstimatorProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$macroEstimatorHash();
+
+  @$internal
+  @override
+  $ProviderElement<MacroEstimator> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  MacroEstimator create(Ref ref) {
+    return macroEstimator(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(MacroEstimator value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<MacroEstimator>(value),
+    );
+  }
+}
+
+String _$macroEstimatorHash() => r'96cbd0835c439b2cc4b26c1028f1691b90d0262e';
