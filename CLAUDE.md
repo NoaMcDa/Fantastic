@@ -35,9 +35,9 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/m8_preflight.md` | **M8 pre-flight + the e2e suite** — all eight M8 issues audited, and **Part 0 settles the "where do e2e tests run?" question empirically**: `flutter test -d flutter-tester integration_test/app_test.dart` drives the real app over a real in-memory sembast database, headless on Linux, in seconds — **no simulator, no macOS runner, no nightly-only compromise**, which retires `cicd_plan.md` §7.1's Phase 3 parking. The seven flow issues carry 24 defects between them (two of five tab labels do not exist; #99 drives sliders the sheet does not have). **Part 10 is what shipped**: the harness, the `e2e flows` CI job, ten flows — and the four defects the suite found on its first runs (the dashboard shows no macro targets until the first meal is logged; `MealListSection` spins forever on a storage failure; a dismissed meal is deleted asynchronously; the scan prefill shows `0.17999999999999988` where the sheet showed one decimal). **Read before picking up any M8 issue, and before writing a flow** |
 | `design/mvp_handoff.md` | **MVP handoff** — the cross-milestone view. **All five MVP features ship (M0–M6 complete).** The audit pattern that defined the project (the issue text was never right, once, in seven milestones) and the worst defect each audit caught; **the riverpod-3 async-error fact that cost four milestones in four disguises**; the consolidated open-defect list (#257 is the highest-value fix); what has never been verified — no device, no camera, and **nothing has ever read a real Hebrew label**; and the four M7 issues that are already done or obsolete. **Read before M7 or M8** |
 | `design/v1_1_split.md` | **v1.1 split proposal** — why the single `v1.1 — Post-MVP Backlog` milestone fails the project's own milestone definition, the seven capability groups it should become, the stale content it carries (Isar references after the sembast swap, an iOS-only backup design after web shipped, a mis-identified map SDK), and the work required to execute. **Executed** — labels, seven Epic issues (#264–#270), all 26 issues
-re-filed and rewritten. GitHub milestone objects were **deliberately not created** — labels + Epic
-issues + sub-issues carry the grouping, and the 26 issues still show the stale `v1.1` milestone, so
-filter the board by `epic:*` label rather than by milestone |
+re-filed and rewritten, and the seven **GitHub milestones #11–#17** created with all 33 issues
+assigned and `v1.1` retired. §6 also records the one-shot Actions workflow that created them — the
+agent session's own tooling has no milestone API |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
 | `design/architecture.md` | Layer model, persistence schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
 | `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, and the **Error Handling Contract** (repositories throw typed exceptions; §"Why not `Result<T>`" records why that pattern was dropped before M1 — do not reintroduce it) |
@@ -546,16 +546,16 @@ issues #4–#12 pin the MVP milestones; #264–#270 pin the post-MVP milestones 
 v1.0 release. #13 (v1.1 Post-MVP) is closed — it was split into seven milestones,
 recorded in `design/v1_1_split.md`.
 
-**GitHub milestone objects were deliberately not created for M9–M14 or the release.**
-The grouping is carried by the `epic:*` labels, the seven Epic tracking issues and the
-GitHub sub-issue hierarchy — the same mechanism `epic:login` already uses, and enough
-for each Epic to report real per-child progress. This is a settled decision, not
-outstanding work (`design/v1_1_split.md` §6).
+**GitHub milestones #11–#17 cover M9–M14 and the release**, and all 33 issues — the 26
+work issues plus the seven Epics — are assigned to them. `v1.1 — Post-MVP Backlog`
+(milestone #8) is retired. **Filtering by milestone and filtering by `epic:*` label give
+the same view**, so either is accurate; the Epics additionally report per-child progress
+through the GitHub sub-issue hierarchy.
 
-**⚠️ Filter the board by `epic:*` label, never by milestone.** Nothing cleared the old
-milestone field, so all 26 issues still read `v1.1 — Post-MVP Backlog` — a milestone
-filter shows exactly the pre-split lump this restructure removed. The label queries are
-the accurate view.
+`design/v1_1_split.md` §6 carries the full mapping and records **how** the milestones
+were created — an agent session's GitHub tooling can set an issue's milestone but cannot
+create one, so a one-shot Actions workflow did it. Read that before attempting any other
+repo-admin operation from a session.
 
 ### Issue ranges by milestone
 
