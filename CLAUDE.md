@@ -33,6 +33,10 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/m6_platform_research.md` | **M6 platform research** — what it would take to run Keto Lens on all six Flutter targets, and **the finding that reframes the question: ML Kit has no Hebrew script model** (the enum is `latin, chinese, devanagiri, japanese, korean`), so the shipped iOS scanner asks a Latin recogniser to read Hebrew and most likely returns `ScanFailed(notALabel)` on every real label. Apple Vision, WinRT OCR, PaddleOCR and EasyOCR have no Hebrew either; **Tesseract + `heb.traineddata` is the only Hebrew-capable engine, and it reaches every target** — so fixing the engine and porting the feature are one change. Measured asset budget, correcting `technology.md`'s "~50 MB" Hebrew model by ~50x (the handoff has the figures that actually shipped), why cloud OCR stays rejected, why desktop's blocker is the camera and not OCR, and **the prerequisite for all of it: a corpus of real Israeli labels, which needs no app and no device**. **Read before any M6 engine or platform work** |
 | `design/m6_platform_handoff.md` | **M6 platform handoff** — what shipped when the research was implemented: ML Kit removed, **Tesseract on all six targets**, and **the lens tab now scans in a browser** (0.5 s, zero external requests) — reversing M6's central product decision. The six things only running it revealed: **`preserve_interword_spaces=1` destroys RTL Hebrew spacing** (the research doc had recommended setting it), three fatal Linux startup bugs that all rendered the *database* error screen, `flutter create` dropping `ios`+`web` from `.metadata` again, and a Dart `'''` literal that cannot hold geresh-terminated OCR output. The seven conventions inherited, and **an explicit verified/not-verified line** — four platforms are configured but have never been built. **Read before any further platform or OCR work** |
 | `design/mvp_handoff.md` | **MVP handoff** — the cross-milestone view. **All five MVP features ship (M0–M6 complete).** The audit pattern that defined the project (the issue text was never right, once, in seven milestones) and the worst defect each audit caught; **the riverpod-3 async-error fact that cost four milestones in four disguises**; the consolidated open-defect list (#257 is the highest-value fix); what has never been verified — no device, no camera, and **nothing has ever read a real Hebrew label**; and the four M7 issues that are already done or obsolete. **Read before M7 or M8** |
+| `design/v1_1_split.md` | **v1.1 split proposal** — why the single `v1.1 — Post-MVP Backlog` milestone fails the project's own milestone definition, the seven capability groups it should become, the stale content it carries (Isar references after the sembast swap, an iOS-only backup design after web shipped, a mis-identified map SDK), and the work required to execute. **Executed** — labels, seven Epic issues (#264–#270), all 26 issues
+re-filed and rewritten. GitHub milestone objects were **deliberately not created** — labels + Epic
+issues + sub-issues carry the grouping, and the 26 issues still show the stale `v1.1` milestone, so
+filter the board by `epic:*` label rather than by milestone |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
 | `design/architecture.md` | Layer model, persistence schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
 | `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, and the **Error Handling Contract** (repositories throw typed exceptions; §"Why not `Result<T>`" records why that pattern was dropped before M1 — do not reintroduce it) |
@@ -248,7 +252,9 @@ The MVP (see `design/mvp.md`) ships exactly these 5 features:
 4. **Onboarding** — 4-screen flow, personalised macro targets, streak seeding
 5. **Symptom Diary** — lightweight 1–5 daily ratings
 
-Everything else (restaurant directory, recipe converter, menu analyzer, biomarker logging, Apple Health) is deferred to v1.1.
+Everything else is deferred to its own post-MVP milestone: biomarker logging (M9),
+recipe converter (M10), restaurant directory (M11), menu analyzer (M12), Apple
+Health (M13), backup & restore (M14). See `design/v1_1_split.md`.
 
 ## State Management
 
@@ -480,7 +486,21 @@ Full testing strategy in `design/tests.md`. Summary:
 
 **Repository:** `NoaMcDa/Fantastic` · **Project board:** #2
 
-All 115 atomic issues are created, labelled, milestoned, and added to project board #2. Ten Epic tracking issues (#4–#13) pin the milestone scope.
+All atomic issues are created, labelled and added to project board #2. Epic tracking
+issues #4–#12 pin the MVP milestones; #264–#270 pin the post-MVP milestones and the
+v1.0 release. #13 (v1.1 Post-MVP) is closed — it was split into seven milestones,
+recorded in `design/v1_1_split.md`.
+
+**GitHub milestone objects were deliberately not created for M9–M14 or the release.**
+The grouping is carried by the `epic:*` labels, the seven Epic tracking issues and the
+GitHub sub-issue hierarchy — the same mechanism `epic:login` already uses, and enough
+for each Epic to report real per-child progress. This is a settled decision, not
+outstanding work (`design/v1_1_split.md` §6).
+
+**⚠️ Filter the board by `epic:*` label, never by milestone.** Nothing cleared the old
+milestone field, so all 26 issues still read `v1.1 — Post-MVP Backlog` — a milestone
+filter shows exactly the pre-split lump this restructure removed. The label queries are
+the accurate view.
 
 ### Issue ranges by milestone
 
@@ -495,8 +515,19 @@ All 115 atomic issues are created, labelled, milestoned, and added to project bo
 | M6 — Keto Lens | `epic:m6-keto-lens` | #79–#87 | 9 |
 | M7 — Polish | `epic:m7-polish` | #88–#94 | 7 |
 | M8 — CI & Integration | `epic:m8-ci-integration` | #95–#102 | 8 |
-| v1.1 — Post-MVP | `epic:post-mvp` | #103–#128 | 26 |
+| Release v1.0 — App Store | `epic:release-v1` | #125–#128 | 4 |
+| M9 — Biomarker Logging | `epic:m9-biomarkers` | #103–#107 | 5 |
+| M10 — Recipe Converter | `epic:m10-recipe-converter` | #118–#120 | 3 |
+| M11 — Restaurant Directory | `epic:m11-directory` | #111–#117 | 7 |
+| M12 — Menu Analyzer | `epic:m12-menu-analyzer` | #121–#122 | 2 |
+| M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |
+| M14 — Backup & Restore | `epic:m14-backup` | #123–#124 | 2 |
 | Login — accounts & identity | `epic:login` | #206–#226 | 16 |
+
+**M9–M14 are numbered by recommended build order, not by dependency** — they are
+parallel peers and `milestone_conventions.md` §1.2's sequential gate applies to
+M0–M8 only. **`epic:release-v1` ships the MVP**, so it runs before M9, not after.
+`epic:post-mvp` is retired — see `design/v1_1_split.md`.
 
 ### Epic tracking issues
 
@@ -511,7 +542,14 @@ All 115 atomic issues are created, labelled, milestoned, and added to project bo
 | M6 Keto Lens | #10 |
 | M7 Polish | #11 |
 | M8 CI & Integration | #12 |
-| v1.1 Post-MVP | #13 |
+| Release v1.0 — App Store Launch | #270 |
+| M9 Biomarker Logging | #264 |
+| M10 Recipe Converter | #265 |
+| M11 Restaurant Directory | #266 |
+| M12 Menu Analyzer | #267 |
+| M13 Apple Health Sync | #268 |
+| M14 Backup & Restore | #269 |
+| ~~v1.1 Post-MVP~~ | ~~#13~~ — closed, split into the seven above |
 | Login (unscheduled) | #226 |
 
 ### Label taxonomy
@@ -522,7 +560,10 @@ All 115 atomic issues are created, labelled, milestoned, and added to project bo
 **Layer labels** (7) — prefix `layer:`:
 `layer:core` · `layer:domain` · `layer:data` · `layer:application` · `layer:presentation` · `layer:infra` · `layer:test`
 
-**Epic labels** (11) — prefix `epic:` — see milestone table above.
+**Epic labels** (17) — prefix `epic:` — see milestone table above. Ten MVP/epic
+labels (`epic:m0-foundation`–`epic:m8-ci-integration`, plus `epic` on tracking
+issues), six post-MVP milestones (`epic:m9-biomarkers`–`epic:m14-backup`),
+`epic:release-v1`, and `epic:login`. **`epic:post-mvp` is retired.**
 
 **The Login milestone (#206–#226) sits outside the M0–M8 MVP boundary** and is
 unscheduled: no MVP issue depends on it, and the MVP can ship without it. Its
