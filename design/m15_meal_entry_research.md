@@ -126,10 +126,10 @@ before the engine rather than inside it.
   most here, because macros scale linearly with it.
 
 And the error does not stop at the meal card. `MealLoggingService` recalculates
-the `DailyLog` on every save and feeds the day's ratio to
-`AdaptationPhaseService.evaluateToday`. **A wrong estimate can break a streak,
-or falsely preserve one** — it reaches the adaptation phase state machine, which
-is the app's retention mechanic. Nothing else the app computes has that reach.
+the `DailyLog` on every save and hands the day to `AdaptationPhaseService` to
+judge. **A wrong estimate can break a streak, or falsely preserve one** — it
+reaches the adaptation phase state machine, which is the app's retention
+mechanic. Nothing else the app computes has that reach.
 
 Three rules follow, and every M15 issue inherits them:
 
@@ -490,7 +490,7 @@ an untested reality.
 | **The free tier runs out** | 50 requests/day per key (§4.1). A user who logs six meals a day is fine; one who retries is not. `rateLimited` must be an ordinary, well-worded state |
 | **The model returns confident nonsense** | §6.5 validates ranges and nulls, but a *plausible* wrong number passes every check. §3's three rules are the only real defence, and the reviewing user is the last one |
 | **The user just presses save** | The realistic behaviour, and why reporting unidentified items matters more than a confidence percentage nobody reads |
-| **An estimate silently drives the streak** | Mitigated by §6.3's provenance, not eliminated. Whether an estimated day should count toward the streak is a **product decision** — §11 |
+| **An estimate silently drives the streak** | Mitigated by §6.3's provenance, not eliminated. **Settled:** an estimated day counts like any other — §11 decision 1. The risk is accepted, not closed |
 | **A free model is deprecated upstream** | `:free` model IDs come and go. Issue 4 pins one and carries a fallback list; a dead model must surface as `badResponse`, not a crash |
 | **The photo mode regresses M6** | It reuses `ScanOrchestrator` unchanged. Any divergence in copy or behaviour is a defect against #257's DoD |
 | **The Tzameret licence** | Unverified — `data.gov.il` was unreachable from this session (§5). Only blocks the offline fallback, which is out of M15's scope |
@@ -509,8 +509,11 @@ reasoning; they are repeated here so a reader of this document does not act on
 a question that has an answer.
 
 1. **Does an estimated day count toward the streak? — Yes, like any other.**
-   No special case: a meal logged from an estimate feeds `evaluateToday`
-   exactly as a typed one does. The defence is that the user saw every number
+   No special case: a meal logged from an estimate drives the streak
+   evaluation exactly as a typed one does. (Named `evaluateToday` when this
+   was decided; **#303 replaces it with `recomputeFor` and changes the
+   compliance rule underneath it** — the decision is unaffected either way,
+   which is the point of stating it as a rule rather than a call site.) The defence is that the user saw every number
    on an editable form and pressed save. The cost is accepted: a model that
    overstates carbs can put a real streak into its grace period.
    **`MealLoggingService` is unchanged by this** — any M15 PR that adds a
