@@ -7,7 +7,7 @@ part 'image_picker_photo_picker.g.dart';
 /// [PhotoPicker] over `package:image_picker`.
 ///
 /// **The only file in `lib/` that imports `image_picker`** — the same
-/// one-adapter-one-plugin shape as `ml_kit_text_recognizer.dart` and
+/// one-adapter-one-plugin shape as `tesseract_plugin_recognizer.dart` and
 /// `camera_controller_session.dart`, and what lets `CameraScreen` be tested
 /// with no platform at all.
 class ImagePickerPhotoPicker implements PhotoPicker {

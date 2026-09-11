@@ -8,7 +8,7 @@ part 'camera_controller_session.g.dart';
 /// [CameraSession] over `package:camera`.
 ///
 /// **The only file in `lib/` that imports `package:camera`.** Same shape as
-/// `ml_kit_text_recognizer.dart`: one adapter, one plugin, and a screen that
+/// `tesseract_plugin_recognizer.dart`: one adapter, one plugin, and a screen that
 /// knows about neither.
 ///
 /// No `permission_handler`. `CameraController.initialize()` already triggers

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Fantastic** is an all-in-one keto companion app built with Flutter, targeting iOS and the web. It features on-device Hebrew label OCR, keto ratio & electrolyte tracking, adaptation phase tracking, restaurant menu analysis, recipe conversion, a biomarker/symptom diary, and a curated Israeli keto directory.
+**Fantastic** is an all-in-one keto companion app built with Flutter, targeting **all six Flutter platforms** — iOS, Android, web, macOS, Windows and Linux. Only web and Linux have been built and run in this repository; see `design/m6_platform_handoff.md` for what that means. It features on-device Hebrew label OCR, keto ratio & electrolyte tracking, adaptation phase tracking, restaurant menu analysis, recipe conversion, a biomarker/symptom diary, and a curated Israeli keto directory.
 
 ## Design Documents
 
@@ -30,7 +30,8 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/m5_handoff.md` | **M5 handoff** — M5 is code-complete and was driven end-to-end in a browser, including a page reload and a past-date check. What the audit found (a field the model does not have, whose label the compiler cannot catch; a save that erased the user's note). The eight conventions M6/M7 inherit (one enum owns the five scales; `hasError` before `isLoading`; a failed read and an empty day must not look alike; assert against what is *painted*). Gotchas: `AsyncValue.when` is loading-first, a sliver child below the fold has no element at all, Flutter web's RTL semantics rects are offset from the viewport. **Epic #9's DoD is fully met and the Epic is closed.** Known gaps M7 and v1.1 inherit. **Read before picking up M7** |
 | `design/m6_preflight.md` | **M6 pre-flight corrections** — all nine M6 issues audited. **Part 0 settles the ML Kit / web-build question empirically**: `dart:io` compiles for dart2js as throwing stubs, so the naive import does *not* break CI — the hazard is a runtime `MissingPluginException`, and the conditional-export firewall is built anyway (and why). Five defects that compile and ship wrong behaviour, the worst being a failed scan reported as **Clean Keto**; the five reasons #81's Hebrew regexes never match a real Israeli label; `permission_handler` and `image` decisions; a circular dependency graph. **Read before picking up any M6 issue** |
 | `design/m6_handoff.md` | **M6 handoff** — Keto Lens shipped; **why the ML Kit / web risk was real but mis-located** (`dart:io` compiles for dart2js as throwing stubs; the hazard is a runtime `MissingPluginException`) and the product decision that follows: **the lens tab cannot scan in a browser and says so**. The nine conventions M7 inherits (one plugin per adapter behind an interface, failure as a sealed value, a clean badge is not evidence); the gotchas that cost the most (**an indeterminate spinner on a tab screen hangs `widget_test.dart`**, clearing a busy flag after awaiting a modal, a stale `build_runner` cache skipping a file silently); and an explicit list of **what is unverified** — there is no camera, device or browser here, so no accuracy claim has been measured. **Read before picking up M7** |
-| `design/m6_platform_research.md` | **M6 platform research** — what it would take to run Keto Lens on all six Flutter targets, and **the finding that reframes the question: ML Kit has no Hebrew script model** (the enum is `latin, chinese, devanagiri, japanese, korean`), so the shipped iOS scanner asks a Latin recogniser to read Hebrew and most likely returns `ScanFailed(notALabel)` on every real label. Apple Vision, WinRT OCR, PaddleOCR and EasyOCR have no Hebrew either; **Tesseract + `heb.traineddata` is the only Hebrew-capable engine, and it reaches every target** — so fixing the engine and porting the feature are one change. Measured asset budget (a fully offline browser scanner is ≈3.8 MB, not the ~50 MB `technology.md` claims), why cloud OCR stays rejected, why desktop's blocker is the camera and not OCR, and **the prerequisite for all of it: a corpus of real Israeli labels, which needs no app and no device**. **Read before any M6 engine or platform work** |
+| `design/m6_platform_research.md` | **M6 platform research** — what it would take to run Keto Lens on all six Flutter targets, and **the finding that reframes the question: ML Kit has no Hebrew script model** (the enum is `latin, chinese, devanagiri, japanese, korean`), so the shipped iOS scanner asks a Latin recogniser to read Hebrew and most likely returns `ScanFailed(notALabel)` on every real label. Apple Vision, WinRT OCR, PaddleOCR and EasyOCR have no Hebrew either; **Tesseract + `heb.traineddata` is the only Hebrew-capable engine, and it reaches every target** — so fixing the engine and porting the feature are one change. Measured asset budget, correcting `technology.md`'s "~50 MB" Hebrew model by ~50x (the handoff has the figures that actually shipped), why cloud OCR stays rejected, why desktop's blocker is the camera and not OCR, and **the prerequisite for all of it: a corpus of real Israeli labels, which needs no app and no device**. **Read before any M6 engine or platform work** |
+| `design/m6_platform_handoff.md` | **M6 platform handoff** — what shipped when the research was implemented: ML Kit removed, **Tesseract on all six targets**, and **the lens tab now scans in a browser** (0.5 s, zero external requests) — reversing M6's central product decision. The six things only running it revealed: **`preserve_interword_spaces=1` destroys RTL Hebrew spacing** (the research doc had recommended setting it), three fatal Linux startup bugs that all rendered the *database* error screen, `flutter create` dropping `ios`+`web` from `.metadata` again, and a Dart `'''` literal that cannot hold geresh-terminated OCR output. The seven conventions inherited, and **an explicit verified/not-verified line** — four platforms are configured but have never been built. **Read before any further platform or OCR work** |
 | `design/mvp_handoff.md` | **MVP handoff** — the cross-milestone view. **All five MVP features ship (M0–M6 complete).** The audit pattern that defined the project (the issue text was never right, once, in seven milestones) and the worst defect each audit caught; **the riverpod-3 async-error fact that cost four milestones in four disguises**; the consolidated open-defect list (#257 is the highest-value fix); what has never been verified — no device, no camera, and **nothing has ever read a real Hebrew label**; and the four M7 issues that are already done or obsolete. **Read before M7 or M8** |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
 | `design/architecture.md` | Layer model, persistence schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
@@ -131,6 +132,15 @@ flutter run -d <device-id>
 # Build for iOS release
 flutter build ios --release
 
+# Desktop. Linux and Windows need a system Tesseract for the lens to scan;
+# without it the tab says so and the rest of the app works normally.
+#   sudo apt-get install libtesseract-dev libleptonica-dev   # Debian/Ubuntu
+#   brew install tesseract leptonica                          # macOS
+flutter build linux --release
+flutter build macos --release
+flutter build windows --release
+flutter build apk --release
+
 # Run all tests
 flutter test
 
@@ -142,6 +152,16 @@ flutter test test/path/to/test_file.dart
 
 # Run tests with coverage
 flutter test --coverage
+
+# Run the browser-only tests (the dart:js_interop binding for web OCR).
+# These are @TestOn('browser') and are skipped by a plain `flutter test`.
+CHROME_EXECUTABLE=/path/to/chrome flutter test --platform chrome \
+  test/features/keto_lens/data/adapters/tesseract_js_text_recognizer_test.dart
+
+# Regenerate the captured real-OCR fixtures. Needs tesseract on PATH and a
+# Pillow built with Raqm. Never hand-edit real_ocr_fixture.dart - its whole
+# value is that no hand touched it.
+./tool/capture_ocr_fixtures.sh
 
 # Analyze code (lint)
 flutter analyze
@@ -296,6 +316,15 @@ sembast is schemaless: nothing validates a record on the way in, so a codec
 mistake surfaces as a runtime failure on *read*. That is why every `toRecord`
 test asserts the emitted map is sembast-legal.
 
+**The database file lives in a different directory on mobile and desktop.**
+Mobile keeps the app-documents directory — it is what iOS backs up, and it is
+where every existing install already has its data. Desktop uses the
+application-support directory, because `path_provider_linux` implements
+`getApplicationDocumentsDirectory()` by shelling out to `xdg-user-dir`, which a
+minimal system does not have; the call then throws
+`MissingPlatformDirectoryException` and the app dies before its first real
+frame. Found by running the Linux build — no test calls it.
+
 **The database is opened once, in `main.dart`, and injected.**
 `lib/core/database/database_factory.dart` conditionally exports
 `database_factory_io.dart` (path_provider + `databaseFactoryIo`) or
@@ -312,19 +341,35 @@ The guard catches `Object`, not `Exception`. sembast's own `DatabaseException` d
 
 ## OCR & ML
 
-**Shipped in M6.** On-device Hebrew text recognition via
-`google_mlkit_text_recognition` — no network call is made during a scan, and
-Epic #10's first architectural invariant forbids adding one.
+**Shipped in M6, re-engined for every platform since.** On-device Hebrew text
+recognition via **Tesseract** — no network call is made during a scan, and Epic
+#10's first architectural invariant forbids adding one.
+
+**ML Kit was removed, and the reason matters: it has no Hebrew script model.**
+Its enum is `latin, chinese, devanagiri, japanese, korean`, and the adapter was
+calling the bare `TextRecognizer()`, which defaults to `latin`. Apple Vision,
+`Windows.Media.Ocr`, PaddleOCR and EasyOCR have no Hebrew either. Tesseract is
+the only on-device engine that does — and the only one that reaches every
+target, which is why fixing the engine and porting the feature were one change.
+See `design/m6_platform_research.md` and `design/m6_platform_handoff.md`.
 
 ```
 CameraScreen / gallery import
   → TextRecognitionService   (domain interface)
-      MlKitTextRecognizer    (native)  |  UnavailableTextRecognizer (web)
+      browser  → TesseractJsTextRecognizer      tesseract.js (wasm), self-hosted
+      VM       → TesseractNativeTextRecognizer  dispatches on Platform:
+                   android/ios → TesseractPluginRecognizer  (flutter_tesseract_ocr)
+                   desktop     → TesseractFfiRecognizer     (dart:ffi → libtesseract)
+                   otherwise   → UnavailableTextRecognizer
   → LabelParser              → HebrewLabelParser + HebrewTextNormaliser
   → IngredientClassifier     → IngredientClassifierImpl
   → ScanResult               (sealed: ScanSucceeded | ScanFailed)
   → ScanResultSheet          → prefills AddMealBottomSheet
 ```
+
+The firewall still has **two arms**, because `dart.library.io` is the only thing
+a conditional export can ask. The finer android-vs-desktop split happens at run
+time inside the VM half, where `Platform` is legal to reach for.
 
 `ScanOrchestrator` (`application/`) composes the three interfaces and never sees
 a plugin type — which is what makes it testable in pure Dart.
@@ -334,9 +379,18 @@ specified reporting a failed scan as `Clean Keto`; a user in a shop would have
 been told a product was keto-safe because the app could not read the label. The
 sealed result exists so that cannot be expressed.
 
-**The lens does not scan in a browser, and says so.** There is no on-device
-Hebrew OCR for Flutter web, and the alternative is a network call the invariant
-forbids. `UnavailableTextRecognizer` is the web half of the firewall.
+**The lens scans in a browser.** This reverses M6's original decision, which
+was correct while the only on-device option was a native-only plugin. Tesseract
+compiled to WebAssembly runs in a Web Worker on the user's machine, so the
+no-network invariant survives: everything is served from `web/tesseract/`, and
+a scan was measured in Chromium at 0.5 s with **zero external requests**. Never
+let tesseract.js fall back to its CDN defaults for `workerPath`, `corePath` or
+`langPath` — that would both break the invariant and regress the
+zero-external-requests property `design/web_support.md` §7 records as verified.
+
+**`preserve_interword_spaces` must stay unset.** It reads like the safe choice
+and is, for Latin — but on RTL Hebrew it *removes* spaces: `53.8 גרם` comes back
+as `53.8גרם`. Measured identically on libtesseract and on the wasm build.
 
 Ingredient rules live in `lib/core/constants/ingredient_rules.dart` in both
 Hebrew and English — **never redeclared in a classifier**:
@@ -350,8 +404,15 @@ Worst badge wins. An unrecognised token is *not* flagged, so
 "nothing here was readable" — without it the UI would put a green tick on an
 unreadable label.
 
-**Nothing has ever been tested against a real label** — no camera exists in the
-development environment. See `design/m6_handoff.md` and issue #256.
+**Tesseract has been verified to read Hebrew labels; no *photograph* has ever
+been scanned.** `test/fixtures/real_ocr_fixture.dart` holds verbatim engine
+output captured from labels rendered in the app's own font
+(`tool/capture_ocr_fixtures.sh` regenerates it), and
+`real_ocr_pipeline_test.dart` asserts what the shipped pipeline does with it.
+That closes the gap between "a human imagined this OCR output" and "an engine
+produced it". It does not close the gap to glare, curvature and shop lighting —
+there is still no camera here, no accuracy percentage is claimed, and issue #256
+and Epic #10 stay open. See `design/m6_platform_handoff.md`.
 
 ## Keto Business Logic
 
@@ -385,6 +446,20 @@ Full testing strategy in `design/tests.md`. Summary:
 - The data-layer suite is now pure Dart: no `dart:io`, no `dart:ffi`, no library to dlopen. That makes `flutter test --platform chrome` possible, though CI does not run it yet
 - In a test file that imports both `flutter_test` and `package:sembast/sembast.dart`, **`Finder` is ambiguous** — both packages export one. Prefix the sembast import where you need its `Finder`
 - Beware a fixture whose fields all share one value (`SymptomLogFixture` defaults every scale to 3): a mapper that crosses two fields still passes. Use distinct values where a model has several same-typed fields
+- **Two suites need something the default run does not have.**
+  `tesseract_ffi_recognizer_test.dart` runs a real OCR engine and **skips** when
+  libtesseract is absent (as on CI) rather than failing — a red suite people
+  learn to ignore is worse than a skip that says what is unchecked.
+  `tesseract_js_text_recognizer_test.dart` is `@TestOn('browser')` and needs
+  `--platform chrome`; it covers the `dart:js_interop` boundary, which fails
+  silently — a mismatched `extension type` member compiles and then throws in a
+  browser only, and neither `analyze` nor `build web` catches it
+- **`RealOcrFixture` is generated, not written.** Every other fixture here was
+  written by hand, which `design/m6_handoff.md` warns is "exactly the kind of
+  test that passes and then fails on a real label". That one is verbatim
+  Tesseract output. Regenerate with `tool/capture_ocr_fixtures.sh`; do not edit
+- **Hebrew OCR output cannot go in a `'''` Dart literal.** Grams are abbreviated
+  with a geresh, so captured text routinely ends in an apostrophe. Use `"""`
 - CI gate: 80% line coverage on `application/` and `domain/` layers
 
 ## UI & Localisation
