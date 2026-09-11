@@ -176,12 +176,68 @@ void main() {
   });
 
   group('non-data states', () {
-    testWidgets('a day with no log shows the empty state', (tester) async {
+    // The user has just finished onboarding and agreed to these numbers. They
+    // were invisible until the first meal was logged, which made Epic #8's
+    // "dashboard macro targets match what onboarding set" observable only from
+    // the second screen onwards (#301).
+    testWidgets('a day with no log still shows the four targets', (
+      tester,
+    ) async {
       await pumpCard(tester);
       await tester.pumpAndSettle();
 
-      expect(find.byType(EmptyMealsState), findsOneWidget);
-      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsNWidgets(4));
+      // `MacroTargets.defaults` — 150 g fat / 20 g net carbs / 80 g protein.
+      expect(find.textContaining('150'), findsOneWidget);
+      expect(find.textContaining('20'), findsWidgets);
+      expect(find.textContaining('80'), findsOneWidget);
+    });
+
+    testWidgets('a day with no log logs zero against every target', (
+      tester,
+    ) async {
+      await pumpCard(tester);
+      await tester.pumpAndSettle();
+
+      for (final bar in tester.widgetList<LinearProgressIndicator>(
+        find.byType(LinearProgressIndicator),
+      )) {
+        expect(bar.value, 0);
+      }
+    });
+
+    // Both, not one: `EmptyMealsState`'s own doc comment is right that zeroed
+    // bars read as "you are failing every target", so the message has to stay
+    // and disambiguate them rather than hide the numbers.
+    testWidgets('a day with no log still says nothing was logged', (
+      tester,
+    ) async {
+      await pumpCard(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text(EmptyMealsState.headline), findsOneWidget);
+    });
+
+    testWidgets('an empty day renders a ratio of 0 without throwing', (
+      tester,
+    ) async {
+      await pumpCard(tester);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('0.0'), findsWidgets);
+    });
+
+    // A logged-then-emptied day is a different fact from an unlogged one: the
+    // record exists, so the user did log something and then removed it.
+    testWidgets('a stored all-zero day shows no nothing-logged message', (
+      tester,
+    ) async {
+      await pumpCard(tester, log: DailyLogFixture.empty());
+      await tester.pumpAndSettle();
+
+      expect(find.text(EmptyMealsState.headline), findsNothing);
+      expect(find.byType(LinearProgressIndicator), findsNWidgets(4));
     });
 
     testWidgets('shows a spinner while loading', (tester) async {

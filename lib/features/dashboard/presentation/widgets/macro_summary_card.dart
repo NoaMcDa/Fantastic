@@ -52,15 +52,18 @@ class MacroSummaryCard extends ConsumerWidget {
       return const MacroSummaryCardSkeleton();
     }
 
-    final log = logAsync.requireValue;
-    if (log == null) {
-      return const Card(child: EmptyMealsState());
-    }
+    // A day with nothing logged has no `DailyLog` at all, and every total on
+    // one already defaults to zero — so a zeroed stand-in needs no zeroing
+    // code and no `DailyLog.empty` factory (`design/m2_preflight.md` records
+    // that symbol as one that does not exist and should not be invented).
+    final stored = logAsync.requireValue;
+    final log = stored ?? DailyLog(date: date);
 
     return _MacroSummary(
       log: log,
       ratio: _ratioOf(log, ref),
       targets: targetsAsync.requireValue,
+      isEmptyDay: stored == null,
     );
   }
 
@@ -78,11 +81,26 @@ class _MacroSummary extends StatelessWidget {
     required this.log,
     required this.ratio,
     required this.targets,
+    required this.isEmptyDay,
   });
 
   final DailyLog log;
   final double ratio;
   final MacroTargets targets;
+
+  /// Whether the day has no `DailyLog` at all.
+  ///
+  /// The message goes **above** the bars rather than replacing them.
+  /// `EmptyMealsState`'s own doc comment makes the objection this has to
+  /// survive: *"zeroed progress bars read as 'you have eaten nothing and are
+  /// failing every target' rather than 'there is no data yet' — the two look
+  /// identical but mean opposite things."* That is correct, and the answer is
+  /// to show both, so the message disambiguates the zeros instead of hiding
+  /// the targets the user just agreed to (#301).
+  ///
+  /// A `DailyLog` that exists with all-zero totals is **not** this: a
+  /// logged-then-emptied day is a different fact from an unlogged one.
+  final bool isEmptyDay;
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +112,18 @@ class _MacroSummary extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (isEmptyDay) ...[
+              // The line, not the whole centred block: as a header above the
+              // bars the full treatment is taller than the content it
+              // introduces, and on a 640px screen it pushes the streak ring
+              // below the fold on first launch.
+              Text(
+                EmptyMealsState.headline,
+                style: Theme.of(context).textTheme.titleSmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+            ],
             _MacroProgressRow(
               label: 'שומן',
               logged: log.totalFatG,

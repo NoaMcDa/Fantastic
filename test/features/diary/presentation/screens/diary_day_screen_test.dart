@@ -90,7 +90,11 @@ void main() {
     await pumpDay(tester, date: pastDate);
     await tester.pumpAndSettle();
 
-    expect(find.byType(EmptyMealsState), findsOneWidget);
+    // The line rather than the widget: since #301 `MacroSummaryCard` says
+    // this above its bars instead of replacing them, so the targets stay
+    // visible on a day with nothing logged. The message is the assertion
+    // either way.
+    expect(find.text(EmptyMealsState.headline), findsOneWidget);
     expect(find.byType(MealCard), findsNothing);
   });
 
