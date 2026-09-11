@@ -503,8 +503,8 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] Build `RecipeConverterScreen` — paste input; side-by-side output. Scan input is now possible (M6 shipped) but stays out of M10's scope
 - [ ] Build `RecipeLibraryScreen` — saved converted recipes grid
 
-### M12 — Menu Analyzer (#267) — *unblocked: M6 shipped, but re-spec needed*
-- [ ] Implement `MenuAnalyzerService` — OCR → dish extraction → keto suitability per dish. **Re-spec first:** #121/#122 are written against `MlKitTextRecognizer`, which no longer exists — ML Kit was removed and Tesseract now backs every platform (`design/m6_platform_handoff.md`)
+### M12 — Menu Analyzer (#267) — *ready: M6 shipped, issues re-spec'd against Tesseract*
+- [ ] Implement `MenuAnalyzerService` — OCR → dish extraction → keto suitability per dish, reusing M6's `TextRecognitionService` (Tesseract) and `IngredientVerdict`
 - [ ] Build `MenuAnalyzerScreen` — camera input → dish list with badges and modification tips
 
 ### M14 — Backup & Restore (#269) — *needs re-spec for sembast + web*

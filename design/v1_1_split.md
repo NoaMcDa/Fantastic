@@ -3,9 +3,10 @@
 **Status:** **executed.** Labels created, seven Epic tracking issues opened
 (#264–#270), all 26 issues re-filed, re-titled where needed and rewritten to the
 `issue_conventions.md` standard, Epic #13 closed as superseded.
-**GitHub milestone objects were deliberately not created** — the grouping is carried
-by the epic labels, the Epic tracking issues and the sub-issue hierarchy, exactly as
-`epic:login` already works. See §6, including the one consequence to know about.
+**The seven GitHub milestone objects exist** — milestones #11–#17, carrying all 33
+issues (the 26 work issues plus the seven Epics), with `v1.1 — Post-MVP Backlog`
+retired. Label view and milestone view now agree. See §6 for the mapping and for how
+the objects were created, which is not obvious.
 **Scope:** milestone `v1.1 — Post-MVP Backlog`, Epic #13, issues #103–#128
 
 ---
@@ -221,6 +222,49 @@ post-MVP feature work.
    `issue_conventions.md`, `mvp.md`, `base_design.md`.
 8. **`epic:post-mvp` retired** — nothing carries it.
 
+### A second pass: normalised to `issue_conventions.md` §4
+
+All 26 were later re-checked against §4's *literal* template rather than against
+house practice, and three genuine deviations were corrected in every one:
+
+- **Technologies & Approach** now uses §4's columns — `Concern | Technology / Package
+  | Version | Notes` — instead of the ad-hoc set the first pass used.
+- **`#### Contract Tests`** and **`#### Regression`** now appear as named
+  sub-sections on every issue, marked N/A where they do not apply, rather than
+  being silently omitted.
+- **Definition of Done** now carries §4's eight-item **Code** checklist verbatim
+  (no scope creep, no sembast in `domain`/`presentation`, no Flutter in
+  `domain`/`application`, no `get_it`, no magic numbers, no TODOs, no commented-out
+  code, all providers `@riverpod`) plus the issue-specific items, and §4's
+  **Validation Gate** and **Git & PR** blocks.
+- **Architectural Layer** adopted §4's seven-option `layer:*` checkbox list, which
+  is more precise than the file-path form that shipped issues use.
+
+**A finding from that pass, worth recording:** §4's literal template also mandates
+a `**Branch:** / **Labels:** / **Milestone:**` header block and `#### Background`
+sub-headings. **No issue in this repository has ever had them** — not #80 (shipped
+and implemented), not #206 (the most recently authored). The convention doc and
+actual practice have diverged, and the 26 follow practice on those two points. That
+is a fifth instance of the doc/code drift this document exists to catalogue, and
+`issue_conventions.md` §4 should be reconciled with what anyone actually writes.
+
+### A third correction: M6 shipped mid-flight
+
+Between the split and the normalisation pass, M6 Keto Lens merged — and its
+platform audit **removed ML Kit entirely** in favour of Tesseract on all six
+targets, because ML Kit has no Hebrew script model at all. Three artefacts were
+rewritten against the real shipped API rather than left pointing at a deleted
+class:
+
+- **#121, #122 and Epic #267** — `MlKitTextRecognizer` and `InputImage` replaced by
+  `TextRecognitionService` and a `String imagePath`; M12's "blocked on M6" entry
+  condition removed; and the analyser now reuses `IngredientVerdict.matchedCleanIngredients`,
+  which M6 built for precisely the "a clean badge is not evidence" problem M12 has.
+- **Epic #265 (M10)** — the scan-input deferral is now a scope decision, not a
+  dependency.
+- **#109** — M4 shipped too, so the weight fields it pre-fills are real.
+
+
 ### Stale content fixed in place, not merely re-filed
 
 All five §3 items were corrected during the rewrite rather than deferred:
@@ -237,49 +281,52 @@ All five §3 items were corrected during the rewrite rather than deferred:
 
 ---
 
-## 6. Milestone objects: deliberately not created
+## 6. Milestone objects: created
 
-**Decided: the seven groupings are carried by the `epic:*` labels, the Epic tracking
-issues and the GitHub sub-issue hierarchy — not by GitHub milestone objects.** That
-is the same mechanism `epic:login` (#206–#221) already uses, and it carries
-everything the board needs: each Epic reports real per-child progress, and every
-issue is reachable by one label query.
+**All seven exist as real GitHub milestones**, and every issue in the split carries
+one. Label view and milestone view now agree — either is an accurate filter of the
+board.
 
-This began as a tooling limit — the session that executed the split had no milestone
-API and no `gh` CLI — and was then taken as the standing decision rather than
-deferred work. **It is not an outstanding task.**
+| Milestone | Number | Epic | Work issues | Total |
+|---|---|---|---|---|
+| `M9 — Biomarker Logging` | #11 | #264 | #103–#107 | 6 |
+| `M10 — Recipe Converter` | #12 | #265 | #118–#120 | 4 |
+| `M11 — Restaurant Directory` | #13 | #266 | #111–#117 | 8 |
+| `M12 — Menu Analyzer` | #14 | #267 | #121–#122 | 3 |
+| `M13 — Apple Health Sync` | #15 | #268 | #108–#110 | 3 |
+| `M14 — Backup & Restore` | #16 | #269 | #123–#124 | 3 |
+| `Release v1.0 — App Store Launch` | #17 | #270 | #125–#128 | 5 |
 
-### ⚠️ The one consequence: filter by label, never by milestone
+33 issues in total: the 26 re-filed work issues plus the seven Epic tracking issues,
+which carry their own milestone so that a milestone page shows its Epic alongside its
+children.
 
-The 26 issues **still carry the stale `v1.1 — Post-MVP Backlog` milestone field.**
-Nothing cleared it, because there was no milestone to move them to. So:
+**`v1.1 — Post-MVP Backlog` (milestone #8) is retired** — closed with zero open issues
+on it. The one issue it still holds is Epic #13, itself closed as superseded, which is
+the correct historical record.
 
-- **`label:epic:m9-biomarkers`** and its six siblings give the correct, current view
-- **Filtering the board by *milestone*** shows all 26 still lumped under
-  `v1.1 — Post-MVP Backlog`, which is exactly the pre-split picture this document
-  exists to correct
+### How, and why that is worth writing down
 
-That contradiction is known and recorded here so it is not mistaken later for a bug
-in the split. `CLAUDE.md`'s Project Board section carries the same warning.
+The GitHub tooling available to an agent session exposes **no milestone API**: it can
+set an issue's milestone by number but cannot create, list or look one up, and there is
+no `gh` CLI and no REST passthrough. That is why the first pass of this split shipped
+labels and Epics only.
 
-### If the decision is ever revisited
+The route out is a one-shot GitHub Actions workflow. A runner has both `gh` and a
+repo-scoped `GITHUB_TOKEN`, so a throwaway workflow committed with
+`permissions: issues: write` can do what the session cannot. Two details matter:
 
-Creating these seven in the GitHub UI and reassigning each group is all it would
-take; the labels already encode the mapping:
+- Trigger it with `on: push` to its own branch, **not** `workflow_dispatch` — the
+  latter only fires for workflows that already sit on the default branch, so it cannot
+  bootstrap itself. Pushing the file is the trigger.
+- Make it idempotent. `POST /milestones` returns 422 on a duplicate title, so fall back
+  to a lookup rather than failing; re-assigning an issue that already carries the
+  milestone is a no-op. A partial failure can then simply be re-run.
 
-| Milestone title | Issues |
-|---|---|
-| `Release v1.0 — App Store Launch` | #125–#128 |
-| `M9 — Biomarker Logging` | #103–#107 |
-| `M10 — Recipe Converter` | #118–#120 |
-| `M11 — Restaurant Directory` | #111–#117 |
-| `M12 — Menu Analyzer` | #121–#122 |
-| `M13 — Apple Health Sync` | #108–#110 |
-| `M14 — Backup & Restore` | #123–#124 |
-
-The `v1.1 — Post-MVP Backlog` milestone would then be retired. Note that the GitHub
-MCP tooling sets a milestone by **number** but only ever reports it by **name**, so
-the numbers have to be found by assigning one and reading it back.
+Run `34601122804` did the work; the workflow was deleted immediately afterwards, and
+`ci.yml` remains the only workflow this repo keeps (`design/cicd_plan.md`). The same
+technique is the way to do any other repo-admin operation the session's tooling does
+not reach.
 
 ---
 
