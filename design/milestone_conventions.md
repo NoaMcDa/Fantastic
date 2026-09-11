@@ -18,7 +18,7 @@ Every issue belongs to exactly one milestone. An issue that spans two milestones
 **M0–M8 are a chain.** They are numbered sequentially, and each may only begin when
 all blocking issues of the previous milestone are merged and green on CI.
 
-**M9–M14 are not.** They are parallel peers, numbered by *recommended build order*
+**M9–M15 are not.** They are parallel peers, numbered by *recommended build order*
 rather than by dependency, and the sequential gate above does not apply to them.
 Applied literally it would block M13 Apple Health behind M11's restaurant content
 curation, which is a content task with no code relationship to HealthKit. A
@@ -48,12 +48,13 @@ OCR pipeline it extends), and §1.4's rule that a dependency may only point at a
 | M12 | `epic:m12-menu-analyzer` | Menu OCR → per-dish keto verdicts and modification tips |
 | M13 | `epic:m13-health-sync` | HealthKit body-weight read and macro write, iOS-only behind a platform seam |
 | M14 | `epic:m14-backup` | Portable JSON backup export and atomic restore |
+| M15 | `epic:m15-meal-entry` | Three ways to add a meal — typed, described, photographed — all landing in one editable form |
 
 ### Scope Discipline
 
 **In-scope** for a milestone means: required to satisfy the milestone's North Star and no more.
 
-**Adding scope** to an open milestone is prohibited. If new work is discovered mid-milestone, open a new issue, assign it to the correct milestone (M9–M14, or a new one if it fits none), and continue. Never silently expand an existing issue.
+**Adding scope** to an open milestone is prohibited. If new work is discovered mid-milestone, open a new issue, assign it to the correct milestone (M9–M15, or a new one if it fits none), and continue. Never silently expand an existing issue.
 
 **Partial implementations are forbidden.** Every merged PR in a milestone must leave the codebase in a state where `flutter analyze`, `dart format --check`, and `flutter test` all pass. A half-wired feature that requires a subsequent PR to compile is a milestone scope violation.
 
@@ -121,6 +122,7 @@ One epic label per issue. These map directly to the milestone table above.
 | `epic:m12-menu-analyzer` | Menu dish extraction, per-dish verdicts, analyser screen |
 | `epic:m13-health-sync` | HealthKit seam, body-weight read, macro write |
 | `epic:m14-backup` | Backup export, validated atomic restore |
+| `epic:m15-meal-entry` | Add-meal mode chooser, macro estimation, provenance |
 | `epic:login` | Authentication — **not yet milestoned**; see the note below |
 
 `epic:post-mvp` is **retired** — it was split into the seven labels above

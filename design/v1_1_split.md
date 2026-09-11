@@ -324,9 +324,19 @@ repo-scoped `GITHUB_TOKEN`, so a throwaway workflow committed with
   milestone is a no-op. A partial failure can then simply be re-run.
 
 Run `34601122804` did the work; the workflow was deleted immediately afterwards, and
-`ci.yml` remains the only workflow this repo keeps (`design/cicd_plan.md`). The same
-technique is the way to do any other repo-admin operation the session's tooling does
-not reach.
+`ci.yml` and the five `build-*.yml` files remain the only workflows this repo keeps
+(`design/cicd_plan.md`). The same technique is the way to do any other repo-admin
+operation the session's tooling does not reach.
+
+**Used a second time, and the gap turned out to be wider than milestones.** M15 Meal
+Entry (`design/m15_meal_entry_research.md`) needed a new `epic:m15-meal-entry` label,
+and §5.1 above records the belief that epic labels "were auto-created by the first
+issue assignment". **That is no longer true of the tooling in use** — creating an issue
+with an unknown label now fails outright with `failed to resolve label`, so the label
+has to exist first and there is no label API either. One throwaway workflow created
+both the label (with a real colour, which the first pass could not do) and milestone
+#18, in run `34611503561`, and was deleted in the following commit. Anyone doing this
+again should create the label **and** the milestone in the same one-shot run.
 
 ---
 

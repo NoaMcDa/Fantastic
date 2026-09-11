@@ -39,6 +39,7 @@ All design decisions are documented in `design/`. Read these before making archi
 re-filed and rewritten, and the seven **GitHub milestones #11–#17** created with all 33 issues
 assigned and `v1.1` retired. §6 also records the one-shot Actions workflow that created them — the
 agent session's own tooling has no milestone API |
+| `design/m15_meal_entry_research.md` | **M15 research & pre-flight** — #312 asked for three ways to add a meal; the audit found **one already ships, half of another already ships, and only the third is a new engine**. Corrects the issue text on four counts ("photo with OCR" conflates a nutrition panel with a plate of food; `MealEntry.imageRef` and `ingredients` have been persisted and contract-tested since M1 and **written by nothing**). Carries the accuracy argument that drives the design — **the daily net-carb budget is 20 g, and the best 2026 vision model's 80.7 kcal calorie error *is* 20 g of carbohydrate**, so an estimate must always be editable and can never silently drive the streak. Records the engine decision (**cloud LLM via OpenRouter, BYOK because the free tier is 50 requests/day per key**, not gated on `epic:login`), why Keto Lens's no-network invariant is untouched, and the offline food table kept on the shelf behind the same interface. **Read before picking up any M15 issue** |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
 | `design/architecture.md` | Layer model, persistence schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
 | `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, and the **Error Handling Contract** (repositories throw typed exceptions; §"Why not `Result<T>`" records why that pattern was dropped before M1 — do not reintroduce it) |
@@ -597,10 +598,11 @@ Full testing strategy in `design/tests.md`. Summary:
 
 All atomic issues are created, labelled and added to project board #2. Epic tracking
 issues #4–#12 pin the MVP milestones; #264–#270 pin the post-MVP milestones and the
-v1.0 release. #13 (v1.1 Post-MVP) is closed — it was split into seven milestones,
+v1.0 release; **#312 pins M15 Meal Entry**, the first milestone opened from a user's own
+request. #13 (v1.1 Post-MVP) is closed — it was split into seven milestones,
 recorded in `design/v1_1_split.md`.
 
-**GitHub milestones #11–#17 cover M9–M14 and the release**, and all 33 issues — the 26
+**GitHub milestones #11–#18 cover M9–M15 and the release**, and all 33 v1.1-split issues — the 26
 work issues plus the seven Epics — are assigned to them. `v1.1 — Post-MVP Backlog`
 (milestone #8) is retired. **Filtering by milestone and filtering by `epic:*` label give
 the same view**, so either is accurate; the Epics additionally report per-child progress
@@ -631,12 +633,18 @@ repo-admin operation from a session.
 | M12 — Menu Analyzer | `epic:m12-menu-analyzer` | #121–#122 | 2 |
 | M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |
 | M14 — Backup & Restore | `epic:m14-backup` | #123–#124 | 2 |
+| M15 — Meal Entry | `epic:m15-meal-entry` | #315–#326 | 12 |
 | Login — accounts & identity | `epic:login` | #206–#226 | 16 |
 
-**M9–M14 are numbered by recommended build order, not by dependency** — they are
+**M9–M15 are numbered by recommended build order, not by dependency** — they are
 parallel peers and `milestone_conventions.md` §1.2's sequential gate applies to
 M0–M8 only. **`epic:release-v1` ships the MVP**, so it runs before M9, not after.
 `epic:post-mvp` is retired — see `design/v1_1_split.md`.
+
+**M15 is the first milestone opened from a user's own request rather than from the
+original plan** — issue #312, rewritten into its Epic. It is also the first to make
+an outbound network call, which is a different feature from Keto Lens and **does not
+relax the OCR no-network invariant**; see `design/m15_meal_entry_research.md` §4.
 
 ### Epic tracking issues
 
@@ -658,6 +666,7 @@ M0–M8 only. **`epic:release-v1` ships the MVP**, so it runs before M9, not aft
 | M12 Menu Analyzer | #267 |
 | M13 Apple Health Sync | #268 |
 | M14 Backup & Restore | #269 |
+| M15 Meal Entry | #312 |
 | ~~v1.1 Post-MVP~~ | ~~#13~~ — closed, split into the seven above |
 | Login (unscheduled) | #226 |
 
@@ -669,9 +678,9 @@ M0–M8 only. **`epic:release-v1` ships the MVP**, so it runs before M9, not aft
 **Layer labels** (7) — prefix `layer:`:
 `layer:core` · `layer:domain` · `layer:data` · `layer:application` · `layer:presentation` · `layer:infra` · `layer:test`
 
-**Epic labels** (17) — prefix `epic:` — see milestone table above. Ten MVP/epic
+**Epic labels** (18) — prefix `epic:` — see milestone table above. Ten MVP/epic
 labels (`epic:m0-foundation`–`epic:m8-ci-integration`, plus `epic` on tracking
-issues), six post-MVP milestones (`epic:m9-biomarkers`–`epic:m14-backup`),
+issues), seven post-MVP milestones (`epic:m9-biomarkers`–`epic:m15-meal-entry`),
 `epic:release-v1`, and `epic:login`. **`epic:post-mvp` is retired.**
 
 **The Login milestone (#206–#226) sits outside the M0–M8 MVP boundary** and is
