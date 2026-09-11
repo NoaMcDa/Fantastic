@@ -54,7 +54,15 @@ class OnboardingScaffold extends StatelessWidget {
                 // The Apple HIG minimum, and comfortably above it: this is
                 // the only control on the screen.
                 height: 52,
-                child: FilledButton(onPressed: onNext, child: Text(ctaLabel)),
+                child: FilledButton(
+                  // One key for all four screens' CTAs. The labels differ
+                  // per screen and two of them change mid-interaction
+                  // ('שומר...' while screen 4 saves), so a flow test that
+                  // taps them by text is one copy edit from breaking.
+                  key: const Key('onboarding_cta'),
+                  onPressed: onNext,
+                  child: Text(ctaLabel),
+                ),
               ),
               const SizedBox(height: 24),
             ],

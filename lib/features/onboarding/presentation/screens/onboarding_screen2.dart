@@ -79,6 +79,7 @@ class _OnboardingScreen2State extends State<OnboardingScreen2> {
               ),
               const SizedBox(height: 24),
               TextFormField(
+                key: const Key('age_field'),
                 controller: _ageController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(labelText: 'גיל'),
@@ -89,6 +90,7 @@ class _OnboardingScreen2State extends State<OnboardingScreen2> {
               ),
               const SizedBox(height: 16),
               TextFormField(
+                key: const Key('weight_field'),
                 controller: _weightController,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
@@ -99,6 +101,7 @@ class _OnboardingScreen2State extends State<OnboardingScreen2> {
               ),
               const SizedBox(height: 16),
               TextFormField(
+                key: const Key('height_field'),
                 controller: _heightController,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
@@ -109,6 +112,7 @@ class _OnboardingScreen2State extends State<OnboardingScreen2> {
               ),
               const SizedBox(height: 8),
               SwitchListTile(
+                key: const Key('already_on_keto_switch'),
                 value: _alreadyOnKeto,
                 onChanged: _onAlreadyOnKetoChanged,
                 title: const Text('כבר בקטו?'),
@@ -203,8 +207,14 @@ class _SexSelector extends StatelessWidget {
       alignment: Alignment.center,
       child: SegmentedButton<BiologicalSex>(
         segments: const [
-          ButtonSegment(value: BiologicalSex.female, label: Text('נקבה')),
-          ButtonSegment(value: BiologicalSex.male, label: Text('זכר')),
+          ButtonSegment(
+            value: BiologicalSex.female,
+            label: Text('נקבה', key: Key('sex_female')),
+          ),
+          ButtonSegment(
+            value: BiologicalSex.male,
+            label: Text('זכר', key: Key('sex_male')),
+          ),
         ],
         selected: {value},
         onSelectionChanged: (selection) => onChanged(selection.first),

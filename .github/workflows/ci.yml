@@ -48,14 +48,16 @@ jobs:
       # Cheapest first: a formatting slip should fail in seconds, not after the
       # full suite. Each step below re-uses the resolution above via --no-pub.
       - name: Format
-        run: dart format --output=none --set-exit-if-changed lib/ test/
+        # integration_test/ is in the list: the e2e suite is source like any
+        # other, and a directory nobody checks drifts.
+        run: dart format --output=none --set-exit-if-changed lib/ test/ integration_test/
 
       - name: Analyze
         run: flutter analyze --no-pub
 
       - name: Test
-        # Unit + widget tests only. integration_test/ does not exist yet and is
-        # scoped to run nightly on a macOS simulator, not per-PR (design/tests.md).
+        # Unit + widget tests only: `flutter test` globs test/ and never
+        # reaches integration_test/, which the `e2e flows` job below runs.
         #
         # --coverage writes coverage/lcov.info for the two gates below. It costs
         # roughly a third again on top of a plain run, which buys the only
@@ -98,3 +100,44 @@ jobs:
         # --no-web-resources-cdn bundles CanvasKit into the build instead of
         # fetching it from gstatic.com at run time, so the app boots offline.
         run: flutter build web --release --no-pub --no-web-resources-cdn
+
+  e2e:
+    name: e2e flows
+    runs-on: ubuntu-latest
+    # The suite itself runs in ~35s; the budget is for SDK setup and the
+    # first compile of the app under test.
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # The same pin as `verify` above, for the same reason.
+          flutter-version: 3.47.3
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: End-to-end flows
+        # Two things here are load-bearing, both established in
+        # design/m8_preflight.md Part 0:
+        #
+        #   -d flutter-tester — without a device the run fails outright with
+        #   "No supported devices connected". With the headless tester it
+        #   drives the real app (real router, real provider graph, real
+        #   repositories, real in-memory sembast) on this ubuntu runner. No
+        #   simulator is involved, which is what makes this per-PR rather
+        #   than a nightly on a 10x-billed macOS box.
+        #
+        #   integration_test/app_test.dart — the aggregator, not the
+        #   directory. Only one app launch is allowed per invocation: point
+        #   the runner at the directory and the second file fails with "The
+        #   log reader failed unexpectedly".
+        #
+        # A separate job rather than another step in `verify`: an e2e
+        # failure and a unit failure look nothing alike, and this way the
+        # two run in parallel instead of queueing behind the web build.
+        run: flutter test -d flutter-tester integration_test/app_test.dart --no-pub

@@ -28,7 +28,7 @@ Three rules:
 |---|---|---|---|
 | Unit | ~200 tests | < 5s total | `dart test`, `mocktail` |
 | Widget | ~60 tests | < 30s total | `flutter_test`, `mocktail` |
-| Integration | ~15 flows | < 3 min | `integration_test` on simulator |
+| Integration | ~11 flows | < 1 min | `integration_test` on `flutter-tester`, headless |
 
 ---
 
@@ -337,7 +337,17 @@ void main() {
 
 ## Integration Tests
 
-Integration tests run on an iOS simulator against a real (but ephemeral) database. Each test starts with a clean database.
+> **Superseded in part by `design/m8_preflight.md` Part 0 — read it before
+> writing one.** Integration tests do **not** need an iOS simulator and are not
+> nightly-only: they run headless on Linux with
+> `flutter test -d flutter-tester integration_test/app_test.dart`, in seconds,
+> per PR. The sketch below is right about the *shape* of a flow test and wrong
+> about where it runs, how the app is booted (`app.main()` reaches
+> `path_provider`; the harness composes `FantasticApp` over an injected
+> in-memory database instead), and about several of the Hebrew strings and keys
+> it taps. The corrected flow list is `m8_preflight.md` Part 3.
+
+Integration tests run against a real (but ephemeral) database. Each test starts with a clean database.
 
 ```dart
 // integration_test/flows/meal_logging_flow_test.dart
@@ -460,10 +470,13 @@ All unit and widget tests run on every PR:
 flutter test --coverage
 ```
 
-Integration tests run nightly on a simulator (not per-PR — too slow):
+Integration tests run per-PR in their own `ubuntu-latest` job — **not nightly,
+and not on a simulator** (`design/m8_preflight.md` Part 0 and §4):
 
 ```bash
-flutter test integration_test/ -d <simulator-id>
+# One aggregator file, not the directory: a second file in the same
+# invocation cannot launch (m8_preflight.md §6.1).
+flutter test -d flutter-tester integration_test/app_test.dart
 ```
 
 Coverage gate: **80% line coverage on application and domain layers.** Data and presentation layers are excluded from the coverage gate (covered by contract and widget tests instead).

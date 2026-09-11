@@ -134,4 +134,19 @@ jobs:
         # something is actually shrunk. It signs with the debug keystore, per
         # the TODO in android/app/build.gradle.kts — this proves the APK
         # assembles, not that it is shippable.
-        run: flutter build apk --release --no-pub
+        #
+        # **No `--no-pub` here, deliberately.** Flutter writes
+        # GeneratedPluginRegistrant.java per build, and a release build writes
+        # a different one: `injectPlugins(releaseMode: true)` filters out
+        # dev-dependency plugins, because Gradle does not put them on the
+        # release classpath. But the regeneration is gated on pub —
+        # `regeneratePlatformSpecificToolingIfApplicable` returns early when
+        # `shouldRunPub` is false — so `--no-pub` makes the release build
+        # compile whatever the *debug* step left behind. With
+        # `integration_test` in dev_dependencies (the e2e suite,
+        # `design/m8_preflight.md`) that registrant names
+        # `dev.flutter.plugins.integration_test.IntegrationTestPlugin`, and
+        # `:app:compileReleaseJavaWithJavac` fails with "package ... does not
+        # exist". The debug build above keeps `--no-pub` and is unaffected:
+        # dev dependencies are on its classpath.
+        run: flutter build apk --release

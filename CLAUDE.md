@@ -32,6 +32,7 @@ All design decisions are documented in `design/`. Read these before making archi
 | `design/m6_handoff.md` | **M6 handoff** — Keto Lens shipped; **why the ML Kit / web risk was real but mis-located** (`dart:io` compiles for dart2js as throwing stubs; the hazard is a runtime `MissingPluginException`) and the product decision that follows: **the lens tab cannot scan in a browser and says so**. The nine conventions M7 inherits (one plugin per adapter behind an interface, failure as a sealed value, a clean badge is not evidence); the gotchas that cost the most (**an indeterminate spinner on a tab screen hangs `widget_test.dart`**, clearing a busy flag after awaiting a modal, a stale `build_runner` cache skipping a file silently); and an explicit list of **what is unverified** — there is no camera, device or browser here, so no accuracy claim has been measured. **Read before picking up M7** |
 | `design/m6_platform_research.md` | **M6 platform research** — what it would take to run Keto Lens on all six Flutter targets, and **the finding that reframes the question: ML Kit has no Hebrew script model** (the enum is `latin, chinese, devanagiri, japanese, korean`), so the shipped iOS scanner asks a Latin recogniser to read Hebrew and most likely returns `ScanFailed(notALabel)` on every real label. Apple Vision, WinRT OCR, PaddleOCR and EasyOCR have no Hebrew either; **Tesseract + `heb.traineddata` is the only Hebrew-capable engine, and it reaches every target** — so fixing the engine and porting the feature are one change. Measured asset budget, correcting `technology.md`'s "~50 MB" Hebrew model by ~50x (the handoff has the figures that actually shipped), why cloud OCR stays rejected, why desktop's blocker is the camera and not OCR, and **the prerequisite for all of it: a corpus of real Israeli labels, which needs no app and no device**. **Read before any M6 engine or platform work** |
 | `design/m6_platform_handoff.md` | **M6 platform handoff** — what shipped when the research was implemented: ML Kit removed, **Tesseract on all six targets**, and **the lens tab now scans in a browser** (0.5 s, zero external requests) — reversing M6's central product decision. The six things only running it revealed: **`preserve_interword_spaces=1` destroys RTL Hebrew spacing** (the research doc had recommended setting it), three fatal Linux startup bugs that all rendered the *database* error screen, `flutter create` dropping `ios`+`web` from `.metadata` again, and a Dart `'''` literal that cannot hold geresh-terminated OCR output. The seven conventions inherited, and **an explicit verified/not-verified line** — four platforms are configured but have never been built. **Read before any further platform or OCR work** |
+| `design/m8_preflight.md` | **M8 pre-flight + the e2e suite** — all eight M8 issues audited, and **Part 0 settles the "where do e2e tests run?" question empirically**: `flutter test -d flutter-tester integration_test/app_test.dart` drives the real app over a real in-memory sembast database, headless on Linux, in seconds — **no simulator, no macOS runner, no nightly-only compromise**, which retires `cicd_plan.md` §7.1's Phase 3 parking. The seven flow issues carry 24 defects between them (two of five tab labels do not exist; #99 drives sliders the sheet does not have). **Part 10 is what shipped**: the harness, the `e2e flows` CI job, ten flows — and the four defects the suite found on its first runs (the dashboard shows no macro targets until the first meal is logged; `MealListSection` spins forever on a storage failure; a dismissed meal is deleted asynchronously; the scan prefill shows `0.17999999999999988` where the sheet showed one decimal). **Read before picking up any M8 issue, and before writing a flow** |
 | `design/mvp_handoff.md` | **MVP handoff** — the cross-milestone view. **All five MVP features ship (M0–M6 complete).** The audit pattern that defined the project (the issue text was never right, once, in seven milestones) and the worst defect each audit caught; **the riverpod-3 async-error fact that cost four milestones in four disguises**; the consolidated open-defect list (#257 is the highest-value fix); what has never been verified — no device, no camera, and **nothing has ever read a real Hebrew label**; and the four M7 issues that are already done or obsolete. **Read before M7 or M8** |
 | `design/v1_1_split.md` | **v1.1 split proposal** — why the single `v1.1 — Post-MVP Backlog` milestone fails the project's own milestone definition, the seven capability groups it should become, the stale content it carries (Isar references after the sembast swap, an iOS-only backup design after web shipped, a mis-identified map SDK), and the work required to execute. **Executed** — labels, seven Epic issues (#264–#270), all 26 issues
 re-filed and rewritten. GitHub milestone objects were **deliberately not created** — labels + Epic
@@ -145,8 +146,12 @@ flutter build macos --release
 flutter build windows --release
 flutter build apk --release
 
-# Run all tests
+# Run all tests (unit + widget). Never picks up integration_test/.
 flutter test
+
+# Run the end-to-end flows. `-d flutter-tester` is required, and the
+# aggregator file is required — see design/m8_preflight.md Part 0 and §6.1.
+flutter test -d flutter-tester integration_test/app_test.dart
 
 # Run tests for a single feature
 flutter test test/features/<feature_name>/
@@ -176,7 +181,7 @@ flutter analyze
 dart format .
 
 # Format check only (no writes — used in CI)
-dart format --output=none --set-exit-if-changed lib/ test/
+dart format --output=none --set-exit-if-changed lib/ test/ integration_test/
 
 # Get/update dependencies
 flutter pub get
@@ -444,7 +449,7 @@ Full testing strategy in `design/tests.md`. Summary:
 | `application/` | Unit — mock interfaces | `dart test` + `mocktail` | 100% public methods |
 | `data/` | Repository contract tests | In-memory sembast | Contract suite |
 | `presentation/` | Widget tests | `flutter_test` + provider overrides | Critical paths |
-| Full flows | Integration | `integration_test` on simulator | 7 key flows |
+| Full flows | End-to-end | `integration_test` on `flutter-tester`, headless | 14 tests, per PR |
 
 - **CI runs the suite; you do not have to.** Push, open the PR, watch the run, and fix any failure on the same branch — see the Developer Workflow above
 - All fixtures live in `test/fixtures/` — never construct domain objects inline in tests
@@ -583,7 +588,7 @@ resolve it), and cancels a superseded PR run but never one on `main`.
 Steps, cheapest first so a formatting slip fails in seconds:
 1. `flutter pub get`
 2. **`pubspec.lock` unchanged** — fails if `pub get` rewrote the committed lockfile
-3. `dart format --output=none --set-exit-if-changed lib/ test/` — zero diffs
+3. `dart format --output=none --set-exit-if-changed lib/ test/ integration_test/` — zero diffs
 4. `flutter analyze --no-pub` — zero issues
 5. `flutter test --no-pub --coverage` — zero failures, and writes `coverage/lcov.info`
 6. `tool/check_coverage.sh coverage/lcov.info 80` — ≥80% on `domain/` + `application/`
@@ -604,6 +609,37 @@ gated file that has no coverage record and is not on `tool/coverage_ignore.txt`
 — lcov emits nothing for a file no test imports, so without that companion an
 untested layer reads as 100% rather than 0%. Measured 470/472 = 99.58%. Both
 scripts run locally: `flutter test --coverage && tool/check_coverage.sh`.
+
+### The `e2e flows` job
+
+A second job in the same workflow, on `ubuntu-latest`, per PR and in parallel
+with `verify`:
+
+```bash
+flutter test -d flutter-tester integration_test/app_test.dart --no-pub
+```
+
+**No simulator, and not nightly** — the nightly-on-an-iOS-simulator scoping
+every other document used to state is superseded by `design/m8_preflight.md`
+Part 0. The suite drives the real app (real router, real provider graph, real
+repositories, real in-memory sembast) headless, in ~35 s.
+
+Two parts of that command are load-bearing:
+
+- **`-d flutter-tester`.** Without a device the run fails with "No supported
+  devices connected".
+- **`integration_test/app_test.dart`, not the directory.** One app launch is
+  allowed per invocation; pointing the runner at the directory fails the
+  second file with "The log reader failed unexpectedly". Every flow is
+  therefore a library named `*_flow.dart` exporting `main()`, grouped by the
+  aggregator.
+
+`flutter test` (the `verify` job) globs `test/` only and never picks these up.
+Write flows against `integration_test/helpers/app_harness.dart` — `bootApp`,
+`pumpApp`, `settle`, `pumpUntil`, `waitFor` — and never call a bare
+`pumpAndSettle()`: its timeout is the **third** positional argument, not the
+first, and a screen over a broken store never settles at all because riverpod
+3 retries failed providers on a backoff.
 
 ### Per-platform build workflows
 
@@ -642,6 +678,3 @@ needs `main` to *log* a startup failure, because all three Linux startup bugs
 were caught by `main`'s own `try/catch` and rendered as `StartupFailureApp` —
 the process stays alive and quiet, so a naive liveness check calls a dead app
 healthy.
-
-Integration tests (`integration_test/`) are scoped to run nightly on an iOS
-simulator, not per-PR. That directory does not exist yet (#150).
