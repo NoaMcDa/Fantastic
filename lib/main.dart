@@ -2,6 +2,7 @@ import 'package:fantastic/core/database/database_factory.dart';
 import 'package:fantastic/core/database/database_provider.dart';
 import 'package:fantastic/core/providers/notification_providers.dart';
 import 'package:fantastic/core/router/app_router.dart';
+import 'package:fantastic/features/adaptation/application/providers/notification_providers.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -25,7 +26,19 @@ Future<void> main() async {
     );
     // Before runApp, so a notification tapped from a cold start has a plugin
     // to be delivered to. A no-op on web — see NotificationService.
-    await container.read(notificationServiceProvider).initialise();
+    final notifications = await container
+        .read(notificationServiceProvider)
+        .initialise();
+    if (notifications) {
+      // Rescheduled on every launch rather than once ever: the id is stable
+      // so this replaces rather than accumulates, and it is the only thing
+      // that re-arms the reminder after an OS upgrade or a restore has
+      // dropped pending notifications. Scheduling before permission is
+      // granted is harmless — the OS simply delivers nothing until it is.
+      await container
+          .read(streakNotificationServiceProvider)
+          .scheduleDailyReminder();
+    }
     runApp(
       UncontrolledProviderScope(
         container: container,
