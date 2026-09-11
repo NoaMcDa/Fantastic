@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:fantastic/features/diary/data/providers.dart';
 import 'package:fantastic/features/keto_lens/data/providers.dart';
 import 'package:fantastic/features/keto_lens/domain/models/scan_result.dart';
+import 'package:fantastic/features/keto_lens/domain/models/serving_basis.dart';
 import 'package:fantastic/features/keto_lens/domain/models/verdict_badge.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
 import 'package:fantastic/features/keto_lens/presentation/camera/image_picker_photo_picker.dart';
@@ -145,11 +146,15 @@ void main() {
     expect(find.text('1.2 ג'), findsOneWidget);
     expect(find.text('26.5 ג'), findsOneWidget);
 
-    // The caption that stands in for #257 being unfixed — see the next test.
+    // The label declares per-100 g and the sheet says so, rather than
+    // leaving the user to infer it (#257, fixed on this base by #281). The
+    // amount field starts at the reference 100, so the strip above is still
+    // the printed figures until the user says what they ate.
     expect(
-      find.text('הערכים מהתווית — בדקו את גודל המנה לפני השמירה'),
+      find.text(ScanResultSheet.basisCaption(ServingBasis.per100g)),
       findsOneWidget,
     );
+    expect(fieldText(tester, 'scan_amount_field'), '100');
   });
 
   testWidgets('adding the scan to the diary prefills and logs it', (
@@ -162,6 +167,16 @@ void main() {
     await pumpApp(tester, app);
     await importPhoto(tester);
 
+    // **What a user actually eats.** A 15 g spoonful of tahini, not the
+    // 100 g the label is printed per. Before #257 this field did not exist
+    // and the whole 100 g went into the diary — corrupting the day's macros,
+    // the keto ratio, the streak evaluation and the phase from one tap.
+    await enterInto(tester, 'scan_amount_field', '15');
+
+    // The strip updates to what will be LOGGED, so the number the user is
+    // about to save is the one in front of them: 53.8 × 0.15.
+    expect(find.text('8.1 ג'), findsOneWidget);
+
     await tapAt(tester, find.byKey(const Key('add_to_diary_button')));
 
     // The scan sheet is gone and the meal form is up, prefilled.
@@ -169,23 +184,31 @@ void main() {
     expect(find.byKey(const Key('save_meal_button')), findsOneWidget);
     expect(find.text('מוצר סרוק'), findsOneWidget);
 
-    // **#257, asserted as it actually behaves.** These are the label's
-    // per-100 g figures, and they are about to be saved as one serving of
-    // tahini — 53.8 g of fat for what is realistically a 15 g spoonful.
-    // The sheet's caption asks the user to do that arithmetic. When #257 is
-    // fixed, this expectation is what fails and tells whoever fixed it that
-    // a flow test needs updating.
-    expect(fieldText(tester, 'fat_field'), '53.8');
-    expect(fieldText(tester, 'protein_field'), '26.5');
+    // Scaled to the 15 g eaten, not the 100 g printed — the fix, asserted
+    // where a user would see it.
+    expect(double.parse(fieldText(tester, 'fat_field')), closeTo(8.07, 0.001));
+    expect(
+      double.parse(fieldText(tester, 'protein_field')),
+      closeTo(3.975, 0.001),
+    );
 
-    // **And a second defect, one screen apart from its own contradiction.**
-    // The sheet the user just tapped through rendered net carbs as `1.2 ג`;
-    // the field it prefilled says this. `10.5 - 9.3` is not 1.2 in binary
-    // floating point, `ScanResultSheet` formats to one decimal and
-    // `AddMealBottomSheet._grams` interpolates the raw double, so the same
-    // number is shown two ways two taps apart. Asserted verbatim rather
-    // than with `startsWith`: the exact string is what a user would see.
-    expect(fieldText(tester, 'carbs_field'), '1.1999999999999993');
+    // **A defect this flow found, asserted as it behaves.** The sheet
+    // rendered net carbs as a tidy `0.2 ג`; the field it prefills two taps
+    // later carries the raw double. `10.5 - 9.3` is not 1.2 in binary
+    // floating point, and `AddMealBottomSheet._grams` interpolates the value
+    // where `ScanResultSheet` formats it — so the same number is shown two
+    // ways, one screen apart, and the long one is the one the user is asked
+    // to save. Parsed rather than string-matched here so the assertion
+    // survives the fix; `expect` on the raw string is in the reason below.
+    final carbs = fieldText(tester, 'carbs_field');
+    expect(double.parse(carbs), closeTo(0.18, 0.001));
+    expect(
+      carbs.length,
+      greaterThan(6),
+      reason:
+          'the prefill still shows floating-point noise ($carbs) where the '
+          'sheet above it showed one decimal — see design/m8_preflight.md',
+    );
 
     await tapAt(tester, find.byKey(const Key('save_meal_button')));
 
@@ -203,7 +226,7 @@ void main() {
         .read(mealRepositoryProvider)
         .findByDate(DateTime.now());
     expect(meals.single.mealName, 'מוצר סרוק');
-    expect(meals.single.fatG, 53.8);
+    expect(meals.single.fatG, closeTo(8.07, 0.001));
 
     // And the dashboard shows it, which is the whole point of the journey:
     // the lens tab is where it started.

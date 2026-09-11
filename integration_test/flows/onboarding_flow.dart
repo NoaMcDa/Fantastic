@@ -32,27 +32,9 @@ void main() {
     // Asserted as exact numbers, not as "non-zero": the whole point of the
     // flow is that the arithmetic reached the screen intact.
     expect(find.text('היעדים שלכם'), findsOneWidget);
-    expect(
-      tester
-          .widget<TextFormField>(find.byKey(const Key('fat_target_field')))
-          .controller
-          ?.text,
-      '149',
-    );
-    expect(
-      tester
-          .widget<TextFormField>(find.byKey(const Key('carbs_target_field')))
-          .controller
-          ?.text,
-      '20',
-    );
-    expect(
-      tester
-          .widget<TextFormField>(find.byKey(const Key('protein_target_field')))
-          .controller
-          ?.text,
-      '64',
-    );
+    expect(fieldText(tester, 'fat_target_field'), '149');
+    expect(fieldText(tester, 'carbs_target_field'), '20');
+    expect(fieldText(tester, 'protein_target_field'), '64');
     await tapAt(tester, find.byKey(const Key('onboarding_cta')));
 
     // The dashboard.

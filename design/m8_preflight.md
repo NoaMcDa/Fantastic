@@ -654,12 +654,13 @@ skipped.
    immediately. Not a bug — but a correctness trap for any test, which is why
    the harness has `waitFor`.
 4. **The scan prefill shows floating-point noise.** `ScanResultSheet` renders
-   the tahini label's net carbs as `1.2 ג`; the `AddMealBottomSheet` it
-   prefills two taps later shows **`1.1999999999999993`**. `10.5 - 9.3` is not
-   1.2 in binary floating point, the sheet formats with `toStringAsFixed(1)`
-   and `AddMealBottomSheet._grams` interpolates the raw double. The same
-   number, two ways, one screen apart — and the second one is the one the
-   user is asked to save.
+   the tahini label's net carbs as a tidy one-decimal figure; the
+   `AddMealBottomSheet` it prefills two taps later shows the raw double —
+   `1.1999999999999993` at 100 g, **`0.17999999999999988`** once #281's
+   amount field scales it to a 15 g spoonful. `10.5 - 9.3` is not 1.2 in
+   binary floating point; the sheet formats with `toStringAsFixed(1)` and
+   `AddMealBottomSheet._grams` interpolates. The same number, two ways, one
+   screen apart — and the long one is what the user is asked to save.
 
 A fifth thing the lens flow found is not a defect but was worth learning: a
 clean tahini label does **not** get a green `קטו נקי` tick. Its ingredient
@@ -682,10 +683,31 @@ must not paint the same badge — and the flow now asserts both halves of it.
 - **§6.2's `hitTestWarningShouldBeFatal` is worth the line.** It turned a
   silent mis-tap into a failure at the tap rather than three steps later.
 
+### The base moved under this branch three times
+
+Worth recording, because it is the pattern rather than the accident: `main`
+merged #272, then #274, then #278–#281 while this work was in flight, and a
+conflicted PR gets **no CI run at all** — which is why the first push sat with
+zero checks and no failure to read. The flows absorbed all three without
+changing shape, which is the argument for this tier existing: the same ten
+tests ran against three materially different versions of the app in one
+afternoon.
+
+One of those merges is why the lens flow reads as it does. **#281 fixed #257**
+between the flow being written and being pushed. The flow had asserted the bug
+deliberately — per-100 g figures prefilled as one serving, with a comment
+saying that a fix would break this line and the fix's author should update it.
+That is exactly what happened, one commit later, to its own author. It now
+asserts the fix: a 15 g spoonful of a per-100 g label logs **8.07 g** of fat,
+not 53.8, and the amount field and basis caption are driven as a user would.
+
 ### Still open
 
 - **F6**, above. F9 shipped; what stays open is the OCR *accuracy* claim
   behind it (#256, Epic #10), which no tier available here can measure.
+- **The four defects above are unfixed by design** — this branch is the test
+  tier, not the fix for what it found. Each is asserted as it behaves, with a
+  comment naming the fix, so whoever makes it is told by a failing test.
 - **P5**, the clock seam, is the only remaining blocker inside this
   milestone's control — and it is now half-built by someone else. `main`
   gained `lib/core/time/today_tracker.dart` while this branch was in flight:

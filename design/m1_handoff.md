@@ -175,9 +175,15 @@ same-typed fields needs the same treatment.
 field-by-field assertion silently stops covering any field added later; the
 whole-object comparison keeps covering it for free.
 
-**`flutter test --coverage` emits no `LF:`/`LH:` summary lines** in this
-project's `lcov.info` — only `DA:<line>,<hits>` records. An `LF`-based script
-reports a misleading `0/0 = 100%` for every file. Count the `DA:` lines:
+**~~`flutter test --coverage` emits no `LF:`/`LH:` summary lines~~ — no longer
+true, corrected at the M4/M5 post-milestone pass.** It was true when this was
+written, and an `LF`-based script did report a misleading `0/0 = 100%` for
+every file. On Flutter 3.47.3 every `SF:` record carries `LF:` and `LH:`; the
+toolchain changed under the claim and nothing re-measured for three
+milestones, because nothing depended on it until the coverage gate shipped.
+`tool/check_coverage.sh` still counts `DA:` — an invariant that has flipped
+once silently is not one to build on — but it does so by choice, not
+necessity. Counting `DA:` directly:
 
 ```bash
 awk '/^SF:/{f=substr($0,4); tot=0; hit=0} /^DA:/{split(substr($0,4),a,","); tot++; if (a[2]+0>0) hit++} /^end_of_record/{if (tot) printf "%-58s %3d/%3d\n", f, hit, tot}' coverage/lcov.info

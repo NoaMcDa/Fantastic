@@ -218,12 +218,24 @@ Future<void> enterInto(WidgetTester tester, String key, String text) async {
   await settle(tester);
 }
 
-/// The current text of the `TextFormField` keyed [key].
+/// The current text of the text field keyed [key].
 ///
 /// For asserting on a prefilled form: the value lives in the field's
 /// controller, not in a `Text` widget, so `find.text` does not see it.
-String? fieldText(WidgetTester tester, String key) =>
-    tester.widget<TextFormField>(find.byKey(Key(key))).controller?.text;
+///
+/// Read off the `EditableText` underneath rather than off the field widget,
+/// because the app uses both `TextFormField` (inside a `Form`) and plain
+/// `TextField` (the scan sheet's amount), and a cast to either one throws on
+/// the other.
+String fieldText(WidgetTester tester, String key) => tester
+    .widget<EditableText>(
+      find.descendant(
+        of: find.byKey(Key(key)),
+        matching: find.byType(EditableText),
+      ),
+    )
+    .controller
+    .text;
 
 /// Switches to the tab keyed [tabKey] (`tab_home`, `tab_lens`, …).
 ///

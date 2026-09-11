@@ -156,6 +156,7 @@ macOS, no external service.
 | Workflow | Trigger | Runner | Blocking? |
 |---|---|---|---|
 | `ci.yml` | `pull_request` → `main`, `push` → `main`, `workflow_dispatch` | `ubuntu-latest` | **Yes** — required check |
+| `build-ios.yml` | `pull_request` → `main` **filtered to `ios/**`, `lib/**`, `assets/**`, `pubspec.*` and itself**, `workflow_dispatch` | `macos-latest` | Not yet — enable with branch protection |
 
 ### Parked scope
 
@@ -164,11 +165,27 @@ designed in §6 but **not being built** — see §7.1 for the decision and the
 conditions that unpark them. Everything they need (macOS runners, an Apple
 Developer account, signing secrets) is exactly what the active scope avoids.
 
-Why iOS builds are absent from `ci.yml` even later: `flutter build ios` requires
-a macOS runner, billed at **10× the minute rate** of Linux. A compile break that
-is iOS-specific — and not caught by `flutter analyze`, which is
-platform-independent — is rare enough to catch on merge rather than on every
-push.
+**iOS now has an unsigned compile job, and it is still not in `ci.yml`.**
+`flutter build ios` requires a macOS runner, billed at **10× the minute rate**
+of Linux, so it lives in its own `build-ios.yml` with a path filter: only a
+change to `ios/**`, `lib/**`, `assets/**` or the dependency set can trigger it,
+and a docs PR spends nothing. That keeps the 10× rate off the majority of runs
+while closing the gap this paragraph used to accept — the iOS target had never
+been built at all, the repository had never had a `Podfile`, and CocoaPods had
+never resolved a single native dependency. `flutter analyze` is
+platform-independent and could not have told anyone.
+
+**A `paths` filter on `pull_request` matches the whole PR diff, not the latest
+push.** Once a PR has touched `ios/**`, every later push to it re-runs the macOS
+job even if that push is documentation only — observed on this very PR. The
+filter is therefore a per-PR switch, not a per-commit one, and the way to keep
+the 10× rate down inside one PR is `concurrency` (which cancels the superseded
+run) rather than the filter.
+
+This does **not** unpark anything in §7.1. `--no-codesign` needs no Apple
+Developer account, no signing secret, no `match`, no fastlane and no simulator;
+it compiles and assembles `Runner.app` and stops there. A compile is not a
+runtime proof, and the workflow claims nothing more.
 
 ---
 
@@ -277,15 +294,27 @@ status list — recoverable via step annotations, and not worth 2× the runtime.
 
 ### 5.3 The coverage gate — `tool/check_coverage.sh`
 
-Two independent traps make the off-the-shelf action unsuitable:
+**[r4] Shipped.** `tool/check_coverage.sh` and `tool/check_coverage_files.sh`
+exist and run on every PR. The measured number is below.
 
-- **No `LF:`/`LH:` lines.** `very_good_coverage` and most lcov readers derive
-  the percentage from those summary records. This project emits only
-  `DA:<line>,<hits>`, so a naive reader sees `0/0` and reports 100%. The gate
-  would pass forever, silently.
+Two traps were identified as making the off-the-shelf action unsuitable. **One
+of them has since expired, and the correction is worth more than the original
+claim:**
+
+- **~~No `LF:`/`LH:` lines.~~ [r4] No longer true.** Revisions 1–3, and
+  `m1_handoff.md` before them, recorded that this project's `lcov.info` carried
+  only `DA:` records — so `very_good_coverage` and most lcov readers would
+  compute `0/0` and report a silent 100% for every file. Measured on
+  Flutter 3.47.3, **every one of the 122 `SF:` records now carries `LF:` and
+  `LH:`**. The toolchain changed under the assertion at some point between M1
+  and now, and nobody re-measured because nothing depended on it yet.
+  The gate still counts `DA:` directly — not because it must, but because an
+  invariant that has already silently flipped once is not one to build on.
 - **Scope.** The contract is 80% on `domain/` + `application/`, not on `lib/`.
   Including `data/` and `presentation/` — which are covered by contract and
-  widget tests instead — measures the wrong thing in both directions.
+  widget tests instead — measures the wrong thing in both directions. **This
+  is now the load-bearing reason:** no lcov action filters by path, so it
+  alone rules the off-the-shelf option out.
 
 ```bash
 #!/usr/bin/env bash
@@ -331,8 +360,36 @@ awk -v min="$MIN" '
 directory yet; without the guard, a future refactor that renames a layer would
 turn the gate into a no-op and nobody would notice.
 
-**The number today, measured. [r3]** Running the script above against a real
-`flutter test --coverage` run, with M2's services merged in:
+**The number today, measured. [r4]** Running the shipped script against a real
+`flutter test --coverage` run on `main` after the M4/M5 post-milestone fixes:
+
+```
+Gated coverage (domain + application): 470/472 = 99.58% (min 80%)
+```
+
+28 gated files. The only two uncovered lines are `MacroTargets.copyWith`
+(which has no caller — it exists for the profile-edit screen that does not
+exist yet) and `TextRecognitionUnavailableException.toString()`. **19.58 points
+of headroom over the gate**, which is the argument for raising the threshold
+later rather than now: a gate set just under the current number fails on the
+first honest refactor.
+
+**The number is environment-dependent by a line or two, and that is expected.**
+The same commit measured 470/472 = 99.58% on a dev container and 472/473 =
+99.79% on the CI runner; the two files that differed were
+`streak_notification_service.dart` (21/21 vs 22/22) and
+`text_recognition_service.dart` (2/3 vs 3/3). Two consecutive runs on one
+machine were byte-identical, so this is not run-to-run flake — `flutter test`
+shards by CPU count and collects coverage across those isolates, so which
+lines get recorded shifts slightly with the host. **File presence did not
+drift**, which is the only thing `check_coverage_files.sh` depends on. This is
+the second reason the gate sits at 80 rather than just under the measurement.
+
+The gate was verified to fail, not just to pass — below-threshold, a vacuous
+report with no gated records, a missing file, a gated file dropped from the
+ignore list, and a brand-new untested gated file all exit 1.
+
+**[r3] The earlier measurement, for the record**, against M2:
 
 ```
   lib/features/dashboard/domain/models/daily_log.dart              37/ 37

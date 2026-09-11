@@ -1,4 +1,5 @@
 import 'package:fantastic/core/utils/list_equality.dart';
+import 'package:fantastic/features/keto_lens/domain/models/serving_basis.dart';
 import 'package:meta/meta.dart';
 
 /// Structured nutritional data extracted from a scanned label's OCR text.
@@ -15,6 +16,8 @@ class ParsedLabel {
     this.proteinG,
     this.ingredients = const [],
     this.rawText = '',
+    this.basis = ServingBasis.unknown,
+    this.servingGrams,
   });
 
   final double? fatG;
@@ -27,6 +30,22 @@ class ParsedLabel {
   /// Raw OCR output before parsing — retained so a mis-parse can be diagnosed
   /// from a bug report.
   final String rawText;
+
+  /// What [fatG], [netCarbsG] and [proteinG] are measured against.
+  ///
+  /// Defaults to [ServingBasis.unknown] so every existing construction — every
+  /// fixture, every test, the failure path in `parse` — keeps the behaviour it
+  /// had before #257: no scaling, and the sheet's "check the serving size"
+  /// caption.
+  final ServingBasis basis;
+
+  /// The declared serving weight in grams, where the label printed one
+  /// (`גודל מנה 30 גרם`).
+  ///
+  /// Only a default for the sheet's amount field — it is what the *package*
+  /// calls a serving, not what the user ate. Null when no such row was found,
+  /// which is most labels.
+  final double? servingGrams;
 
   /// Whether at least one macro was successfully extracted.
   ///
@@ -41,9 +60,18 @@ class ParsedLabel {
           other.netCarbsG == netCarbsG &&
           other.proteinG == proteinG &&
           other.rawText == rawText &&
+          other.basis == basis &&
+          other.servingGrams == servingGrams &&
           listEquals(other.ingredients, ingredients);
 
   @override
-  int get hashCode =>
-      Object.hash(fatG, netCarbsG, proteinG, rawText, listHash(ingredients));
+  int get hashCode => Object.hash(
+    fatG,
+    netCarbsG,
+    proteinG,
+    rawText,
+    basis,
+    servingGrams,
+    listHash(ingredients),
+  );
 }
