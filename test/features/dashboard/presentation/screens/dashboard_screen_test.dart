@@ -13,6 +13,8 @@ import 'package:fantastic/features/diary/application/providers/meal_providers.da
 import 'package:fantastic/features/diary/domain/models/meal_entry.dart';
 import 'package:fantastic/features/diary/presentation/widgets/add_meal_bottom_sheet.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
+import 'package:fantastic/features/onboarding/application/providers/user_profile_providers.dart';
+import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -61,6 +63,11 @@ void main() {
       todaysMealsProvider(date).overrideWith((ref) async => meals),
       mealLoggingServiceProvider.overrideWithValue(loggingService),
       streakRepositoryProvider.overrideWithValue(streakRepository),
+      // MacroSummaryCard measures the day against the onboarding profile's
+      // targets (#73); without an override it reaches for a database.
+      macroTargetsProvider.overrideWith(
+        (ref) => Stream.value(MacroTargets.defaults),
+      ),
     ];
 
     await tester.pumpWidget(
