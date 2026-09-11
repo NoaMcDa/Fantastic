@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'flows/grace_period_flow.dart' as grace_period;
 import 'flows/keto_lens_flow.dart' as keto_lens;
 import 'flows/meal_logging_flow.dart' as meal_logging;
 import 'flows/navigation_smoke_flow.dart' as navigation_smoke;
@@ -43,5 +44,6 @@ void main() {
   group('streak', streak.main);
   group('symptom diary', symptom_diary.main);
   group('keto lens', keto_lens.main);
+  group('grace period', grace_period.main);
   group('storage failure', storage_failure.main);
 }
