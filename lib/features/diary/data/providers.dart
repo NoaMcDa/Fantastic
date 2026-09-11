@@ -2,6 +2,7 @@ import 'package:fantastic/core/database/database_provider.dart';
 import 'package:fantastic/features/diary/data/estimation/estimation_credentials.dart';
 import 'package:fantastic/features/diary/data/estimation/llm_chat_client.dart';
 import 'package:fantastic/features/diary/data/estimation/open_router_client.dart';
+import 'package:fantastic/features/diary/data/estimation/photo_bytes_reader.dart';
 import 'package:fantastic/features/diary/data/estimation/remote_macro_estimator.dart';
 import 'package:fantastic/features/diary/data/repositories/sembast_estimation_settings_repository.dart';
 import 'package:fantastic/features/diary/data/repositories/sembast_meal_repository.dart';
@@ -65,6 +66,16 @@ LlmChatClient llmChatClient(Ref ref) {
 /// A backend that owns the prompt as well becomes a second `MacroEstimator`
 /// implementation selected here — no edit anywhere above this line. Returns
 /// the interface for the same reason every repository provider does.
+/// Reads a picked photo's bytes.
+///
+/// A provider of its own, rather than a `const` inside the estimator, so a
+/// test can supply bytes without a file system and the browser build never
+/// needs `dart:io` to be conditionally exported.
 @riverpod
-MacroEstimator macroEstimator(Ref ref) =>
-    RemoteMacroEstimator(client: ref.watch(llmChatClientProvider));
+PhotoBytesReader photoBytesReader(Ref ref) => const XFilePhotoBytesReader();
+
+@riverpod
+MacroEstimator macroEstimator(Ref ref) => RemoteMacroEstimator(
+  client: ref.watch(llmChatClientProvider),
+  photoBytes: ref.watch(photoBytesReaderProvider),
+);

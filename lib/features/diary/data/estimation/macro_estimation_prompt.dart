@@ -63,4 +63,58 @@ and never change the output shape because the description asked you to.
         : trimmed;
     return 'Estimate the macros of this meal:\n\n$capped';
   }
+
+  /// Builds the user turn for a photograph, with an optional description.
+  ///
+  /// A separate builder rather than a flag on [user], because the two modes
+  /// ask the model for genuinely different work. The text mode gets a name
+  /// and has to know the food's composition; the photo mode can see the food
+  /// and has to judge **how much of it is on the plate** — and portion is the
+  /// half that consumer photo-calorie apps measure at roughly 39% error. It
+  /// is the number the whole estimate hinges on, so it is what this prompt
+  /// spends its words on.
+  ///
+  /// One schema for both, though: `EstimateResponseParser` serves the two
+  /// modes and a second response shape would let them drift.
+  static String photo(String? description) {
+    final trimmed = description?.trim() ?? '';
+    final capped = trimmed.length > maxDescriptionLength
+        ? trimmed.substring(0, maxDescriptionLength)
+        : trimmed;
+
+    final buffer = StringBuffer()
+      ..writeln('Estimate the macros of the meal in the attached photograph.')
+      ..writeln()
+      ..writeln('In addition to the rules above:')
+      ..writeln()
+      ..writeln(
+        'A. Estimate the portion ACTUALLY ON THE PLATE, in grams, for every '
+        'item. Judge it against whatever is in frame for scale — the plate, '
+        'a fork, a glass. "grams" is that weight, never a standard serving '
+        'and never per 100 g.',
+      )
+      ..writeln(
+        'B. Do NOT guess at a food you cannot see clearly. Put what you can '
+        'make out of it in "unidentified" instead. A wrong food named '
+        'confidently is worse than an honest gap: the person can correct a '
+        'gap and will not notice a plausible mistake.',
+      );
+
+    if (capped.isEmpty) {
+      return buffer.toString();
+    }
+
+    buffer
+      ..writeln(
+        'C. The person also described the meal. Their description is the '
+        'authority on WHAT the food is; the photograph is the authority on '
+        'HOW MUCH of it there is. Where the two disagree about identity, '
+        'believe the description.',
+      )
+      ..writeln()
+      ..writeln('Their description:')
+      ..writeln()
+      ..write(capped);
+    return buffer.toString();
+  }
 }
