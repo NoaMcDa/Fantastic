@@ -1,10 +1,10 @@
 import 'dart:ffi';
-import 'dart:io';
 import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 
 import 'package:fantastic/features/keto_lens/data/adapters/tessdata_bundle.dart';
+import 'package:fantastic/features/keto_lens/data/adapters/tesseract_library_candidates.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
 
 /// The desktop half of the OCR firewall — Hebrew OCR through libtesseract.
@@ -42,47 +42,6 @@ class TesseractFfiRecognizer implements TextRecognitionService {
       'Tesseract is not installed on this computer. The scanner needs the '
       'Tesseract OCR library; install it and restart the app.';
 
-  /// Candidate library names, most specific first.
-  ///
-  /// Versioned sonames come first so a system with both 5 and a stale 4
-  /// resolves to 5. The unversioned name is the fallback a dev install or a
-  /// Homebrew prefix usually provides.
-  static List<String> get _candidates {
-    if (Platform.isWindows) {
-      return const [
-        'libtesseract-5.dll',
-        'tesseract55.dll',
-        'libtesseract.dll',
-      ];
-    }
-    if (Platform.isMacOS) {
-      return const [
-        'libtesseract.5.dylib',
-        'libtesseract.dylib',
-        '/opt/homebrew/lib/libtesseract.dylib',
-        '/usr/local/lib/libtesseract.dylib',
-      ];
-    }
-    return const ['libtesseract.so.5', 'libtesseract.so.4', 'libtesseract.so'];
-  }
-
-  /// Leptonica, which owns image decoding. Tesseract's own `SetImage2` takes a
-  /// `Pix*`, so reading a PNG or JPEG means calling `pixRead` here first.
-  static List<String> get _leptCandidates {
-    if (Platform.isWindows) {
-      return const ['liblept-5.dll', 'leptonica-1.84.1.dll', 'liblept.dll'];
-    }
-    if (Platform.isMacOS) {
-      return const [
-        'liblept.5.dylib',
-        'libleptonica.dylib',
-        '/opt/homebrew/lib/libleptonica.dylib',
-        '/usr/local/lib/libleptonica.dylib',
-      ];
-    }
-    return const ['liblept.so.5', 'libleptonica.so.6', 'liblept.so'];
-  }
-
   static bool? _probed;
 
   /// Whether libtesseract and leptonica can be opened on this machine.
@@ -100,9 +59,9 @@ class TesseractFfiRecognizer implements TextRecognitionService {
   bool get isAvailable => _probed ??= _canOpen();
 
   static bool _canOpen() {
-    final tess = _tryOpenAny(_candidates);
+    final tess = _tryOpenAny(TesseractLibraryCandidates.tesseract);
     if (tess == null) return false;
-    return _tryOpenAny(_leptCandidates) != null;
+    return _tryOpenAny(TesseractLibraryCandidates.leptonica) != null;
   }
 
   static DynamicLibrary? _tryOpenAny(List<String> names) {
@@ -144,10 +103,10 @@ String _recogniseSync({
   required String language,
 }) {
   final tess = TesseractFfiRecognizer._tryOpenAny(
-    TesseractFfiRecognizer._candidates,
+    TesseractLibraryCandidates.tesseract,
   );
   final lept = TesseractFfiRecognizer._tryOpenAny(
-    TesseractFfiRecognizer._leptCandidates,
+    TesseractLibraryCandidates.leptonica,
   );
   if (tess == null || lept == null) {
     throw const TextRecognitionUnavailableException(
