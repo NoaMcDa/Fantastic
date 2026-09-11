@@ -127,10 +127,9 @@ void main() {
 
     final router = GoRouter.of(tester.element(find.text('בית').first));
 
-    // Steps 1 and 2 are real screens (#69, #70); the rest still render the
-    // placeholder until their own issue lands. Every step must resolve to
-    // *something* — a step that fell through to the error screen would break
-    // the flow for a deep link.
+    // Steps 1 and 2 are real screens (#69, #70) and need no navigation
+    // data. Every step must resolve to *something* — a step that fell
+    // through to the error screen would break the flow for a deep link.
     router.go('/onboarding/1');
     await tester.pumpAndSettle();
     expect(find.byType(OnboardingScreen1), findsOneWidget);
@@ -138,11 +137,28 @@ void main() {
     router.go('/onboarding/2');
     await tester.pumpAndSettle();
     expect(find.byType(OnboardingScreen2), findsOneWidget);
+  });
+
+  // Screens 3 and 4 take the earlier answers as required arguments, and
+  // `extra` does not survive a browser reload or a cold deep link. Rather
+  // than crash, the flow restarts — the same policy `onboardingStep`
+  // already applies to an out-of-range step.
+  testWidgets('a later onboarding step reached with no data restarts the '
+      'flow', (tester) async {
+    await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(tester.element(find.text('בית').first));
 
     for (var step = 3; step <= kOnboardingStepCount; step++) {
       router.go('/onboarding/$step');
       await tester.pumpAndSettle();
-      expect(find.text('אונבורדינג — שלב $step'), findsOneWidget);
+
+      expect(find.byType(OnboardingScreen1), findsOneWidget);
+      expect(
+        router.routerDelegate.currentConfiguration.uri.toString(),
+        '/onboarding/1',
+      );
     }
   });
 
