@@ -206,4 +206,105 @@ void main() {
       expect(MenuAnalysisFixture.analysed(), isNotNull);
     });
   });
+
+  group('HebrewMenuFixture covers real Israeli menu shapes', () {
+    final hebrewLetter = RegExp('[\u0590-\u05FF]');
+    final sectionHeaders = ['ראשונות', 'עיקריות', 'קינוחים', 'שתייה'];
+
+    test('all holds exactly the six named transcripts', () {
+      expect(HebrewMenuFixture.all, hasLength(6));
+      expect(HebrewMenuFixture.all, [
+        HebrewMenuFixture.grill,
+        HebrewMenuFixture.italian,
+        HebrewMenuFixture.bilingualCafe,
+        HebrewMenuFixture.fish,
+        HebrewMenuFixture.twoColumn,
+        HebrewMenuFixture.notAMenu,
+      ]);
+    });
+
+    test('every transcript is non-empty and contains a Hebrew letter', () {
+      for (final transcript in HebrewMenuFixture.all) {
+        expect(transcript.trim(), isNotEmpty);
+        expect(hebrewLetter.hasMatch(transcript), isTrue);
+      }
+    });
+
+    test('every real-menu transcript carries a section header', () {
+      final realMenus = [
+        HebrewMenuFixture.grill,
+        HebrewMenuFixture.italian,
+        HebrewMenuFixture.bilingualCafe,
+        HebrewMenuFixture.fish,
+        HebrewMenuFixture.twoColumn,
+      ];
+
+      for (final transcript in realMenus) {
+        expect(
+          sectionHeaders.any(transcript.contains),
+          isTrue,
+          reason: 'expected a section header in: $transcript',
+        );
+      }
+    });
+
+    test('every real-menu transcript carries a price', () {
+      final realMenus = [
+        HebrewMenuFixture.grill,
+        HebrewMenuFixture.italian,
+        HebrewMenuFixture.bilingualCafe,
+        HebrewMenuFixture.fish,
+        HebrewMenuFixture.twoColumn,
+      ];
+      final price = RegExp(r'₪\d|\d+\s*ש"ח');
+
+      for (final transcript in realMenus) {
+        expect(
+          price.hasMatch(transcript),
+          isTrue,
+          reason: 'expected a price in: $transcript',
+        );
+      }
+    });
+
+    test('grill wraps a description onto a second line', () {
+      expect(HebrewMenuFixture.grill, contains('חומוס עם פטרוזיליה וזעתר'));
+      expect(HebrewMenuFixture.grill, contains('\nוזעתר טרי,'));
+    });
+
+    // The provenance check's word-overlap rule needs a word shared between
+    // two sections that is not itself a dish name — "פירה" (purée) names a
+    // side in the starters and a component of a main.
+    test('grill repeats a word across two different sections', () {
+      final occurrences = 'פירה'.allMatches(HebrewMenuFixture.grill).length;
+
+      expect(occurrences, greaterThanOrEqualTo(2));
+    });
+
+    test('fish holds a green grilled fish and a yellow fish-and-chips', () {
+      expect(HebrewMenuFixture.fish, contains('דג לברק על הגריל בחמאה'));
+      expect(HebrewMenuFixture.fish, contains("פיש אנד צ'יפס"));
+    });
+
+    test('italian covers all four red request examples', () {
+      expect(HebrewMenuFixture.italian, contains('פיצה'));
+      expect(HebrewMenuFixture.italian, contains('פסטה'));
+      expect(HebrewMenuFixture.italian, contains('שניצל'));
+      expect(HebrewMenuFixture.italian, contains('ריזוטו'));
+    });
+
+    test('bilingualCafe prints Hebrew and English on the same page', () {
+      expect(hebrewLetter.hasMatch(HebrewMenuFixture.bilingualCafe), isTrue);
+      expect(HebrewMenuFixture.bilingualCafe, contains('Grilled Salmon'));
+    });
+
+    // notAMenu is noise, not a menu: no section header, and no line shaped
+    // like a dish entry (name/description separated by " - ").
+    test('notAMenu contains no section header and no dish-shaped line', () {
+      for (final header in sectionHeaders) {
+        expect(HebrewMenuFixture.notAMenu, isNot(contains(header)));
+      }
+      expect(HebrewMenuFixture.notAMenu, isNot(contains(' - ')));
+    });
+  });
 }
