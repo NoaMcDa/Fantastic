@@ -16,15 +16,6 @@ abstract final class AddMealCopy {
   static const String photoTitle = 'צילום';
   static const String photoSubtitle = 'צלמו את המנה או את התווית';
 
-  /// What a mode that has no flow behind it yet says.
-  ///
-  /// A shipped placeholder that names itself, not a `TODO` comment: a mode
-  /// that does nothing when tapped reads as a bug, and
-  /// `issue_conventions.md` forbids the comment anyway.
-  static const String comingSoon = 'המצב הזה בדרך ויתווסף בקרוב.';
-
-  static const String close = 'סגירה';
-
   // ---------------------------------------------------------------------
   // Description mode
   // ---------------------------------------------------------------------
@@ -77,4 +68,35 @@ abstract final class AddMealCopy {
 
   static const String rateLimitDetail = 'המכסה החינמית מתאפסת מדי יום.';
   static const String nothingIdentifiedDetail = 'נסחו מחדש את התיאור ונסו שוב.';
+
+  // ---------------------------------------------------------------------
+  // Photo mode
+  // ---------------------------------------------------------------------
+
+  static const String takePhoto = 'צילום מצלמה';
+  static const String pickPhoto = 'בחירה מהגלריה';
+
+  /// Explains the order the sheet works in, before anything is tapped.
+  ///
+  /// Worth saying out loud: a user who photographs a package expects the
+  /// printed numbers, and a user who photographs a plate expects a guess.
+  /// The sheet does both and decides for them, so it says so.
+  static const String photoIntro =
+      'אם בתמונה יש טבלת ערכים תזונתיים נקרא אותה ישירות. אחרת נעריך '
+      'מהתמונה.';
+
+  static const String photoDescriptionLabel = 'תיאור (לא חובה)';
+
+  /// The photo says how much; the description says what.
+  static const String photoDescriptionHint = 'לדוגמה: שקשוקה עם חלה';
+
+  static const String reading = 'קוראים את התמונה...';
+
+  /// Shown when the picker itself failed rather than the user backing out.
+  static const String photoSourceFailed =
+      'לא הצלחנו לפתוח את המצלמה או את הגלריה. בדקו את ההרשאות ונסו שוב.';
+
+  /// The photo mode's own "try another photo", distinct from `retry`:
+  /// re-running the same unreadable file would fail the same way.
+  static const String anotherPhoto = 'נסו תמונה אחרת';
 }

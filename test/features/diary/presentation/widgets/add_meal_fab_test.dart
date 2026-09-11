@@ -113,18 +113,6 @@ void main() {
     });
   }
 
-  // Still a placeholder until #324 lands. The description mode's own suite
-  // covers the real sheet.
-  testWidgets('the photo placeholder closes cleanly', (tester) async {
-    await pumpFab(tester);
-
-    await choose(tester, 'add_meal_mode_photo');
-    await tester.tap(find.byKey(const Key('coming_soon_close')));
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const Key('add_meal_photo_sheet')), findsNothing);
-  });
-
   // Apple's HIG minimum, and the reason the standard FAB size is kept rather
   // than shrunk to fit a denser layout.
   testWidgets('meets the 44pt minimum touch target', (tester) async {
