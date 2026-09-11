@@ -56,6 +56,20 @@ dependencies:
   # an IndexedDB factory for the browser, behind one `Database` API.
   sembast: ^3.8.10
 
+  # The app's first outbound network call (#318), for M15's macro estimator
+  # only. Pure Dart with a first-party web implementation, so it works on all
+  # six targets with no platform channel and therefore **needs no
+  # conditional-export firewall** — unlike `path_provider` and the OCR
+  # plugins, which have two.
+  #
+  # Chosen over `dio`: nothing here needs interceptors, multipart or
+  # cancellation, and a second HTTP stack is a second thing to keep pinned.
+  #
+  # **This does not relax Keto Lens's no-network invariant.** A scan still
+  # makes no network call and nothing in `keto_lens/` may import this; see
+  # `design/m15_meal_entry_research.md` §4.
+  http: ^1.2.0
+
   # The browser factory. Talks IndexedDB through `package:web` rather than the
   # deprecated `dart:html`, so it also compiles under `flutter build web --wasm`.
   sembast_web: ^2.4.6

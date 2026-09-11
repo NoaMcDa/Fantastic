@@ -4,10 +4,15 @@ import 'package:fantastic/features/diary/domain/models/meal_estimate.dart';
 /// Estimates a meal's macros from what the user can give it.
 ///
 /// The outermost seam of M15's estimation engine. Issue #312 decision 2: the
-/// app uses OpenRouter with the user's own key today and our own backend
-/// later, and **that swap must be a new file rather than an edit** — so a
-/// second implementation lands beside the first and only the composition root
-/// names either.
+/// app calls a hosted model provider with the user's own key today and our
+/// own backend later, and **that swap must be a new file rather than an
+/// edit** — so a second implementation lands beside the first and only the
+/// composition root names either.
+///
+/// Which provider is deliberately not named here. It is named in exactly two
+/// files — `open_router_client.dart` and the one provider that constructs it
+/// — and a domain interface that named it would be the first crack in the
+/// invariant it exists to hold (#318).
 abstract interface class MacroEstimator {
   /// Estimates the macros of a meal from a Hebrew [description], a photo at
   /// [imagePath], or both.
