@@ -4,9 +4,12 @@ import 'package:fantastic/main.dart';
 import 'package:fantastic/features/onboarding/presentation/onboarding_placeholder.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen2.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen3.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../fixtures/fixtures.dart';
 
 void main() {
   group('AppShell.activeIndexForLocation', () {
@@ -94,18 +97,46 @@ void main() {
   });
 
   group('onboardingScreen', () {
-    test('steps 1 and 2 are the real screens', () {
-      expect(onboardingScreen(1), isA<OnboardingScreen1>());
-      expect(onboardingScreen(2), isA<OnboardingScreen2>());
+    test('steps 1 to 3 are the real screens', () {
+      expect(onboardingScreen(1, null), isA<OnboardingScreen1>());
+      expect(onboardingScreen(2, null), isA<OnboardingScreen2>());
+      expect(
+        onboardingScreen(3, UserProfileFixture.partial()),
+        isA<OnboardingScreen3>(),
+      );
     });
 
     // The flow stays reachable end to end while M4 is being built: a step
     // whose screen has not landed yet still renders the placeholder rather
     // than a blank route.
     test('a step M4 has not replaced yet still renders', () {
-      for (var step = 3; step <= kOnboardingStepCount; step++) {
-        expect(onboardingScreen(step), isA<OnboardingPlaceholder>());
+      for (var step = 4; step <= kOnboardingStepCount; step++) {
+        expect(
+          onboardingScreen(step, UserProfileFixture.data()),
+          isA<OnboardingPlaceholder>(),
+        );
       }
+    });
+  });
+
+  // A deep link, or a browser reload — `extra` is not serialisable, so a
+  // reload mid-flow arrives at step 3 or 4 with nothing.
+  group('onboardingStepHasData', () {
+    test('steps 1 and 2 need nothing', () {
+      expect(onboardingStepHasData(1, null), isTrue);
+      expect(onboardingStepHasData(2, null), isTrue);
+    });
+
+    test('step 3 needs the screen-2 answers', () {
+      expect(onboardingStepHasData(3, null), isFalse);
+      expect(onboardingStepHasData(3, 'nonsense'), isFalse);
+      expect(onboardingStepHasData(3, UserProfileFixture.partial()), isTrue);
+    });
+
+    test('step 4 needs the complete answers, not the partial ones', () {
+      expect(onboardingStepHasData(4, null), isFalse);
+      expect(onboardingStepHasData(4, UserProfileFixture.partial()), isFalse);
+      expect(onboardingStepHasData(4, UserProfileFixture.data()), isTrue);
     });
   });
 }

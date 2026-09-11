@@ -6,7 +6,9 @@ import 'package:fantastic/features/directory/presentation/directory_placeholder.
 import 'package:fantastic/features/keto_lens/presentation/keto_lens_placeholder.dart';
 import 'package:fantastic/features/onboarding/presentation/onboarding_placeholder.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
+import 'package:fantastic/features/onboarding/domain/models/onboarding_data.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen2.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen3.dart';
 import 'package:fantastic/features/profile/presentation/profile_placeholder.dart';
 import 'package:fantastic/features/recipe/presentation/recipe_placeholder.dart';
 import 'package:fantastic/features/restaurant/presentation/restaurant_placeholder.dart';
@@ -78,8 +80,20 @@ GoRouter appRouter(Ref ref) => GoRouter(
     // tab bar. #69–#72 replace the placeholder with the real screens.
     GoRoute(
       path: '/onboarding/:step',
+      // Screens 3 and 4 are pushed with the previous screens' answers in
+      // `extra`, and a step reached without them cannot render. Rather than
+      // crash on a deep link — or on a browser reload, which drops `extra`
+      // because it is not serialisable — the flow restarts at step 1. Same
+      // policy as `onboardingStep`'s clamp, for the same reason.
+      redirect: (_, state) =>
+          onboardingStepHasData(
+            onboardingStep(state.pathParameters),
+            state.extra,
+          )
+          ? null
+          : '/onboarding/1',
       builder: (_, state) =>
-          onboardingScreen(onboardingStep(state.pathParameters)),
+          onboardingScreen(onboardingStep(state.pathParameters), state.extra),
     ),
     // Downstream issues address the dashboard as '/dashboard' (see #74's
     // `initialLocation`), while the tab shell registers it as '/'. Keep '/'
@@ -104,16 +118,34 @@ int onboardingStep(Map<String, String> pathParameters) {
   return parsed;
 }
 
-/// The screen for a 1-based onboarding [step].
+/// Whether [step] can be rendered with the [extra] it was navigated with.
+///
+/// Screens 3 and 4 take the previous screens' answers as required
+/// constructor arguments, so a step reached without them has nothing to
+/// build. The route redirects such a step to the start of the flow.
+@visibleForTesting
+bool onboardingStepHasData(int step, Object? extra) => switch (step) {
+  3 => extra is PartialOnboardingData,
+  4 => extra is OnboardingData,
+  _ => true,
+};
+
+/// The screen for a 1-based onboarding [step], given its navigation [extra].
 ///
 /// A switch rather than four `GoRoute`s because the flow is one route with a
 /// path parameter, which is what `#69`-`#72` were written against. Steps the
 /// milestone has not replaced yet still render `OnboardingPlaceholder`, so
 /// the flow stays reachable end to end while it is being built.
+///
+/// A step whose `extra` is missing or of the wrong type falls through to the
+/// placeholder here, but the route's `redirect` means it is never actually
+/// reached — the two are kept consistent by
+/// `onboardingStepHasData`.
 @visibleForTesting
-Widget onboardingScreen(int step) => switch (step) {
+Widget onboardingScreen(int step, Object? extra) => switch (step) {
   1 => const OnboardingScreen1(),
   2 => const OnboardingScreen2(),
+  3 when extra is PartialOnboardingData => OnboardingScreen3(partial: extra),
   _ => OnboardingPlaceholder(step: step),
 };
 
