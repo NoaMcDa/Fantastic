@@ -1,3 +1,4 @@
+import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/features/diary/application/providers/symptom_providers.dart';
 import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
@@ -307,6 +308,9 @@ class _ScoreDots extends StatelessWidget {
 
   static const double diameter = 6;
 
+  /// The ring an unfilled dot is drawn as.
+  static const double ringWidth = 1.2;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -324,11 +328,25 @@ class _ScoreDots extends StatelessWidget {
             width: diameter,
             height: diameter,
             margin: const EdgeInsets.symmetric(horizontal: 1.5),
+            // A disc when filled, a ring when not (#307). It used to be a
+            // disc either way, distinguished only by
+            // `surfaceContainerHighest` — which on this palette is within a
+            // few points of the card behind it, so an unfilled dot was not
+            // so much low-contrast as absent, and a 2-of-5 score and an
+            // unlogged scale looked the same.
+            //
+            // Ring versus disc rather than two fills because these are 6pt
+            // apart at 6pt across: shape survives that, and a colour pair
+            // this small does not (`design/m6_handoff.md` convention 8 —
+            // colour is never the only signal).
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: score != null && dot <= score!
                   ? scheme.primary
-                  : scheme.surfaceContainerHighest,
+                  : Colors.transparent,
+              border: score != null && dot <= score!
+                  ? null
+                  : Border.all(color: AppTheme.outline, width: ringWidth),
             ),
           ),
       ],

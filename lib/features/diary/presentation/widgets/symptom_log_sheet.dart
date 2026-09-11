@@ -1,3 +1,4 @@
+import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/features/diary/application/providers/symptom_providers.dart';
 import 'package:fantastic/features/diary/application/symptom_logging_service.dart';
 import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
@@ -411,17 +412,46 @@ class _ScoreButton extends StatelessWidget {
   /// Apple HIG's minimum, and the reason this is a button row rather than the
   /// `Slider` #77 specified — a slider thumb is smaller than this and shows
   /// no value.
+  ///
+  /// `_ScaleCell` in `symptom_check_in_strip.dart` declares its own copy of
+  /// this. Deliberately left duplicated: hoisting it is a shared-constant
+  /// change across three features and would make #307 non-atomic.
   static const double minTouchTarget = 44;
+
+  /// The width of the rounded outline both states carry.
+  ///
+  /// Applied to the selected state too, in `primary` over its own `primary`
+  /// fill, so selecting a score cannot move the digit inside it.
+  static const double borderWidth = 1.5;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
+      // Four points between cells rather than two: five outlined boxes two
+      // points apart read as one segmented control, which is a different
+      // affordance from five independent choices.
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Material(
         color: selected ? scheme.primary : scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        // `shape` rather than `borderRadius` — `Material` asserts if given
+        // both. The border goes on the `Material` rather than on a wrapping
+        // `Container` so the `InkWell`'s ripple stays clipped to the same
+        // rounded rect; a `BoxDecoration` outside the `Material` would let
+        // the ripple square off at the corners.
+        //
+        // Both states carry a border of the same width, so the digit never
+        // shifts by a pixel between them. Only the unselected one is
+        // *visible*: `surfaceContainerHighest` alone is within a few points
+        // of the sheet behind it (#307).
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(
+            color: selected ? scheme.primary : AppTheme.outline,
+            width: borderWidth,
+          ),
+        ),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: onTap,

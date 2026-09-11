@@ -12,6 +12,21 @@ abstract final class AppTheme {
   static const Color caution = Color(0xFFFFD60A);
   static const Color danger = Color(0xFFFF453A);
 
+  /// The edge of an interactive control that is *not* currently filled — an
+  /// unselected score button, an unfilled score dot.
+  ///
+  /// Named for its role rather than its colour. It exists because Material's
+  /// own `surfaceContainerHighest` (`#36343B` in this scheme) sits within a
+  /// few points of [surface], so a control relying on that fill alone is
+  /// invisible on this palette: the 1-5 score row read as five numbers rather
+  /// than five buttons until one was tapped (#307, found by eye in a browser
+  /// — `design/m5_handoff.md`).
+  ///
+  /// Measured 4.3:1 against [surface] and 5.2:1 against [primary], so it
+  /// clears WCAG 1.4.11's 3:1 for a non-text control boundary on both of the
+  /// two backgrounds these controls are ever drawn on.
+  static const Color outline = Color(0xFF8E8E93);
+
   /// The bundled UI face, from `design/design_system.md` §Typography.
   ///
   /// Named here rather than left to the platform default because the web
