@@ -1,6 +1,7 @@
 import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
 import 'package:fantastic/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -117,7 +118,7 @@ void main() {
     },
   );
 
-  testWidgets('each of the 4 onboarding routes renders its placeholder', (
+  testWidgets('each of the 4 onboarding routes renders a screen', (
     tester,
   ) async {
     await tester.pumpWidget(const ProviderScope(child: FantasticApp()));
@@ -125,7 +126,15 @@ void main() {
 
     final router = GoRouter.of(tester.element(find.text('בית').first));
 
-    for (var step = 1; step <= kOnboardingStepCount; step++) {
+    // Step 1 is the real welcome screen (#69); the rest still render the
+    // placeholder until their own issue lands. Every step must resolve to
+    // *something* — a step that fell through to the error screen would break
+    // the flow for a deep link.
+    router.go('/onboarding/1');
+    await tester.pumpAndSettle();
+    expect(find.byType(OnboardingScreen1), findsOneWidget);
+
+    for (var step = 2; step <= kOnboardingStepCount; step++) {
       router.go('/onboarding/$step');
       await tester.pumpAndSettle();
       expect(find.text('אונבורדינג — שלב $step'), findsOneWidget);

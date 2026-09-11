@@ -1,6 +1,8 @@
 import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/core/router/app_shell.dart';
 import 'package:fantastic/main.dart';
+import 'package:fantastic/features/onboarding/presentation/onboarding_placeholder.dart';
+import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -87,6 +89,21 @@ void main() {
     test('falls back to step 1 for a non-numeric or missing step', () {
       expect(onboardingStep({'step': 'abc'}), 1);
       expect(onboardingStep(const {}), 1);
+    });
+  });
+
+  group('onboardingScreen', () {
+    test('step 1 is the real welcome screen', () {
+      expect(onboardingScreen(1), isA<OnboardingScreen1>());
+    });
+
+    // The flow stays reachable end to end while M4 is being built: a step
+    // whose screen has not landed yet still renders the placeholder rather
+    // than a blank route.
+    test('a step M4 has not replaced yet still renders', () {
+      for (var step = 2; step <= kOnboardingStepCount; step++) {
+        expect(onboardingScreen(step), isA<OnboardingPlaceholder>());
+      }
     });
   });
 }
