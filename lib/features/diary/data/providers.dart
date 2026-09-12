@@ -1,6 +1,6 @@
 import 'package:fantastic/core/database/database_provider.dart';
+import 'package:fantastic/core/llm/llm_chat_client.dart';
 import 'package:fantastic/features/diary/data/estimation/estimation_credentials.dart';
-import 'package:fantastic/features/diary/data/estimation/llm_chat_client.dart';
 import 'package:fantastic/features/diary/data/estimation/open_router_client.dart';
 import 'package:fantastic/features/diary/data/estimation/photo_bytes_reader.dart';
 import 'package:fantastic/features/diary/data/estimation/remote_macro_estimator.dart';
