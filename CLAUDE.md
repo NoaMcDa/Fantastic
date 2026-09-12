@@ -148,7 +148,9 @@ schema), and `MenuAnalysisPrompt.schema` is strict-mode valid (all properties re
 provider's HTTP status now rides `ChatFailed.statusCode` → `MenuAnalysisFailed.statusCode`
 → a small line under the menu failure headline, and `tool/openrouter_probe.sh` sends the
 three request shapes live from a machine that can reach the host — this session cannot.
-See `design/m16_structured_output_fix.md`.
+**The pinned model is `dots-studio/dots-3-note-preview:free` at the owner's decision**
+(32 s on the real M15 prompt in #414's measurement, inside the 120 s timeout; `nex` is
+now the first fallback). See `design/m16_structured_output_fix.md`.
 
 ## Keto Business Logic
 

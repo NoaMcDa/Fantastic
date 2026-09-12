@@ -22,7 +22,7 @@ if [[ -z "${OPENROUTER_API_KEY:-}" ]]; then
 fi
 
 # Keep in step with `OpenRouterClient.defaultModel`.
-MODEL="${1:-nex-agi/nex-n2.5-pro:free}"
+MODEL="${1:-dots-studio/dots-3-note-preview:free}"
 ENDPOINT="https://openrouter.ai/api/v1/chat/completions"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

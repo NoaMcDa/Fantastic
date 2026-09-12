@@ -52,23 +52,22 @@ class OpenRouterClient implements LlmChatClient {
   ///
   /// **Vision-capable, and that is a requirement rather than a preference:**
   /// #312's photo mode sends a plate of food, so a text-only model would fail
-  /// half the feature.
+  /// half the feature. Structured-output capable too, which the menu scanner
+  /// asks for first (`design/m16_structured_output_fix.md`).
   ///
-  /// **Verified live against `/api/v1/chat/completions` on 2026-09-12** (see
-  /// #411 and #414). The three ids M15 originally shipped had all retired
-  /// upstream, so the description mode failed with `badResponse` — surfaced
-  /// to the user as "אין חיבור אינטרנט".
-  ///
-  /// **Chosen for latency, not for JSON quality** (#414). The pick that produced
-  /// the tidiest itemised JSON on a Hebrew shakshuka prompt
-  /// (`dots-studio/dots-3-note-preview:free`) took 32 s to answer the app's
-  /// real system prompt, one second over [defaultTimeout] — and
-  /// `RemoteMacroEstimator._reasonFor` maps [ChatFailureReason.timeout] onto
-  /// [EstimateFailureReason.offline], which is the same "אין חיבור אינטרנט"
-  /// chip the user saw. This id answered the same prompt in 8–12 s across
-  /// four runs, well inside the budget, with valid JSON in the required
-  /// schema and Hebrew item names. Speed is a correctness property here.
-  static const String defaultModel = 'nex-agi/nex-n2.5-pro:free';
+  /// **Chosen by the product owner after the menu scanner failed on every
+  /// input mode** (`design/m16_structured_output_fix.md`, third report). It
+  /// was the runner-up in #414's measurement: the tidiest itemised JSON on
+  /// the Hebrew shakshuka prompt, and 32 s against the real M15 system
+  /// prompt — over the 30 s timeout of the day, which is why #414 pinned
+  /// `nex-agi/nex-n2.5-pro:free` for latency instead. The timeout has since
+  /// been 120 s (#429), so the measured answer fits with room to spare, and
+  /// the estimate sheet now waits about half a minute rather than ten
+  /// seconds. That trade was the owner's call to make, and it was made
+  /// without a fresh measurement: the session that made the switch could not
+  /// reach the host. If the estimate sheet starts timing out, this constant
+  /// and [fallbackModels] are the two lines to swap back.
+  static const String defaultModel = 'dots-studio/dots-3-note-preview:free';
 
   /// Free model ids come and go upstream.
   ///
@@ -78,13 +77,12 @@ class OpenRouterClient implements LlmChatClient {
   /// something a network adapter should do silently on a user's behalf, since
   /// two models do not return the same carb count.
   ///
-  /// Both entries produce cleaner itemised JSON than the primary on the
-  /// Hebrew test prompts but did not fit [defaultTimeout] in measurement
-  /// (32 s and 52 s respectively). Kept as documented alternatives from
-  /// unrelated providers, for the day someone bumps the timeout or the
-  /// provider gets faster.
+  /// The first entry is #414's latency pick (8–12 s on the real M15 prompt,
+  /// verified live on 2026-09-12) and the model the menu scanner first failed
+  /// against; the second produced clean JSON but took 52 s in the same
+  /// measurement. Both from unrelated providers to the pinned one.
   static const List<String> fallbackModels = [
-    'dots-studio/dots-3-note-preview:free',
+    'nex-agi/nex-n2.5-pro:free',
     'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
   ];
 

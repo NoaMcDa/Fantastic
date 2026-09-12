@@ -159,6 +159,28 @@ Two things were added so the next report is decisive rather than a third guess:
 the host is unreachable from here — and it is not stored anywhere in this repository. A
 key that has been in a chat should be rotated.
 
+## Third report: the model switch, at the owner's decision
+
+The owner sent the same photo and PDF a third time with the same instruction: switch to
+`dots-studio/dots-3-note-preview:free`. The concern above (no measurement possible from
+this session) was raised and the instruction repeated, so it is the owner's decision and
+`OpenRouterClient.defaultModel` is now `dots`, with `nex-agi/nex-n2.5-pro:free` moved to
+the head of `fallbackModels`. What is known about the trade:
+
+- **It is one client for both features**, so the Daily Intake estimate moves with it.
+  #414 measured `dots` at 32 s against the real M15 system prompt (versus 8–12 s for
+  `nex`) with the tidiest JSON of the candidates; the timeout has been 120 s since #429,
+  so the measured answer fits. The estimate sheet will wait longer than it did.
+- **`dots` is reported to accept images and structured outputs** (secondary sources; the
+  OpenRouter page itself is unreachable from here), so neither M15's photo mode nor the
+  menu's `json_schema` request is known to lose a capability.
+- **Not measured on a menu-sized reply.** A 40-dish menu is several thousand output
+  tokens; if `dots` reasons before answering, a large menu could approach the 120 s
+  window and surface as "אין חיבור לאינטרנט" (timeout maps to `offline`). The status
+  line added above does not show for a timeout, so that headline is itself the signal.
+  `tool/openrouter_probe.sh` defaults to the new model and reports elapsed seconds per
+  request for exactly this check.
+
 ## Lessons
 
 - **A request shape a feature adds must be exercised live before it ships**, with the
