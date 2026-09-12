@@ -16,12 +16,13 @@ import '../../fixtures/fixtures.dart';
 
 void main() {
   group('AppShell.activeIndexForLocation', () {
-    test('matches each of the 5 tab paths exactly', () {
+    test('matches each of the 6 tab paths exactly', () {
       expect(AppShell.activeIndexForLocation('/'), 0);
       expect(AppShell.activeIndexForLocation('/lens'), 1);
       expect(AppShell.activeIndexForLocation('/diary'), 2);
       expect(AppShell.activeIndexForLocation('/adaptation'), 3);
-      expect(AppShell.activeIndexForLocation('/profile'), 4);
+      expect(AppShell.activeIndexForLocation('/recipe'), 4);
+      expect(AppShell.activeIndexForLocation('/profile'), 5);
     });
 
     test('a sub-route of a tab keeps that tab active', () {
@@ -42,7 +43,7 @@ void main() {
   });
 
   group('AppShell widget', () {
-    testWidgets('renders a NavigationBar with 5 destinations', (tester) async {
+    testWidgets('renders a NavigationBar with 6 destinations', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [completedOnboardingGate()],
@@ -54,7 +55,7 @@ void main() {
       final navigationBar = tester.widget<NavigationBar>(
         find.byType(NavigationBar),
       );
-      expect(navigationBar.destinations, hasLength(5));
+      expect(navigationBar.destinations, hasLength(6));
       expect(navigationBar.selectedIndex, 0);
     });
 
