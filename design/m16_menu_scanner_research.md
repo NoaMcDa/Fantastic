@@ -4,15 +4,21 @@
 **M16 Epic, #351** (milestone #19, label `epic:m16-menu-scanner`, issues #352–#366,
 #372, #373, #405–#408)
 **Status:** the pasted-text and photographed-page modes are shipped — all fourteen
-original issues (#352–#366, not #363) plus #372 are code-complete. **The milestone stays
-open for PDF input** (#405–#408): a restaurant menu is very often a PDF, and a PDF is two
-problems wearing one extension — a text-layer PDF needs no OCR at all, a scanned one must
-be rasterised into the pipeline that already exists. See §12.
-The honest verified/not-verified line for what has shipped: **the pasted-text path
-and the photo-page path have both been driven end to end in the headless e2e suite
-(#366's `menu_text_flow.dart` and `menu_photo_flow.dart`), against a real `MenuAnalyzer`,
-`MenuPageReader`, prompt and parser on the photo side — but no real restaurant menu has
-ever been photographed or OCR'd.** §10 below has the full picture.
+original issues (#352–#366, not #363) plus #372 are code-complete, and **#373 has captured
+its first real photographed menu** (PR #410). **The milestone stays open for PDF input**
+(#405–#408): a restaurant menu is very often a PDF, and a PDF is two problems wearing one
+extension — a text-layer PDF needs no OCR at all, a scanned one must be rasterised into
+the pipeline that already exists. See §12.
+
+The honest verified/not-verified line: the pasted-text and photo-page paths have both been
+driven end to end in the headless e2e suite (#366's `menu_text_flow.dart` and
+`menu_photo_flow.dart`), against a real `MenuAnalyzer`, `MenuPageReader`, prompt and parser
+on the photo side. **One real restaurant menu has now been photographed and read** — and it
+produced the finding that should govern the rest of the milestone: **the dish names survive
+and the prices do not**, 9 of 23 names character-perfect against 2 of 23 prices, the rest
+losing their leading digit (`28` → `8`). Hence the hard rule in §10: **M16 must never
+present a scanned price as fact.** #373 asked for three deliberately differing menus and has
+one, so it **stays open**. §5 and §10 have the full picture.
 **Read before:** picking up any M16 issue, and before touching M12 (#267, #121, #122),
 which this milestone supersedes — see §1.1 and §11.
 
@@ -371,6 +377,78 @@ selected in one provider — the OCP shape #312 made an invariant. It changes wh
 the device, so it changes the disclosure; §8's invariant says so. **Nothing measured so
 far requires filing it.**
 
+
+### The photographed menu measured the same questions on a real page (#373)
+
+> Captured by #373 / PR #410 on `main`, from a real Israeli restaurant menu
+> photographed off a table (480x640, 40 KB — a phone photo after a messaging
+> app). It **corroborates and extends** the rendered-menu capture above: the
+> columns hold, and the prices are what break.
+
+### 5.2 The answer: the columns held
+
+**`psm 4` kept the rows whole.** On the photographed menu, dish text and its
+price land on the same output line; there is no line anywhere in the transcript
+that is a run of bare prices with the dishes elsewhere. `real_menu_pipeline_test.dart`
+pins that as an assertion rather than leaving it as prose.
+
+So **the column risk this section was opened to investigate is not what goes
+wrong on a real menu.** The prompt's planned "columns may be interleaved"
+instruction is not load-bearing for this layout, and the vision swap does not
+need to be filed on account of column interleaving. Something else goes wrong
+instead — see §10.
+
+### 5.3 But `psm 4` is not obviously the right mode for a menu
+
+Measured on the same photograph, same models, same DPI, varying only the page
+segmentation mode:
+
+| psm | chars | lines | Hebrew lines | dish rows keeping a number | prices correct |
+|---|---|---|---|---|---|
+| 3 | 842 | 22 | 21 | 12 | 2 |
+| **4 (shipped)** | **843** | **22** | **21** | **12** | **2** |
+| **6** | **1022** | **27** | **24** | **20** | **1** |
+| 11 | 926 | 50 | 34 | 8 | 1 |
+| 12 | 915 | 48 | 33 | 9 | 1 |
+
+`psm 6` returned **21% more text** than the shipped `psm 4` and kept **20 of
+the 23 dish rows** against `psm 4`'s 12 — recovering most of a third menu
+section that `psm 4` dropped from its output entirely. It degrades into noise
+at the very bottom of the frame, where the restaurant's logo is, which `psm 4`
+avoids by stopping early.
+
+Neither mode reads the prices (§10).
+
+**This is a finding, not yet a recommendation.** It is one photograph. Changing
+the shipped constant would change Keto Lens too, where `psm 4` was chosen for a
+measured reason on the failure that produced it, so a menu scanner wanting
+`psm 6` should pass its own mode rather than re-pin the shared one. Filing that
+decision needs the other two menus #373 asks for.
+
+### 5.4 Resolution is not the lever
+
+Also measured, so that nobody spends the effort: re-running the same photograph
+at 1600 (the app's own `targetWidth`), 2400, 3200, 4000 and 4500 px wide, on
+the app's own greyscale-then-linear kernel:
+
+| output width | numbers returned | distinct prices correct (of 19) |
+|---|---|---|
+| 1600 (shipped) | 12 | 2 |
+| 2400 | 12 | 1 |
+| 3200 | 14 | 1 |
+| 4000 | 20 | 3 |
+| 4500 | 19 | 3 |
+
+Upscaling cannot invent strokes a 480 px source never recorded. The app's own
+`OcrImagePrep.targetWidth` is as good as any larger number here, and its
+`maxUpscale` cap of 4 is not what costs the digits. `OcrImagePrep`'s own
+docstring guessed the other way — *"a real camera photo has several times the
+detail and none of this brittleness is expected to apply to it"* — and flagged
+itself as unverified. It is now verified, and it was optimistic for a
+photograph that has been through a messaging app.
+
+---
+
 ---
 
 ## 6. Architecture
@@ -727,6 +805,121 @@ OCR capture, needing no camera) and #373 (a photographed real menu, needing a hu
 a phone) are the still-open work that would close it, and neither is built. Until one of
 them lands, "the photo path works" means "proven against fakes and a hand-typed
 transcript," not "proven against an engine reading a real, curled, glare-lit menu photo."
+
+
+### The photographed-menu corpus (#373 / PR #410)
+
+> Merged from `main`. This is the first real menu in the repository, and it
+> changes what M16 may show the user.
+
+### 10.1 What the corpus now has, and what it still lacks
+
+M16's corpus has three provenance tiers, mirroring the three the repo keeps for
+labels:
+
+| Tier | Artefact | State |
+|---|---|---|
+| Hand-typed menu text | `HebrewMenuFixture` (#352) | **Not collected** |
+| Rendered menu → real engine output | `RenderedMenuOcrFixture` (#372) | **Not collected** |
+| **Photographed menu → real engine output** | `PhotographedMenuOcrFixture` (#373) | **One menu of the three** |
+
+`test/fixtures/images/vivie_restaurant_menu.jpg` is a real Israeli restaurant
+menu photographed off a table, supplied by the owner. It is the first menu of
+any kind in this repository.
+
+**It is one menu, and #373 asks for three deliberately differing ones** — a
+multi-column layout, a laminated sheet with glare, and a bilingual
+Hebrew/English card. This is none of those three on purpose; it is simply the
+menu somebody had. **#373 stays open.**
+
+The photograph arrived at **480×640, 40 KB** — a phone photo after a messaging
+app had had it. Nothing here downscaled it further. That is not a defect of the
+corpus, it is the normal path by which a photograph reaches an app that accepts
+one from the gallery, and §5.4 shows it is the binding constraint.
+
+### 10.2 The finding: the dish names read, the prices do not
+
+The two halves point in opposite directions, and the split is the most useful
+thing M16 has learned about its own input.
+
+**Dish names survive.** Scored by edit distance against the printed menu, of
+the 23 dish names:
+
+- **9 came back character-perfect** — `צלחת חריפים`, `ריזוטו, פטריות בלו אויסטר`,
+  `פילה דג ים, אורז אסור, ביסק סרטנים`.
+- **17 scored 0.75 or better**, the band where a name is plainly recognisable
+  through one or two corrupted letters (`ברוסקטה סרדינים כבושיט` for
+  `...כבושים`).
+- **19 scored 0.70 or better.**
+- The **4 that failed** (0.33–0.55) are the last four dishes on the page,
+  nearest the foot of the photograph where the frame falls off. That is a
+  property of where they sat in the shot, not of the dishes.
+
+**Prices do not survive, and they fail in the dangerous direction.** The menu
+prints 23 prices, 19 of them distinct. The pipeline returned **12 numbers**.
+**Two were right.** The other ten match nothing printed anywhere on the menu,
+and they are wrong in one consistent way: the left-hand digit is gone and the
+right-hand one survives.
+
+| printed | returned |
+|---|---|
+| 28 | 8 |
+| 18 | 8 |
+| 52 | 2 |
+| 74 | 4 |
+| 63 | 3 |
+| 58 | 8 |
+| 72 | **72** |
+| 79 | **79** |
+
+The nine dishes of the third section returned no number at all.
+
+### 10.3 Why that asymmetry is good news, with one hard rule attached
+
+**A keto classifier reads ingredients, not prices.** The payload M16 needs is
+the payload that survives. This is the exact inverse of Keto Lens, where the
+numbers are the whole point and the Hebrew is scaffolding — and it means the
+menu scanner's core function is viable on real photographs in a way the label
+scanner's was not until `psm 4` + `heb+eng` + `user_defined_dpi` were found.
+
+The rule that follows is not optional:
+
+> **M16 must never present a scanned price as fact.**
+
+A price that comes back as nothing is a safe failure. A 28 shekel dish
+displayed as 8 shekels is not — it is a *plausible wrong number*, the failure
+#257 was, and the user has no way to tell it from a correct one by looking at
+it. If prices are surfaced at all they must be shown as the user's to confirm,
+exactly as `ScanResultSheet` treats an unknown `ServingBasis`. The safest
+reading of this measurement is that M16 should not extract prices at all in its
+first version.
+
+`real_menu_pipeline_test.dart` pins the deficiency, in the same spirit as
+`real_ocr_pipeline_test.dart` pinning the lost carbohydrate row of the pointed
+wafer. **If that test fails because the engine started reading prices, that is
+good news and the fix is to rewrite this section — not to loosen the test.**
+
+### 10.4 A menu is not a nutrition label, and the shipped scanner agrees
+
+Worth stating because it was never checked before and M16 makes it reachable:
+once a second scanner exists in the same tab shell with the same camera, the
+most likely wrong thing for a user to point Keto Lens at is a menu.
+
+Fed this transcript, `ScanOrchestrator` returns `ScanFailed(notALabel)` and
+carries the raw text through for the user to see. No macro parses out of it —
+not from `שמן זית` in a dish description, not from anything. That is #83's rule
+holding on an input class it was never tested against, and it is now a test.
+
+### 10.5 What is still unverified
+
+- **No menu has been read through the app's own camera.** There is no camera in
+  this repository. This is a photograph handed to the gallery path.
+- **One menu is not an accuracy figure.** Nothing here claims a percentage for
+  menus in general, and the 9-of-23-perfect result is one page, one restaurant,
+  one typeface, one light.
+- **No laminated menu, no glare, no bilingual card.** The three shapes #373
+  names as the point of the exercise are all still missing.
+- **`psm 6` is a measurement, not a decision** (§5.3).
 
 ---
 
