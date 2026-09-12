@@ -758,7 +758,7 @@ repo-admin operation from a session.
 | M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |
 | M14 — Backup & Restore | `epic:m14-backup` | #123–#124 | 2 |
 | M15 — Meal Entry | `epic:m15-meal-entry` | #315–#328 | 14 — **complete** |
-| M16 — AI Menu Scanner | `epic:m16-menu-scanner` | #352–#366 (not #363), #372, #373 | 16 — **shipped, 1 open (#373)** |
+| M16 — AI Menu Scanner | `epic:m16-menu-scanner` | #352–#366 (not #363), #372, #373, #405–#408 | 20 — **text and photo modes shipped; 5 open (#373, #405–#408 PDF input)** |
 | Login — accounts & identity | `epic:login` | #206–#226 | 16 |
 
 **M9–M16 are numbered by recommended build order, not by dependency** — they are

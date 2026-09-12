@@ -1,9 +1,14 @@
 # M16 — AI Menu Scanner: research, pre-flight, and the milestone plan
 
 **Source:** the product owner's M16 request, quoted verbatim in §1 → rewritten as the
-**M16 Epic, #351** (milestone #19, label `epic:m16-menu-scanner`, issues #352–#366)
-**Status:** shipped. All fourteen issues (#352–#366, not #363) are code-complete;
-`design/mvp_handoff.md`-style honest verified/not-verified line: **the pasted-text path
+**M16 Epic, #351** (milestone #19, label `epic:m16-menu-scanner`, issues #352–#366,
+#372, #373, #405–#408)
+**Status:** the pasted-text and photographed-page modes are shipped — all fourteen
+original issues (#352–#366, not #363) plus #372 are code-complete. **The milestone stays
+open for PDF input** (#405–#408): a restaurant menu is very often a PDF, and a PDF is two
+problems wearing one extension — a text-layer PDF needs no OCR at all, a scanned one must
+be rasterised into the pipeline that already exists. See §12.
+The honest verified/not-verified line for what has shipped: **the pasted-text path
 and the photo-page path have both been driven end to end in the headless e2e suite
 (#366's `menu_text_flow.dart` and `menu_photo_flow.dart`), against a real `MenuAnalyzer`,
 `MenuPageReader`, prompt and parser on the photo side — but no real restaurant menu has
@@ -746,6 +751,76 @@ transcript," not "proven against an engine reading a real, curled, glare-lit men
    change. If M11's directory ships, "analyse this venue's menu" from a venue card is the
    better door and `/restaurants/:id/menu` (already in `architecture.md`'s route table)
    becomes a second route to the same screen. *Recommendation: lens chip now.*
+
+---
+
+## 12. PDF input (#405–#408), added after the first fourteen shipped
+
+The owner asked for PDF menus once the text and photo modes were working. A menu arrives as a
+PDF at least as often as it arrives as a photograph — emailed by the venue, downloaded from its
+site, forwarded in a message — and the app could not take one: `grep -rni "pdf"` over `lib/`,
+`test/` and `pubspec.yaml` returned zero matches.
+
+**A PDF is two problems wearing one file extension.**
+
+| Kind | What it is | How it becomes text |
+|---|---|---|
+| **Text-layer** | A designed export; the characters are really in the file | Extracted directly. No OCR, no recognition error, and it works on a build with **no OCR engine at all** |
+| **Scanned** | A photograph wrapped in a PDF; no characters exist | Rasterised per page, then read by the **existing** Tesseract pipeline |
+
+A user cannot tell which kind they hold, so both must work. That is why this is four issues
+rather than one: #405 the seam and the text layer, #406 the rasteriser, #407 the picker,
+#408 the third input mode.
+
+### The engine decision
+
+**`pdfrx` ^2.6 (MIT)** for reading, **`file_selector` ^1.0 (BSD-3-Clause, flutter.dev)** for
+picking. `pdfrx` is the only maintained package that does *both* extraction and rasterising
+across all six targets, so one dependency serves both halves. `file_selector` is close to free:
+three of its five platform implementations were already in `pubspec.lock` as transitive
+dependencies of `image_picker`.
+
+**`syncfusion_flutter_pdf` was evaluated and rejected.** It is pure Dart — no native binaries,
+no firewall, zero platform risk, which was genuinely attractive. It cannot rasterise, so it
+could not serve a scanned menu without a second engine beside it, and it is proprietary: the
+Syncfusion Community License requires gross revenue under $1M *and* fewer than five developers.
+MIT with one dependency beats a licence that lapses as the product grows.
+
+### The risk this carries, stated before it bites
+
+`pdfrx` → `pdfrx_engine` → `pdfium_dart`, whose README says PDFium is *"downloaded and bundled
+at build time"* through **Dart native assets** (`hooks`, `code_assets`). That is a build-time
+network fetch plus a young Dart feature, landing on six pinned CI runners.
+`design/m6_platform_handoff.md` records that **every one of those runners has previously caught
+a defect that compiled cleanly on all the others**. #405 is deliberately first and deliberately
+small so this is discovered cheaply; if the six builds cannot be made green, the milestone
+stops there rather than working around it.
+
+### The Hebrew trap, and the guard for it
+
+Israeli menu PDFs are frequently produced by design tools that embed **subset fonts with no
+usable `ToUnicode` map**. Extraction from those yields mojibake — plausible-looking character
+soup, not Hebrew — and mojibake is *worse* than no text at all: it reaches the model, spends one
+of the 50 daily free requests, and returns invented dishes that `MenuResponseParser`'s
+provenance rule then silently discards, leaving the user with an empty result and no reason.
+
+So #405 carries a **legibility guard**: a page whose extracted text does not clear a
+Hebrew-letter-ratio threshold is treated as *having no usable text layer* and routed to the OCR
+path instead. Failing safe into the slower, proven pipeline is the right direction; sending
+garbage to a paid model is not.
+
+### What is unchanged
+
+`MenuAnalyzer`'s interface does not change — `RemoteMenuAnalyzer` already accepts `text` and
+`imagePaths` together and joins them into one `source` for one request, which is exactly what a
+mixed PDF needs. The prompt, the parser, `MenuResultView` and every failure state are reused
+untouched. **The PDF never leaves the device**, on the same terms as the photograph: only
+extracted or locally-recognised text is sent, and `menu_pdf_flow.dart` asserts it. Keto Lens's
+no-network invariant is untouched — a *scan* still makes no request.
+
+**Epic #351's "no new plugin, no new store, no change to either conditional-export firewall"
+invariant was amended, not waived**, to permit exactly these two packages and — only if
+`flutter build web` proves it necessary — a third firewall.
 
 ---
 
