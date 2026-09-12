@@ -8,9 +8,16 @@ import 'package:go_router/go_router.dart';
 
 /// Step 3 of 4 — what the user wants keto to do for them.
 ///
-/// Single-select, and the CTA stays disabled until something is chosen:
-/// there is no sensible default, and pre-selecting one would record a
-/// preference the user never expressed.
+/// **Multi-select, at least one.** The three reasons people start keto are
+/// not exclusive: somebody can want to lose weight and train well, and M4's
+/// radio group made them drop one — after which the profile tab showed them
+/// half of what they said. Two of the three now change the arithmetic, so
+/// this is not only a label: weight loss applies the TDEE deficit and
+/// athletic performance raises the net-carb target.
+///
+/// The CTA stays disabled until at least one card is chosen: there is no
+/// sensible default, and pre-selecting one would record a preference the user
+/// never expressed.
 ///
 /// Takes the answers from screen 2 and hands the completed [OnboardingData]
 /// to screen 4.
@@ -24,7 +31,7 @@ class OnboardingScreen3 extends StatefulWidget {
 }
 
 class _OnboardingScreen3State extends State<OnboardingScreen3> {
-  KetoGoal? _selected;
+  final Set<KetoGoal> _selected = <KetoGoal>{};
 
   static const Map<KetoGoal, IconData> _icons = {
     KetoGoal.weightLoss: Icons.monitor_weight_outlined,
@@ -36,23 +43,38 @@ class _OnboardingScreen3State extends State<OnboardingScreen3> {
   Widget build(BuildContext context) {
     return OnboardingScaffold(
       step: 3,
-      title: 'מה המטרה שלכם?',
+      title: 'מה המטרות שלכם?',
       ctaLabel: 'הבא',
-      onNext: _selected == null ? null : _onNext,
+      onNext: _selected.isEmpty ? null : _onNext,
       child: ListView(
         padding: const EdgeInsets.only(top: 8, bottom: 8),
         children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              GoalCopy.pickMoreThanOneHint,
+              key: const Key('goal_multi_select_hint'),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
           for (final goal in GoalCopy.order) ...[
             GoalCard(
               key: Key('goal_${goal.name}'),
               title: GoalCopy.titles[goal]!,
               subtitle: GoalCopy.subtitles[goal]!,
               icon: _icons[goal]!,
-              selected: _selected == goal,
-              // Selecting is not a toggle: tapping the chosen card again
-              // leaves it chosen rather than dropping back to no answer and
-              // silently disabling the CTA.
-              onTap: () => setState(() => _selected = goal),
+              selected: _selected.contains(goal),
+              // A toggle, now that the group is multi-select: tapping a
+              // chosen card takes it back out. Deselecting the last one
+              // disables the CTA rather than committing an empty set, which
+              // [OnboardingData] asserts against anyway.
+              onTap: () => setState(
+                () => _selected.contains(goal)
+                    ? _selected.remove(goal)
+                    : _selected.add(goal),
+              ),
             ),
             const SizedBox(height: 12),
           ],
@@ -61,6 +83,10 @@ class _OnboardingScreen3State extends State<OnboardingScreen3> {
     );
   }
 
-  void _onNext() =>
-      context.push('/onboarding/4', extra: widget.partial.withGoal(_selected!));
+  // A copy, not the live set: this screen keeps mutating `_selected` as the
+  // user taps, and `OnboardingData` seals what it is given.
+  void _onNext() => context.push(
+    '/onboarding/4',
+    extra: widget.partial.withGoals(Set.of(_selected)),
+  );
 }

@@ -18,7 +18,7 @@ import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
 import 'package:fantastic/features/diary/presentation/widgets/add_meal_bottom_sheet.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
 import 'package:fantastic/features/onboarding/application/providers/user_profile_providers.dart';
-import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
+import 'package:fantastic/features/onboarding/domain/models/user_profile.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_check_in_strip.dart';
 import 'package:fantastic/features/adaptation/presentation/widgets/grace_period_banner.dart';
 import 'package:flutter/material.dart';
@@ -79,11 +79,11 @@ void main() {
       mealLoggingServiceProvider.overrideWithValue(loggingService),
       streakRepositoryProvider.overrideWithValue(streakRepository),
       dailyLogRepositoryProvider.overrideWithValue(_MockDailyLogRepository()),
-      // MacroSummaryCard measures the day against the onboarding profile's
-      // targets (#73); without an override it reaches for a database.
-      macroTargetsProvider.overrideWith(
-        (ref) => Stream.value(MacroTargets.defaults),
-      ),
+      // MacroSummaryCard measures the day against the onboarding profile
+      // (#73), and against the day's own training flag on top of it (#431);
+      // without an override it reaches for a database. Null is a user who has
+      // not onboarded, whose targets are the defaults.
+      onboardedProfileProvider.overrideWith((ref) => Stream.value(null)),
       // #76 put SymptomCheckInStrip on the dashboard, so the screen now
       // reads the day's symptom log too.
       symptomLogProvider(date).overrideWith((ref) async => symptoms),
@@ -187,8 +187,8 @@ void main() {
                 .overrideWith((ref) async => throw Exception('disk gone')),
             symptomLogProvider(date)
                 .overrideWith((ref) async => throw Exception('disk gone')),
-            macroTargetsProvider.overrideWith(
-              (ref) => Stream<MacroTargets>.error(Exception('disk gone')),
+            onboardedProfileProvider.overrideWith(
+              (ref) => Stream<UserProfile?>.error(Exception('disk gone')),
             ),
             mealLoggingServiceProvider.overrideWithValue(loggingService),
             streakRepositoryProvider.overrideWithValue(streakRepository),
@@ -222,8 +222,8 @@ void main() {
                 .overrideWith((ref) => Completer<List<MealEntry>>().future),
             symptomLogProvider(date)
                 .overrideWith((ref) => Completer<SymptomLog?>().future),
-            macroTargetsProvider.overrideWith(
-              (ref) => const Stream<MacroTargets>.empty(),
+            onboardedProfileProvider.overrideWith(
+              (ref) => const Stream<UserProfile?>.empty(),
             ),
             mealLoggingServiceProvider.overrideWithValue(loggingService),
             streakRepositoryProvider.overrideWithValue(streakRepository),

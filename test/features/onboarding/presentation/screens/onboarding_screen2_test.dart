@@ -1,3 +1,5 @@
+import 'package:fantastic/core/constants/activity_copy.dart';
+import 'package:fantastic/features/onboarding/domain/models/activity_level.dart';
 import 'package:fantastic/features/onboarding/domain/models/biological_sex.dart';
 import 'package:fantastic/features/onboarding/domain/models/onboarding_data.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen2.dart';
@@ -24,6 +26,20 @@ void main() {
       '176',
     );
     await tester.pump();
+  }
+
+  /// Scrolls [finder] into view before tapping it.
+  ///
+  /// The screen grew an activity selector, so the "כבר בקטו?" switch and the
+  /// date tile below it now sit past the bottom of the default 800x600 test
+  /// viewport. They are built — the `Column` under the `SingleChildScrollView`
+  /// builds eagerly, deliberately — but a tap on a widget outside the viewport
+  /// does not reach it.
+  Future<void> scrollAndTap(WidgetTester tester, Finder finder) async {
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    await tester.tap(finder);
+    await tester.pumpAndSettle();
   }
 
   Future<void> tapNext(WidgetTester tester) async {
@@ -214,8 +230,7 @@ void main() {
     testWidgets('reveals the date row when switched on', (tester) async {
       await pumpOnboarding(tester, const OnboardingScreen2());
 
-      await tester.tap(find.byType(SwitchListTile));
-      await tester.pumpAndSettle();
+      await scrollAndTap(tester, find.byType(SwitchListTile));
 
       expect(find.text('תאריך התחלה'), findsOneWidget);
       expect(find.text('בחרו תאריך'), findsOneWidget);
@@ -224,11 +239,9 @@ void main() {
     testWidgets('a chosen date is shown and carried to step 3', (tester) async {
       await pumpOnboarding(tester, const OnboardingScreen2());
       await fillValidAnswers(tester);
-      await tester.tap(find.byType(SwitchListTile));
-      await tester.pumpAndSettle();
+      await scrollAndTap(tester, find.byType(SwitchListTile));
 
-      await tester.tap(find.text('בחרו תאריך'));
-      await tester.pumpAndSettle();
+      await scrollAndTap(tester, find.text('בחרו תאריך'));
       // The picker opens on today, which is always selectable. Its confirm
       // button is localised — 'אישור' under the Hebrew locale the app runs
       // in, not 'OK'.
@@ -249,22 +262,121 @@ void main() {
     testWidgets('switching back off clears the date', (tester) async {
       await pumpOnboarding(tester, const OnboardingScreen2());
       await fillValidAnswers(tester);
-      await tester.tap(find.byType(SwitchListTile));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('בחרו תאריך'));
-      await tester.pumpAndSettle();
+      await scrollAndTap(tester, find.byType(SwitchListTile));
+      await scrollAndTap(tester, find.text('בחרו תאריך'));
       await tester.tap(find.text('אישור'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(SwitchListTile));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byType(SwitchListTile));
-      await tester.pumpAndSettle();
+      await scrollAndTap(tester, find.byType(SwitchListTile));
+      await scrollAndTap(tester, find.byType(SwitchListTile));
 
       expect(find.text('בחרו תאריך'), findsOneWidget);
 
       await tapNext(tester);
       expect((lastPushedExtra! as PartialOnboardingData).ketoStartDate, isNull);
+    });
+  });
+
+  // #431's second bullet: the flow asked no activity question at all, so
+  // every user's BMR was multiplied by the sedentary 1.2.
+  group('the activity question', () {
+    testWidgets('renders one segment per level', (tester) async {
+      await pumpOnboarding(tester, const OnboardingScreen2());
+
+      expect(find.byType(SegmentedButton<ActivityLevel>), findsOneWidget);
+      for (final level in ActivityLevel.values) {
+        expect(
+          find.byKey(Key('activity_${level.name}')),
+          findsOneWidget,
+          reason: 'no segment for ${level.name}',
+        );
+      }
+    });
+
+    // The conservative tier: a target set too high stalls weight loss
+    // silently, and the user can correct it on this very screen.
+    testWidgets('starts on the conservative tier', (tester) async {
+      await pumpOnboarding(tester, const OnboardingScreen2());
+
+      final selector = tester.widget<SegmentedButton<ActivityLevel>>(
+        find.byType(SegmentedButton<ActivityLevel>),
+      );
+      expect(selector.selected, {ActivityCopy.defaultLevel});
+      expect(ActivityCopy.defaultLevel, ActivityLevel.sedentary);
+    });
+
+    // Five Hebrew labels do not fit one segmented button on a phone, so the
+    // segments carry icons and the chosen tier is spelled out underneath.
+    // Without that the screen would show the user five pictures and no words.
+    testWidgets('spells out the chosen tier in words', (tester) async {
+      // Read by key rather than by text: 'פעיל' is a substring of the
+      // question above the control ('כמה אתם פעילים?'), so a text finder
+      // matches two widgets and says nothing about which one moved.
+      String caption(WidgetTester tester) => tester
+          .widget<Text>(find.byKey(const Key('activity_level_caption')))
+          .data!;
+
+      await pumpOnboarding(tester, const OnboardingScreen2());
+
+      expect(
+        caption(tester),
+        contains(ActivityCopy.titles[ActivityLevel.sedentary]),
+      );
+
+      await tester.tap(find.byKey(const Key('activity_active')));
+      await tester.pumpAndSettle();
+
+      expect(
+        caption(tester),
+        contains(ActivityCopy.titles[ActivityLevel.active]),
+      );
+      expect(
+        caption(tester),
+        contains(ActivityCopy.subtitles[ActivityLevel.active]),
+      );
+    });
+
+    testWidgets('the chosen level reaches step 3', (tester) async {
+      await pumpOnboarding(tester, const OnboardingScreen2());
+      await fillValidAnswers(tester);
+
+      await tester.tap(find.byKey(const Key('activity_moderate')));
+      await tester.pumpAndSettle();
+      await tapNext(tester);
+
+      expect(
+        (lastPushedExtra! as PartialOnboardingData).activityLevel,
+        ActivityLevel.moderate,
+      );
+    });
+
+    testWidgets('an untouched selector still sends sedentary', (tester) async {
+      await pumpOnboarding(tester, const OnboardingScreen2());
+      await fillValidAnswers(tester);
+      await tapNext(tester);
+
+      expect(
+        (lastPushedExtra! as PartialOnboardingData).activityLevel,
+        ActivityLevel.sedentary,
+      );
+    });
+
+    // An icon on its own says nothing to a screen reader.
+    testWidgets('every segment carries a label for assistive tech', (
+      tester,
+    ) async {
+      await pumpOnboarding(tester, const OnboardingScreen2());
+
+      for (final level in ActivityLevel.values) {
+        final icon = tester.widget<Icon>(
+          find.byKey(Key('activity_${level.name}')),
+        );
+        expect(
+          icon.semanticLabel,
+          ActivityCopy.titles[level],
+          reason: 'no semantic label on ${level.name}',
+        );
+      }
     });
   });
 }

@@ -1,3 +1,5 @@
+import 'package:fantastic/core/constants/activity_copy.dart';
+import 'package:fantastic/features/onboarding/domain/models/activity_level.dart';
 import 'package:fantastic/features/onboarding/domain/models/biological_sex.dart';
 import 'package:fantastic/features/onboarding/domain/models/onboarding_data.dart';
 import 'package:fantastic/features/onboarding/presentation/onboarding_validators.dart';
@@ -8,7 +10,10 @@ import 'package:intl/intl.dart' hide TextDirection;
 
 /// Step 2 of 4 — the biometrics the macro calculation needs.
 ///
-/// Sex, age, weight and height feed Mifflin-St Jeor. The "כבר בקטו?" toggle
+/// Sex, age, weight and height feed Mifflin-St Jeor, and the activity
+/// question feeds the factor its TDEE step multiplies by — M4 asked no such
+/// question and assumed 1.2 for everybody, so a user who trains was handed a
+/// sedentary person's targets. The "כבר בקטו?" toggle
 /// and its date picker feed the streak seed — `design/ui_ux_design.md` §1b
 /// and `design/tasks.md` both specify them, Epic #8's Definition of Done
 /// requires the seeding they enable, and #70's text has neither
@@ -31,6 +36,11 @@ class _OnboardingScreen2State extends State<OnboardingScreen2> {
   /// Defaulted rather than nullable: a segmented control with nothing
   /// selected reads as broken, and both options are equally likely.
   BiologicalSex _sex = BiologicalSex.female;
+
+  /// Defaulted to the conservative tier for the reason
+  /// `ActivityCopy.defaultLevel` documents: under-promising on activity is the
+  /// safer error for a number the user can correct on this very screen.
+  ActivityLevel _activity = ActivityCopy.defaultLevel;
 
   bool _alreadyOnKeto = false;
   DateTime? _ketoStartDate;
@@ -110,6 +120,11 @@ class _OnboardingScreen2State extends State<OnboardingScreen2> {
                 validator: OnboardingValidators.heightCm,
                 textDirection: TextDirection.ltr,
               ),
+              const SizedBox(height: 24),
+              _ActivitySelector(
+                value: _activity,
+                onChanged: (level) => setState(() => _activity = level),
+              ),
               const SizedBox(height: 8),
               SwitchListTile(
                 key: const Key('already_on_keto_switch'),
@@ -185,12 +200,78 @@ class _OnboardingScreen2State extends State<OnboardingScreen2> {
       // return null after `validate()` passed.
       weightKg: OnboardingValidators.positiveFinite(_weightController.text)!,
       heightCm: OnboardingValidators.positiveFinite(_heightController.text)!,
+      activityLevel: _activity,
       // Null unless the toggle is on *and* a date was chosen: a toggle
       // switched on and then ignored is not a claim about a start date.
       ketoStartDate: _alreadyOnKeto ? _ketoStartDate : null,
     );
 
     context.push('/onboarding/3', extra: data);
+  }
+}
+
+/// How active an ordinary day is, as a five-option segmented control.
+///
+/// **Icon-only segments with the chosen tier spelled out underneath.** Five
+/// Hebrew labels inside one segmented button do not fit a 320px screen, and a
+/// dropdown hides four of the five answers behind a tap. Icons fit, and the
+/// caption below carries the title and the description of whichever one is
+/// selected — so the screen still says, in words, what the user just chose.
+///
+/// Each segment carries a tooltip and a semantic label, because an icon on
+/// its own says nothing to a screen reader.
+class _ActivitySelector extends StatelessWidget {
+  const _ActivitySelector({required this.value, required this.onChanged});
+
+  final ActivityLevel value;
+  final ValueChanged<ActivityLevel> onChanged;
+
+  static const Map<ActivityLevel, IconData> _icons = {
+    ActivityLevel.sedentary: Icons.weekend_outlined,
+    ActivityLevel.light: Icons.directions_walk,
+    ActivityLevel.moderate: Icons.directions_run,
+    ActivityLevel.active: Icons.fitness_center,
+    ActivityLevel.veryActive: Icons.local_fire_department_outlined,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(ActivityCopy.question, style: theme.textTheme.bodyMedium),
+        const SizedBox(height: 8),
+        SegmentedButton<ActivityLevel>(
+          key: const Key('activity_level_selector'),
+          showSelectedIcon: false,
+          segments: [
+            for (final level in ActivityCopy.order)
+              ButtonSegment(
+                value: level,
+                tooltip: ActivityCopy.titles[level],
+                icon: Icon(
+                  _icons[level],
+                  key: Key('activity_${level.name}'),
+                  semanticLabel: ActivityCopy.titles[level],
+                ),
+              ),
+          ],
+          selected: {value},
+          onSelectionChanged: (selection) => onChanged(selection.first),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '${ActivityCopy.titles[value]} · ${ActivityCopy.subtitles[value]}',
+          key: const Key('activity_level_caption'),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
   }
 }
 

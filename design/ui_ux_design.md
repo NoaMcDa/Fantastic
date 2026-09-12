@@ -64,19 +64,28 @@ right. `מתכונים` (#119) is the sixth and the first post-MVP tab.
 #### 1a. Welcome
 - Full-screen illustration: keto plate (avocado, eggs, salmon, olive oil) with Hebrew tagline
 - CTA: "בואו נתחיל" (Let's start)
+- Secondary, below the CTA: "דלג בינתיים" (skip for now), with one line saying what a skip
+  costs — generic targets, and nowhere to change them yet. A `TextButton`, never a second
+  filled button: the choice is not undoable while the profile tab is read-only (#262, #431).
 - No account sub-link: there are no accounts in the MVP — Epic #8 lists social login and
   account creation as explicitly out of scope. See `design/m4_preflight.md` §6.3.
 
 #### 1b. About You
 - Fields: Sex, Age, Weight (kg), Height (cm)
+- Activity level: five icon-only segments (יושבני / קל / בינוני / פעיל / פעיל מאוד), with the
+  chosen tier spelled out underneath. Five Hebrew labels do not fit one segmented button on a
+  phone. It feeds the Mifflin-St Jeor activity factor, which was a fixed 1.2 for every user
+  until #431 — see `ActivityLevel`.
 - Toggle: "כבר בקטו?" (Already on keto?) → if yes, ask start date to seed streak
 
 #### 1c. Goals
-- Three cards (single-select), matching the shipped `KetoGoal` enum:
+- Three cards (**multi-select, at least one**), matching the shipped `KetoGoal` enum. Single-select
+  until #431: the three reasons are not exclusive, and somebody who wanted two had to drop one.
   - ירידה במשקל (Weight loss) — `KetoGoal.weightLoss`
   - בריאות מטבולית (Metabolic health) — `KetoGoal.metabolicHealth`
   - ביצועים ספורטיביים (Athletic performance) — `KetoGoal.athleticPerformance`
-- Only `weightLoss` changes the arithmetic today (a 20% TDEE deficit). This list was
+- Two of the three change the arithmetic: `weightLoss` applies a 20% TDEE deficit (and caps the
+  net-carb target at 25 g), `athleticPerformance` adds 5 g to the net-carb target. This list was
   previously "Energy & focus / Medical condition management"; it was reconciled with
   the enum #71 defines and #73 codes against — see `design/m4_preflight.md` §6.1, which
   also records why the choice is worth revisiting.
@@ -86,6 +95,10 @@ right. `מתכונים` (#119) is the sixth and the first post-MVP tab.
 #### 1d. Daily Targets
 - Auto-calculated macro targets shown (editable)
 - Fat: `__g` Carbs: `__g` Protein: `__g`
+- **All three are derived from the user now.** The net-carb target was the constant 20 g for
+  everybody until #431; it is now read from an activity table and adjusted by the goals, always
+  clamped inside 20–50 g so the calculator can never propose a target that is itself a streak
+  breach.
 - Electrolyte targets are **not** shown here: they are per-phase, not per-user, owned by
   `ElectrolyteConstants` and rendered by the dashboard's electrolytes card. There is
   nothing for onboarding to compute or save. See `design/m4_preflight.md` §6.4.

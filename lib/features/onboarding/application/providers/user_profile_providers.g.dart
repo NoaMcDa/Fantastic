@@ -8,7 +8,7 @@ part of 'user_profile_providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// The macro targets the dashboard measures a day against.
+/// The saved profile, or null when onboarding has never completed.
 ///
 /// A stream rather than a one-shot read, for the same reason
 /// `streakStateProvider` is one: the dashboard must repaint the moment
@@ -16,19 +16,26 @@ part of 'user_profile_providers.dart';
 /// after a save. `UserProfileRepository.watch()` fires immediately, so this
 /// has a value without a separate `load`.
 ///
-/// [MacroTargets.defaults] — the `KetoConstants` values `MacroSummaryCard`
-/// read directly through M2 and M3 — until a profile exists.
+/// **The whole profile, not just its targets.** This replaced a
+/// `macroTargetsProvider` that mapped the same stream down to
+/// [MacroTargets] and substituted [MacroTargets.defaults] for a missing
+/// profile. `DailyTargetsService` needs more than the targets — the
+/// biometrics behind the BMR, the activity level and the goals — so that
+/// provider had no reader left, and one stream answering one question beats
+/// two over the same query.
 ///
-/// Deliberately still an `AsyncValue`: a profile that cannot be *read* is not
-/// a profile that is *absent*, and a card that quietly showed 150 g of fat to
-/// someone whose real target is 250 g would be telling them something false
-/// that they then act on (`design/m2_handoff.md` convention 5). The error
-/// propagates and `MacroSummaryCard` says the load failed.
+/// Deliberately still an `AsyncValue`, and the null is **not** collapsed into
+/// a default here: "never onboarded" and "read failed" are different facts,
+/// and a card that quietly showed 150 g of fat to someone whose real target is
+/// 250 g would be telling them something false that they then act on
+/// (`design/m2_handoff.md` convention 5). `dailyTargetsProvider` is where the
+/// default stands in for an absent profile; the error propagates and
+/// `MacroSummaryCard` says the load failed.
 
-@ProviderFor(macroTargets)
-const macroTargetsProvider = MacroTargetsProvider._();
+@ProviderFor(onboardedProfile)
+const onboardedProfileProvider = OnboardedProfileProvider._();
 
-/// The macro targets the dashboard measures a day against.
+/// The saved profile, or null when onboarding has never completed.
 ///
 /// A stream rather than a one-shot read, for the same reason
 /// `streakStateProvider` is one: the dashboard must repaint the moment
@@ -36,24 +43,31 @@ const macroTargetsProvider = MacroTargetsProvider._();
 /// after a save. `UserProfileRepository.watch()` fires immediately, so this
 /// has a value without a separate `load`.
 ///
-/// [MacroTargets.defaults] — the `KetoConstants` values `MacroSummaryCard`
-/// read directly through M2 and M3 — until a profile exists.
+/// **The whole profile, not just its targets.** This replaced a
+/// `macroTargetsProvider` that mapped the same stream down to
+/// [MacroTargets] and substituted [MacroTargets.defaults] for a missing
+/// profile. `DailyTargetsService` needs more than the targets — the
+/// biometrics behind the BMR, the activity level and the goals — so that
+/// provider had no reader left, and one stream answering one question beats
+/// two over the same query.
 ///
-/// Deliberately still an `AsyncValue`: a profile that cannot be *read* is not
-/// a profile that is *absent*, and a card that quietly showed 150 g of fat to
-/// someone whose real target is 250 g would be telling them something false
-/// that they then act on (`design/m2_handoff.md` convention 5). The error
-/// propagates and `MacroSummaryCard` says the load failed.
+/// Deliberately still an `AsyncValue`, and the null is **not** collapsed into
+/// a default here: "never onboarded" and "read failed" are different facts,
+/// and a card that quietly showed 150 g of fat to someone whose real target is
+/// 250 g would be telling them something false that they then act on
+/// (`design/m2_handoff.md` convention 5). `dailyTargetsProvider` is where the
+/// default stands in for an absent profile; the error propagates and
+/// `MacroSummaryCard` says the load failed.
 
-final class MacroTargetsProvider
+final class OnboardedProfileProvider
     extends
         $FunctionalProvider<
-          AsyncValue<MacroTargets>,
-          MacroTargets,
-          Stream<MacroTargets>
+          AsyncValue<UserProfile?>,
+          UserProfile?,
+          Stream<UserProfile?>
         >
-    with $FutureModifier<MacroTargets>, $StreamProvider<MacroTargets> {
-  /// The macro targets the dashboard measures a day against.
+    with $FutureModifier<UserProfile?>, $StreamProvider<UserProfile?> {
+  /// The saved profile, or null when onboarding has never completed.
   ///
   /// A stream rather than a one-shot read, for the same reason
   /// `streakStateProvider` is one: the dashboard must repaint the moment
@@ -61,38 +75,45 @@ final class MacroTargetsProvider
   /// after a save. `UserProfileRepository.watch()` fires immediately, so this
   /// has a value without a separate `load`.
   ///
-  /// [MacroTargets.defaults] — the `KetoConstants` values `MacroSummaryCard`
-  /// read directly through M2 and M3 — until a profile exists.
+  /// **The whole profile, not just its targets.** This replaced a
+  /// `macroTargetsProvider` that mapped the same stream down to
+  /// [MacroTargets] and substituted [MacroTargets.defaults] for a missing
+  /// profile. `DailyTargetsService` needs more than the targets — the
+  /// biometrics behind the BMR, the activity level and the goals — so that
+  /// provider had no reader left, and one stream answering one question beats
+  /// two over the same query.
   ///
-  /// Deliberately still an `AsyncValue`: a profile that cannot be *read* is not
-  /// a profile that is *absent*, and a card that quietly showed 150 g of fat to
-  /// someone whose real target is 250 g would be telling them something false
-  /// that they then act on (`design/m2_handoff.md` convention 5). The error
-  /// propagates and `MacroSummaryCard` says the load failed.
-  const MacroTargetsProvider._()
+  /// Deliberately still an `AsyncValue`, and the null is **not** collapsed into
+  /// a default here: "never onboarded" and "read failed" are different facts,
+  /// and a card that quietly showed 150 g of fat to someone whose real target is
+  /// 250 g would be telling them something false that they then act on
+  /// (`design/m2_handoff.md` convention 5). `dailyTargetsProvider` is where the
+  /// default stands in for an absent profile; the error propagates and
+  /// `MacroSummaryCard` says the load failed.
+  const OnboardedProfileProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'macroTargetsProvider',
+        name: r'onboardedProfileProvider',
         isAutoDispose: true,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$macroTargetsHash();
+  String debugGetCreateSourceHash() => _$onboardedProfileHash();
 
   @$internal
   @override
-  $StreamProviderElement<MacroTargets> $createElement(
+  $StreamProviderElement<UserProfile?> $createElement(
     $ProviderPointer pointer,
   ) => $StreamProviderElement(pointer);
 
   @override
-  Stream<MacroTargets> create(Ref ref) {
-    return macroTargets(ref);
+  Stream<UserProfile?> create(Ref ref) {
+    return onboardedProfile(ref);
   }
 }
 
-String _$macroTargetsHash() => r'a155b16e9ac10402b002d8fc7e085f4c57520eef';
+String _$onboardedProfileHash() => r'5c30e122351561084cfa97e8d0c8997cd0f6b00a';

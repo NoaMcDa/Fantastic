@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:fantastic/core/constants/goal_copy.dart';
+import 'package:fantastic/core/constants/activity_copy.dart';
 import 'package:fantastic/core/constants/profile_copy.dart';
 import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/core/utils/app_version.dart';
+import 'package:fantastic/features/onboarding/domain/models/activity_level.dart';
 import 'package:fantastic/features/onboarding/domain/models/biological_sex.dart';
 import 'package:fantastic/features/onboarding/domain/models/keto_goal.dart';
 import 'package:fantastic/features/onboarding/domain/models/user_profile.dart';
@@ -101,7 +103,9 @@ void main() {
     testWidgets('renders the goal in the words the user chose', (tester) async {
       await pumpScreen(
         tester,
-        profile: UserProfileFixture.profile(goal: KetoGoal.athleticPerformance),
+        profile: UserProfileFixture.profile(
+          goals: {KetoGoal.athleticPerformance},
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -317,5 +321,76 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  // #431's fourth bullet: M4 stored one goal, so somebody who wanted two had
+  // to drop one — and this tab then read back half of what they said.
+  group('goals', () {
+    testWidgets('lists every chosen goal', (tester) async {
+      await pumpScreen(
+        tester,
+        profile: UserProfileFixture.profile(
+          goals: {KetoGoal.weightLoss, KetoGoal.athleticPerformance},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('profile_goal_weightLoss')), findsOneWidget);
+      expect(
+        find.byKey(const Key('profile_goal_athleticPerformance')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('profile_goal_metabolicHealth')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('an empty goal set says so', (tester) async {
+      await pumpScreen(tester, profile: UserProfile.skipped());
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('profile_goals_empty')), findsOneWidget);
+      expect(find.text(ProfileCopy.noGoalsChosen), findsOneWidget);
+    });
+  });
+
+  group('a skipped profile', () {
+    // The app genuinely does not know these four. Four rows of dashes, or
+    // four invented numbers, would both be worse than saying so.
+    testWidgets('says the details were not filled in', (tester) async {
+      await pumpScreen(tester, profile: UserProfile.skipped());
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('profile_biometrics_missing')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('profile_age')), findsNothing);
+      expect(find.byKey(const Key('profile_weight')), findsNothing);
+    });
+
+    testWidgets('still shows the default targets', (tester) async {
+      await pumpScreen(tester, profile: UserProfile.skipped());
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('profile_target_fat')), findsOneWidget);
+    });
+  });
+
+  testWidgets('shows the activity level in words', (tester) async {
+    await pumpScreen(
+      tester,
+      profile: UserProfileFixture.profile(
+        activityLevel: ActivityLevel.veryActive,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('profile_activity_level')), findsOneWidget);
+    expect(
+      find.text(ActivityCopy.titles[ActivityLevel.veryActive]!),
+      findsOneWidget,
+    );
   });
 }

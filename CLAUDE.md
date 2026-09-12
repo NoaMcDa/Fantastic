@@ -157,6 +157,27 @@ schema), and `MenuAnalysisPrompt.schema` is strict-mode valid (all properties re
 
 **Derivation:** `AdaptationPhaseService.recomputeFor` re-derives on every write by walking `DailyLog` back from today (365 day cap). Retroactive edits self-correct. **Skipped day breaks streak**, today excepted (winnable until midnight). **All-zero macros = unlogged**. Fat-only day (0 carbs) is compliant. Evaluation from wall clock, not meal timestamp. **On-write only, not on-read** (ring shows stale streak until next meal logged).
 
+**Targets are per person and per day (#431).** Onboarding asks an activity level
+(`ActivityLevel`, the five standard Mifflin-St Jeor factors) and multiplies the BMR by it —
+M4 used a fixed 1.2 for everybody. Goals are a **set**: `weightLoss` applies the 20% deficit,
+`athleticPerformance` adds 5 g of net carbs, and the weight-loss cap (25 g) wins when both are
+chosen. Net carbs are **derived**, not the old constant 20 —
+`OnboardingService.netCarbTargetFor` reads `KetoConstants.netCarbTargetByActivity` and always
+clamps into 20–50 g, so the calculator can never propose a target that is itself a streak
+breach. `KetoConstants.maxCompliantNetCarbsG` stays a protocol constant (#303).
+
+On top of the agreed targets, `DailyTargetsService.forDay` adds a **training-day** bump —
+`DailyLog.trainingDay`, set from the dashboard chip — worth one activity tier, **in fat only**.
+It is a delta on `UserProfile.targets`, never a recompute, so a target the user overtyped on
+screen 4 keeps their number. Flagging a day writes no macro total, so an all-zero flagged day
+is still *unlogged*: going to the gym cannot bank a streak day.
+
+**Onboarding is skippable (#262).** A skip writes `UserProfile.skipped()` — default targets, no
+biometrics, no goals — because the gate reads the record's *existence*. `UserProfile`'s
+biometrics are therefore nullable and its goal set may be empty; `OnboardingData` still
+guarantees both, because a completed flow has every answer. `UserProfile.hasBiometrics` is the
+one check anything wanting a BMR makes first.
+
 ## Testing
 
 Per `design/tests.md`:

@@ -157,6 +157,19 @@ void main() {
     await settle(tester);
   }
 
+  /// Scrolls [finder] into view, then taps it.
+  ///
+  /// Screen 2 grew an activity selector, so the "כבר בקטו?" switch and the
+  /// date tile under it now sit below the default test viewport. Both are
+  /// built — the `Column` builds eagerly — but a tap does not reach a widget
+  /// outside the viewport.
+  Future<void> scrollAndTap(WidgetTester tester, Finder finder) async {
+    await tester.ensureVisible(finder);
+    await settle(tester);
+    await tester.tap(finder);
+    await settle(tester);
+  }
+
   Future<void> fillAboutYou(WidgetTester tester) async {
     await tester.enterText(find.widgetWithText(TextFormField, 'גיל'), '40');
     await tester.enterText(
@@ -208,7 +221,7 @@ void main() {
 
     final profile = await profiles.load();
     expect(profile, isNotNull);
-    expect(profile!.goal, KetoGoal.weightLoss);
+    expect(profile!.goals, {KetoGoal.weightLoss});
     expect(profile.targets.fatG, 200);
     expect(profile.weightKg, 80);
     expect(profile.age, 40);
@@ -263,9 +276,8 @@ void main() {
 
     await tap(tester, 'בואו נתחיל');
     await fillAboutYou(tester);
-    await tester.tap(find.byType(SwitchListTile));
-    await settle(tester);
-    await tap(tester, 'בחרו תאריך');
+    await scrollAndTap(tester, find.byType(SwitchListTile));
+    await scrollAndTap(tester, find.text('בחרו תאריך'));
     // The picker opens on today, the only date always selectable. "Started
     // today" banks nothing by design, so the assertion below is that the
     // date reached the profile and the null streak sentinel survived.

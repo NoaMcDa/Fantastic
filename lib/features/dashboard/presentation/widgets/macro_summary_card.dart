@@ -1,5 +1,7 @@
+import 'package:fantastic/core/constants/dashboard_copy.dart';
 import 'package:fantastic/core/constants/keto_constants.dart';
 import 'package:fantastic/core/theme/keto_ratio_palette.dart';
+import 'package:fantastic/features/dashboard/application/daily_targets_service.dart';
 import 'package:fantastic/features/dashboard/application/keto_ratio_calculator.dart';
 import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
@@ -19,6 +21,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Definition of Done requires the dashboard to show what onboarding set;
 /// no M4 child issue asked for this change, which is why
 /// `design/m4_preflight.md` §5.3 records it.
+///
+/// **Per day, not per profile.** It reads `dailyTargetsProvider` rather than
+/// `macroTargetsProvider`, so a day the user marked as a training day is
+/// measured against a fat target raised by what that extra activity costs.
+/// The chip that sets the mark is in this card's header, because the target
+/// it moves is the one directly below it.
 class MacroSummaryCard extends ConsumerWidget {
   const MacroSummaryCard({required this.date, super.key});
 
@@ -29,7 +37,7 @@ class MacroSummaryCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final logAsync = ref.watch(todaysDailyLogProvider(date));
-    final targetsAsync = ref.watch(macroTargetsProvider);
+    final targetsAsync = ref.watch(dailyTargetsProvider(date));
 
     // `hasError` is checked before loading, and deliberately. riverpod 3
     // reports a provider that failed *before ever producing a value* as
@@ -65,7 +73,36 @@ class MacroSummaryCard extends ConsumerWidget {
       ratio: _ratioOf(log, ref),
       targets: targetsAsync.requireValue,
       isEmptyDay: stored == null,
+      trainingChip: _showTrainingChip(ref)
+          ? _TrainingDayChip(date: date, selected: log.trainingDay)
+          : null,
     );
+  }
+
+  /// Whether the training-day chip is worth rendering.
+  ///
+  /// Two conditions, and both are about not offering a control that would do
+  /// nothing:
+  ///
+  /// - **The profile must have biometrics.** A skipped flow (#262) leaves no
+  ///   BMR, so `DailyTargetsService.forDay` has no bump to compute and the
+  ///   chip would move no number.
+  /// - **The day must be today.** This card is also the diary's day view, and
+  ///   a past day's targets are what they were; editing history from here is
+  ///   a different feature nobody asked for.
+  bool _showTrainingChip(WidgetRef ref) {
+    final profileAsync = ref.watch(onboardedProfileProvider);
+    if (!profileAsync.hasValue) {
+      return false;
+    }
+    final profile = profileAsync.requireValue;
+    if (profile == null || !profile.hasBiometrics) {
+      return false;
+    }
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 
   double _ratioOf(DailyLog log, WidgetRef ref) => ref
@@ -83,11 +120,15 @@ class _MacroSummary extends StatelessWidget {
     required this.ratio,
     required this.targets,
     required this.isEmptyDay,
+    required this.trainingChip,
   });
 
   final DailyLog log;
   final double ratio;
   final MacroTargets targets;
+
+  /// The training-day control, or null when it would do nothing.
+  final Widget? trainingChip;
 
   /// Whether the day has no `DailyLog` at all.
   ///
@@ -113,6 +154,13 @@ class _MacroSummary extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (trainingChip != null) ...[
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: trainingChip,
+              ),
+              const SizedBox(height: 8),
+            ],
             if (isEmptyDay) ...[
               // The line, not the whole centred block: as a header above the
               // bars the full treatment is taller than the content it
@@ -279,5 +327,69 @@ class _MacroProgressRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Marks today as a day the user trained on.
+///
+/// A `FilterChip` rather than a switch row: it is a property of the day, it
+/// sits in a card header, and it has to read as "off" without looking broken.
+///
+/// **The write is the flag and nothing else.** `setTrainingDay` upserts the
+/// day's log without touching a macro total, so flagging a day the user has
+/// not eaten on leaves it all-zero — still unlogged as far as the streak is
+/// concerned. Going to the gym cannot bank a day.
+class _TrainingDayChip extends ConsumerStatefulWidget {
+  const _TrainingDayChip({required this.date, required this.selected});
+
+  final DateTime date;
+  final bool selected;
+
+  @override
+  ConsumerState<_TrainingDayChip> createState() => _TrainingDayChipState();
+}
+
+class _TrainingDayChipState extends ConsumerState<_TrainingDayChip> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) => FilterChip(
+    key: const Key('training_day_chip'),
+    label: const Text(DashboardCopy.trainingDay),
+    tooltip: DashboardCopy.trainingDayHint,
+    avatar: const Icon(Icons.fitness_center, size: 18),
+    selected: widget.selected,
+    // Disabled while the write is in flight: a second tap would race the
+    // first and the chip would settle on whichever finished last.
+    onSelected: _busy ? null : (_) => _toggle(),
+  );
+
+  Future<void> _toggle() async {
+    setState(() => _busy = true);
+
+    try {
+      await ref
+          .read(dailyTargetsServiceProvider)
+          .setTrainingDay(widget.date, trained: !widget.selected);
+    } on Object catch (_) {
+      // The chip stays where it was — it is drawn from the stored log, which
+      // the failed write did not change — and the failure is said out loud
+      // rather than left as a tap that did nothing.
+      if (mounted) {
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(DashboardCopy.trainingDaySaveFailed)),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+    setState(() => _busy = false);
+    // One invalidation, not two: `dailyTargetsProvider` watches this, so the
+    // targets recompute off the refreshed log on their own.
+    ref.invalidate(todaysDailyLogProvider(widget.date));
   }
 }

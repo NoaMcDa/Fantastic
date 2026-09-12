@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/features/onboarding/application/providers/user_profile_providers.dart';
 import 'package:fantastic/features/onboarding/data/providers.dart';
-import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
 import 'package:fantastic/features/onboarding/domain/models/user_profile.dart';
 import 'package:fantastic/features/onboarding/domain/repositories/user_profile_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,28 +36,29 @@ void main() {
       overrides: [userProfileRepositoryProvider.overrideWithValue(repository)],
     );
     addTearDown(container.dispose);
-    container.listen(macroTargetsProvider, (_, _) {});
+    container.listen(onboardedProfileProvider, (_, _) {});
     return container;
   }
 
-  test('falls back to the defaults before anyone has onboarded', () async {
+  // Null is the first-launch sentinel, not an error and not a default to
+  // substitute here: `dailyTargetsProvider` is where the defaults stand in
+  // for an absent profile, because only a caller that must paint a bar has to
+  // choose a number.
+  test('is null before anyone has onboarded', () async {
     final container = containerWith(() => Stream<UserProfile?>.value(null));
 
-    expect(
-      await container.read(macroTargetsProvider.future),
-      MacroTargets.defaults,
-    );
+    expect(await container.read(onboardedProfileProvider.future), isNull);
   });
 
-  test('resolves to the saved profile targets', () async {
-    final targets = UserProfileFixture.targets(fatG: 210, proteinG: 92);
-    final container = containerWith(
-      () => Stream<UserProfile?>.value(
-        UserProfileFixture.profile(targets: targets),
-      ),
+  test('resolves to the whole saved profile', () async {
+    final saved = UserProfileFixture.profile(
+      targets: UserProfileFixture.targets(fatG: 210, proteinG: 92),
     );
+    final container = containerWith(() => Stream<UserProfile?>.value(saved));
 
-    expect(await container.read(macroTargetsProvider.future), targets);
+    // The whole record, not just its targets: the per-day calculation needs
+    // the biometrics, the activity level and the goals too.
+    expect(await container.read(onboardedProfileProvider.future), saved);
   });
 
   // The point of a stream over a one-shot read: screen 4's save reaches the
@@ -68,25 +68,26 @@ void main() {
     addTearDown(controller.close);
     final container = containerWith(() => controller.stream);
 
-    final seen = <MacroTargets>[];
+    final seen = <UserProfile?>[];
     container.listen(
-      macroTargetsProvider,
+      onboardedProfileProvider,
       (_, next) => next.whenData(seen.add),
     );
 
+    final written = UserProfileFixture.profile(
+      targets: UserProfileFixture.targets(fatG: 99),
+    );
     controller.add(null);
     await container.pump();
-    controller.add(
-      UserProfileFixture.profile(targets: UserProfileFixture.targets(fatG: 99)),
-    );
+    controller.add(written);
     await container.pump();
 
-    expect(seen, [MacroTargets.defaults, UserProfileFixture.targets(fatG: 99)]);
+    expect(seen, [null, written]);
   });
 
   // A profile that cannot be *read* is not a profile that is *absent*.
-  // Falling back to the defaults here would show someone a goal they never
-  // set, beside a number they are being judged against.
+  // Collapsing the failure into a default here would show someone a goal they
+  // never set, beside a number they are being judged against.
   test(
     'a storage failure propagates rather than becoming the defaults',
     () async {
@@ -101,7 +102,7 @@ void main() {
       // read — `runtimeType` is not AsyncError and an `isLoading` check first
       // would call this a spinner.
       await container.pump();
-      final value = container.read(macroTargetsProvider);
+      final value = container.read(onboardedProfileProvider);
       expect(value.hasError, isTrue);
       expect(value.error, isA<PersistenceException>());
       expect(value.hasValue, isFalse);

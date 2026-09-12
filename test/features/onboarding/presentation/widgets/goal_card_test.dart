@@ -2,6 +2,7 @@ import 'package:fantastic/core/constants/goal_copy.dart';
 import 'package:fantastic/features/onboarding/domain/models/keto_goal.dart';
 import 'package:fantastic/features/onboarding/presentation/widgets/goal_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../../helpers/pump_app.dart';
@@ -48,23 +49,39 @@ void main() {
     expect(taps, 1);
   });
 
-  // Three mutually exclusive cards are a radio group whatever they are drawn
-  // as. Without this a screen reader announces three unrelated buttons and
-  // never says which one is chosen.
-  testWidgets('announces itself as a selected radio option', (tester) async {
+  // A card in a multi-select group is a checkbox whatever it is drawn as, and
+  // saying so is what tells a screen reader that choosing this one does not
+  // un-choose the others. It announced `inMutuallyExclusiveGroup` while the
+  // group was single-select; that would now describe behaviour the screen no
+  // longer has.
+  // `SemanticsProperties` comes from `package:flutter/semantics.dart`,
+  // which `material.dart` does not re-export.
+  SemanticsProperties cardSemantics(WidgetTester tester) => tester
+      .widget<Semantics>(
+        find
+            .descendant(
+              of: find.byType(GoalCard),
+              matching: find.byType(Semantics),
+            )
+            .first,
+      )
+      .properties;
+
+  testWidgets('announces itself as a checked, selected option', (tester) async {
     await pumpCard(tester, selected: true);
 
-    final semantics = tester.widget<Semantics>(
-      find
-          .descendant(
-            of: find.byType(GoalCard),
-            matching: find.byType(Semantics),
-          )
-          .first,
-    );
+    final properties = cardSemantics(tester);
+    expect(properties.checked, isTrue);
+    expect(properties.selected, isTrue);
+    expect(properties.inMutuallyExclusiveGroup, isNot(isTrue));
+  });
 
-    expect(semantics.properties.inMutuallyExclusiveGroup, isTrue);
-    expect(semantics.properties.selected, isTrue);
+  testWidgets('an unselected card announces itself unchecked', (tester) async {
+    await pumpCard(tester, selected: false);
+
+    final properties = cardSemantics(tester);
+    expect(properties.checked, isFalse);
+    expect(properties.selected, isFalse);
   });
 
   // A missing entry is a `!` on a null inside the screen, and two goals

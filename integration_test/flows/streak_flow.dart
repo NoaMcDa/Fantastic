@@ -42,6 +42,10 @@ void main() {
       ),
       findsOneWidget,
     );
+    // Scrolled to: the macro card above it grew a training-day chip, and a
+    // sliver child below the fold has no element at all
+    // (`design/m5_handoff.md`).
+    await scrollDown(tester);
     expect(find.text('שלב ההסתגלות'), findsOneWidget);
 
     final streak = await app.container.read(streakRepositoryProvider).load();

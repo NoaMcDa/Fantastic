@@ -1,3 +1,4 @@
+import 'package:fantastic/core/constants/activity_copy.dart';
 import 'package:fantastic/core/constants/goal_copy.dart';
 import 'package:fantastic/core/constants/keto_constants.dart';
 import 'package:fantastic/core/constants/profile_copy.dart';
@@ -98,39 +99,68 @@ class _Profile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       children: [
         const _SectionHeader(ProfileCopy.biometricsSection),
+        // A skipped profile (#262) has none of the four. One honest line
+        // rather than four rows of dashes.
+        if (!profile.hasBiometrics)
+          const ListTile(
+            key: Key('profile_biometrics_missing'),
+            dense: true,
+            title: Text(ProfileCopy.biometricsMissing),
+          )
+        else ...[
+          _ValueRow(
+            key: const Key('profile_sex'),
+            label: ProfileCopy.sex,
+            // Not a digit run, so no `TextDirection.ltr`: it is Hebrew.
+            value: ProfileCopy.sexes[profile.sex]!,
+            numeric: false,
+          ),
+          _ValueRow(
+            key: const Key('profile_age'),
+            label: ProfileCopy.age,
+            value: '${profile.age}',
+            unit: ProfileCopy.years,
+          ),
+          _ValueRow(
+            key: const Key('profile_weight'),
+            label: ProfileCopy.weight,
+            value: GramsText.format(profile.weightKg!),
+            unit: ProfileCopy.kg,
+          ),
+          _ValueRow(
+            key: const Key('profile_height'),
+            label: ProfileCopy.height,
+            value: GramsText.format(profile.heightCm!),
+            unit: ProfileCopy.cm,
+          ),
+        ],
         _ValueRow(
-          key: const Key('profile_sex'),
-          label: ProfileCopy.sex,
-          // Not a digit run, so no `TextDirection.ltr`: it is Hebrew.
-          value: ProfileCopy.sexes[profile.sex]!,
+          key: const Key('profile_activity_level'),
+          label: ProfileCopy.activityLevel,
+          value: ActivityCopy.titles[profile.activityLevel]!,
           numeric: false,
-        ),
-        _ValueRow(
-          key: const Key('profile_age'),
-          label: ProfileCopy.age,
-          value: '${profile.age}',
-          unit: ProfileCopy.years,
-        ),
-        _ValueRow(
-          key: const Key('profile_weight'),
-          label: ProfileCopy.weight,
-          value: GramsText.format(profile.weightKg),
-          unit: ProfileCopy.kg,
-        ),
-        _ValueRow(
-          key: const Key('profile_height'),
-          label: ProfileCopy.height,
-          value: GramsText.format(profile.heightCm),
-          unit: ProfileCopy.cm,
         ),
 
         const _SectionHeader(ProfileCopy.goalSection),
-        _ValueRow(
-          key: const Key('profile_goal'),
-          label: GoalCopy.titles[profile.goal]!,
-          value: GoalCopy.subtitles[profile.goal]!,
-          numeric: false,
-        ),
+        // One row per chosen goal, in the same order screen 3 showed the
+        // cards. M4 stored a single goal and this was a single row; somebody
+        // who wanted two had to drop one, and the tab then read back half of
+        // what they said.
+        if (profile.goals.isEmpty)
+          const ListTile(
+            key: Key('profile_goals_empty'),
+            dense: true,
+            title: Text(ProfileCopy.noGoalsChosen),
+          )
+        else
+          for (final goal in GoalCopy.order)
+            if (profile.goals.contains(goal))
+              _ValueRow(
+                key: Key('profile_goal_${goal.name}'),
+                label: GoalCopy.titles[goal]!,
+                value: GoalCopy.subtitles[goal]!,
+                numeric: false,
+              ),
 
         const _SectionHeader(ProfileCopy.targetsSection),
         _ValueRow(

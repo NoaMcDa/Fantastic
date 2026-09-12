@@ -193,13 +193,15 @@ own decomposition never covered.
 
 ## Known gaps M5, M6 and M7 inherit
 
-- **The flow cannot be skipped.** `mvp.md` §4 says onboarding is "skippable
-  (defaults used if skipped)"; no child issue asked for it and Epic #8's own
-  scope list does not carry the line either, so it fell between the two
-  documents. A user who wants to look around before handing over their weight
-  cannot. **Filed as #262**, which also records the model question a skip
-  raises: `UserProfile`'s biometrics are non-null and a skipped profile has
-  none of them.
+- ~~**The flow cannot be skipped.**~~ **Closed by #262, under #431.** Screen 1
+  carries a "דלג בינתיים" `TextButton` under the CTA; it writes a
+  `UserProfile.skipped()` carrying `MacroTargets.defaults`, opens the gate and
+  goes to the dashboard. The model question it raised is answered the way #262
+  recommended: `UserProfile`'s biometrics are **nullable** and its goal set may
+  be **empty**, because the app genuinely does not know them. `OnboardingData`
+  still guarantees all of it, because a *completed* flow really does have every
+  answer. The profile tab says the details were not filled in rather than
+  showing four dashes.
 - **There is no way to change the targets afterwards.** The profile screen is
   still `ProfilePlaceholder`, and Epic #8 puts post-onboarding profile editing
   out of scope. The targets a user sets in their first thirty seconds are
@@ -214,14 +216,32 @@ own decomposition never covered.
   body fat. The snippet shipped. It puts a 70 kg user at 56 g against the 80 g
   `KetoConstants.defaultProteinTargetG` the dashboard showed before. This is a
   product question, not a bug — `m4_preflight.md` §6.5.
-- **The activity level is assumed sedentary.** The flow asks no activity
-  question, so an active user's TDEE is understated. They can edit the number
-  on screen 4, which is the only reason that is acceptable.
-- **The three goals do nothing but `weightLoss`.** `metabolicHealth` and
-  `athleticPerformance` are recorded and have no effect; the dashboard
-  emphasis `ui_ux_design.md` §1c describes is post-MVP. The taxonomy itself
-  was settled by the audit rather than by product — see §6.1, which is worth
-  revisiting.
+- ~~**The activity level is assumed sedentary.**~~ **Closed by #431.** Screen 2
+  asks the question, `ActivityLevel` carries the five standard Mifflin-St Jeor
+  factors, and `calculateMacroTargets` multiplies by the user's own. A record
+  written before the question existed reads back as `sedentary`, which is not a
+  guess — 1.2 is exactly what its targets were computed with. The same issue
+  added a per-day layer on top: a day the user marks as a training day is
+  measured against a fat target raised by one activity tier
+  (`DailyTargetsService.forDay`), as a delta on the targets they agreed to
+  rather than a recompute, so an edited number keeps its edit.
+- **The goals are a set now, and two of the three change the arithmetic**
+  (#431). Screen 3 is multi-select, `UserProfile.goals` is a `Set<KetoGoal>`,
+  and `GoalCard` announces itself as a checkbox rather than a radio option.
+  `weightLoss` applies the TDEE deficit — to the training-day bump as well —
+  and `athleticPerformance` raises the net-carb target, with the weight-loss
+  cap winning when both are chosen. `metabolicHealth` is still a label; the
+  dashboard emphasis `ui_ux_design.md` §1c describes is post-MVP. The taxonomy
+  itself was settled by the audit rather than by product — see §6.1, which is
+  still worth revisiting.
+
+- **The net-carb target is no longer a constant** (#431). It was 20 g for
+  everybody while fat and protein were computed from the person;
+  `OnboardingService.netCarbTargetFor` now reads
+  `KetoConstants.netCarbTargetByActivity` and applies the goals, always
+  clamping into 20–50 g. `KetoConstants.maxCompliantNetCarbsG` stays a protocol
+  constant and is untouched (#303): the streak threshold must not move with an
+  editable target.
 - **Water and electrolytes still have no logging flow**, from M2.
 - **`EntityNotFoundException` still has no throw site**, from M1.
 - **CI does not check codegen freshness**, from M3. `cicd_plan.md` Phase 1.

@@ -11,7 +11,6 @@ import 'package:fantastic/features/diary/presentation/widgets/empty_meals_state.
 import 'package:fantastic/features/diary/presentation/widgets/meal_card.dart';
 import 'package:fantastic/features/diary/presentation/widgets/meal_list_section.dart';
 import 'package:fantastic/features/onboarding/application/providers/user_profile_providers.dart';
-import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_diary_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,11 +40,13 @@ void main() {
       todaysDailyLogProvider(date).overrideWith((ref) async => log),
       todaysMealsProvider(date).overrideWith((ref) async => meals),
       mealLoggingServiceProvider.overrideWithValue(loggingService),
-      // MacroSummaryCard measures the day against the onboarding profile's
-      // targets (#73); without an override it reaches for a database.
-      macroTargetsProvider.overrideWith(
-        (ref) => Stream.value(MacroTargets.defaults),
-      ),
+      // MacroSummaryCard measures the day against the onboarding profile
+      // (#73), and now against the day's own training flag on top of it;
+      // without an override it reaches for a database. A null profile is a
+      // user who has not onboarded, whose targets are the defaults — and it
+      // also keeps the training-day chip off a past day, where it does not
+      // belong.
+      onboardedProfileProvider.overrideWith((ref) => Stream.value(null)),
       // #78 filled the symptom slot, so the screen now reads this too.
       symptomLogProvider(date).overrideWith((ref) async => symptoms),
     ],

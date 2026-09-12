@@ -23,7 +23,7 @@ void main() {
     age: 41,
     weightKg: 91.2,
     heightCm: 183,
-    goal: KetoGoal.weightLoss,
+    goals: {KetoGoal.weightLoss},
   );
   final calculated = UserProfileFixture.targets(
     fatG: 147,

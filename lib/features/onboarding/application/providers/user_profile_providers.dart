@@ -1,10 +1,11 @@
 import 'package:fantastic/features/onboarding/data/providers.dart';
 import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
+import 'package:fantastic/features/onboarding/domain/models/user_profile.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'user_profile_providers.g.dart';
 
-/// The macro targets the dashboard measures a day against.
+/// The saved profile, or null when onboarding has never completed.
 ///
 /// A stream rather than a one-shot read, for the same reason
 /// `streakStateProvider` is one: the dashboard must repaint the moment
@@ -12,16 +13,21 @@ part 'user_profile_providers.g.dart';
 /// after a save. `UserProfileRepository.watch()` fires immediately, so this
 /// has a value without a separate `load`.
 ///
-/// [MacroTargets.defaults] — the `KetoConstants` values `MacroSummaryCard`
-/// read directly through M2 and M3 — until a profile exists.
+/// **The whole profile, not just its targets.** This replaced a
+/// `macroTargetsProvider` that mapped the same stream down to
+/// [MacroTargets] and substituted [MacroTargets.defaults] for a missing
+/// profile. `DailyTargetsService` needs more than the targets — the
+/// biometrics behind the BMR, the activity level and the goals — so that
+/// provider had no reader left, and one stream answering one question beats
+/// two over the same query.
 ///
-/// Deliberately still an `AsyncValue`: a profile that cannot be *read* is not
-/// a profile that is *absent*, and a card that quietly showed 150 g of fat to
-/// someone whose real target is 250 g would be telling them something false
-/// that they then act on (`design/m2_handoff.md` convention 5). The error
-/// propagates and `MacroSummaryCard` says the load failed.
+/// Deliberately still an `AsyncValue`, and the null is **not** collapsed into
+/// a default here: "never onboarded" and "read failed" are different facts,
+/// and a card that quietly showed 150 g of fat to someone whose real target is
+/// 250 g would be telling them something false that they then act on
+/// (`design/m2_handoff.md` convention 5). `dailyTargetsProvider` is where the
+/// default stands in for an absent profile; the error propagates and
+/// `MacroSummaryCard` says the load failed.
 @riverpod
-Stream<MacroTargets> macroTargets(Ref ref) => ref
-    .watch(userProfileRepositoryProvider)
-    .watch()
-    .map((profile) => profile?.targets ?? MacroTargets.defaults);
+Stream<UserProfile?> onboardedProfile(Ref ref) =>
+    ref.watch(userProfileRepositoryProvider).watch();

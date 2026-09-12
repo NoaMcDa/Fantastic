@@ -1,3 +1,4 @@
+import 'package:fantastic/core/constants/keto_constants.dart';
 import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/core/services/notification_service.dart';
 import 'package:fantastic/features/adaptation/application/adaptation_phase_service.dart';
@@ -6,6 +7,7 @@ import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
 import 'package:fantastic/features/dashboard/domain/repositories/daily_log_repository.dart';
 import 'package:fantastic/features/onboarding/application/onboarding_service.dart';
+import 'package:fantastic/features/onboarding/domain/models/activity_level.dart';
 import 'package:fantastic/features/onboarding/domain/models/biological_sex.dart';
 import 'package:fantastic/features/onboarding/domain/models/keto_goal.dart';
 import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
@@ -81,12 +83,12 @@ void main() {
           age: 40,
           weightKg: 80,
           heightCm: 180,
-          goal: KetoGoal.weightLoss,
+          goals: {KetoGoal.weightLoss},
         ),
       );
 
       expect(targets.proteinG, 64);
-      expect(targets.netCarbsG, OnboardingService.inductionNetCarbsG);
+      expect(targets.netCarbsG, KetoConstants.inductionNetCarbsG);
       expect(targets.fatG, 147);
     });
 
@@ -98,26 +100,127 @@ void main() {
           age: 40,
           weightKg: 80,
           heightCm: 180,
-          goal: KetoGoal.metabolicHealth,
+          goals: {KetoGoal.metabolicHealth},
         ),
       );
 
       expect(targets.fatG, 193);
     });
 
-    test('athletic performance gets no deficit either', () {
+    // Energy rather than fat grams: athletic performance moves *carbs* now
+    // (it adds 5 g to the net-carb target), so the fat remainder legitimately
+    // differs from metabolic health's while the day's energy does not. Only
+    // weight loss changes the energy, and it is the deficit that does it.
+    test('only weight loss applies the deficit', () {
+      double kcal(MacroTargets t) =>
+          t.fatG * OnboardingService.kcalPerGramFat +
+          t.netCarbsG * OnboardingService.kcalPerGramCarb +
+          t.proteinG * OnboardingService.kcalPerGramProtein;
+
       final withDeficit = service.calculateMacroTargets(
-        UserProfileFixture.data(goal: KetoGoal.weightLoss),
+        UserProfileFixture.data(goals: {KetoGoal.weightLoss}),
       );
-      final without = service.calculateMacroTargets(
-        UserProfileFixture.data(goal: KetoGoal.athleticPerformance),
+      final athletic = service.calculateMacroTargets(
+        UserProfileFixture.data(goals: {KetoGoal.athleticPerformance}),
       );
       final metabolic = service.calculateMacroTargets(
-        UserProfileFixture.data(goal: KetoGoal.metabolicHealth),
+        UserProfileFixture.data(goals: {KetoGoal.metabolicHealth}),
       );
 
-      expect(without.fatG, metabolic.fatG);
-      expect(without.fatG, greaterThan(withDeficit.fatG));
+      // Within one gram of fat, which is the rounding the calculator applies.
+      expect(
+        kcal(athletic),
+        closeTo(kcal(metabolic), OnboardingService.kcalPerGramFat),
+      );
+      expect(kcal(withDeficit), lessThan(kcal(metabolic)));
+    });
+
+    test('the deficit applies when weight loss is one of several goals', () {
+      final several = service.calculateMacroTargets(
+        UserProfileFixture.data(
+          goals: {KetoGoal.weightLoss, KetoGoal.metabolicHealth},
+        ),
+      );
+      final alone = service.calculateMacroTargets(
+        UserProfileFixture.data(goals: {KetoGoal.weightLoss}),
+      );
+
+      expect(several, alone);
+    });
+
+    test('no deficit when weight loss is absent from a multi-goal set', () {
+      final without = service.calculateMacroTargets(
+        UserProfileFixture.data(
+          goals: {KetoGoal.metabolicHealth, KetoGoal.athleticPerformance},
+        ),
+      );
+      final metabolicOnly = service.calculateMacroTargets(
+        UserProfileFixture.data(goals: {KetoGoal.metabolicHealth}),
+      );
+
+      // Same energy budget; only the carb/fat split moves.
+      expect(without.proteinG, metabolicOnly.proteinG);
+      expect(without.fatG, lessThan(metabolicOnly.fatG));
+    });
+
+    // The whole point of #431's second bullet: the TDEE step used a fixed 1.2
+    // for everybody, so somebody who trains got a sedentary person's targets.
+    test('TDEE uses the chosen activity level', () {
+      final byLevel = {
+        for (final level in ActivityLevel.values)
+          level: service
+              .calculateMacroTargets(
+                UserProfileFixture.data(
+                  sex: BiologicalSex.male,
+                  age: 40,
+                  weightKg: 80,
+                  heightCm: 180,
+                  activityLevel: level,
+                  goals: {KetoGoal.metabolicHealth},
+                ),
+              )
+              .fatG,
+      };
+
+      // BMR 1730. Sedentary 1.2 → 2076 kcal; moderate 1.55 → 2681.5. Protein
+      // is 64 g either way, and the carb target rises with the tier, so the
+      // fat remainder is what the activity factor moves.
+      expect(byLevel[ActivityLevel.sedentary], 193);
+      expect(byLevel[ActivityLevel.moderate], 258);
+
+      // Strictly increasing: a more active tier can never be given less fat.
+      final ordered = [
+        for (final level in ActivityLevel.values) byLevel[level]!,
+      ];
+      for (var i = 1; i < ordered.length; i++) {
+        expect(
+          ordered[i],
+          greaterThan(ordered[i - 1]),
+          reason:
+              '${ActivityLevel.values[i].name} got no more fat than '
+              '${ActivityLevel.values[i - 1].name}',
+        );
+      }
+    });
+
+    test('sedentary reproduces the pre-activity-level numbers', () {
+      // The figures this suite asserted before the activity question existed,
+      // unchanged — a record written then reads back as sedentary, so these
+      // are the targets that install already has.
+      final targets = service.calculateMacroTargets(
+        UserProfileFixture.data(
+          sex: BiologicalSex.male,
+          age: 40,
+          weightKg: 80,
+          heightCm: 180,
+          activityLevel: ActivityLevel.sedentary,
+          goals: {KetoGoal.weightLoss},
+        ),
+      );
+
+      expect(targets.fatG, 147);
+      expect(targets.netCarbsG, 20);
+      expect(targets.proteinG, 64);
     });
 
     // The two BMR constants differ by 166 kcal, so the same body gets a
@@ -131,7 +234,7 @@ void main() {
           age: args.age,
           weightKg: args.weightKg,
           heightCm: args.heightCm,
-          goal: KetoGoal.metabolicHealth,
+          goals: {KetoGoal.metabolicHealth},
         ),
       );
       final female = service.calculateMacroTargets(
@@ -140,7 +243,7 @@ void main() {
           age: args.age,
           weightKg: args.weightKg,
           heightCm: args.heightCm,
-          goal: KetoGoal.metabolicHealth,
+          goals: {KetoGoal.metabolicHealth},
         ),
       );
 
@@ -158,15 +261,49 @@ void main() {
       );
     });
 
-    test('net carbs are always the induction allowance', () {
-      for (final goal in KetoGoal.values) {
+    test('the calculated net carbs are the ones netCarbTargetFor gives', () {
+      for (final level in ActivityLevel.values) {
+        final data = UserProfileFixture.data(activityLevel: level);
         expect(
-          service
-              .calculateMacroTargets(UserProfileFixture.data(goal: goal))
-              .netCarbsG,
-          20,
+          service.calculateMacroTargets(data).netCarbsG,
+          service.netCarbTargetFor(data),
+          reason: 'activity ${level.name}',
         );
       }
+    });
+
+    test('a higher carb target costs its own energy in fat', () {
+      // Sedentary (20 g) against very active (35 g) on the same body and the
+      // same goal set. 15 g of carbs is 60 kcal, which is 6.67 g of fat — so
+      // the fat difference is the activity gain *minus* that, never the
+      // activity gain on its own.
+      const body = (weightKg: 80.0, heightCm: 180.0, age: 40);
+      MacroTargets at(ActivityLevel level) => service.calculateMacroTargets(
+        UserProfileFixture.data(
+          sex: BiologicalSex.male,
+          age: body.age,
+          weightKg: body.weightKg,
+          heightCm: body.heightCm,
+          activityLevel: level,
+          goals: {KetoGoal.metabolicHealth},
+        ),
+      );
+
+      final sedentary = at(ActivityLevel.sedentary);
+      final veryActive = at(ActivityLevel.veryActive);
+      const bmr = 1730.0;
+      final tdeeGain =
+          bmr *
+          (ActivityLevel.veryActive.multiplier -
+              ActivityLevel.sedentary.multiplier);
+      final carbCost =
+          (veryActive.netCarbsG - sedentary.netCarbsG) *
+          OnboardingService.kcalPerGramCarb;
+
+      expect(
+        veryActive.fatG - sedentary.fatG,
+        closeTo((tdeeGain - carbCost) / OnboardingService.kcalPerGramFat, 1),
+      );
     });
 
     // #73's own edge case. It holds by arithmetic here, but the floor is what
@@ -179,7 +316,7 @@ void main() {
           age: 120,
           weightKg: 40,
           heightCm: 140,
-          goal: KetoGoal.weightLoss,
+          goals: {KetoGoal.weightLoss},
         ),
       );
 
@@ -195,7 +332,7 @@ void main() {
           age: 120,
           weightKg: 10,
           heightCm: 10,
-          goal: KetoGoal.weightLoss,
+          goals: {KetoGoal.weightLoss},
         ),
       );
 
@@ -212,6 +349,161 @@ void main() {
     });
   });
 
+  group('netCarbTargetFor', () {
+    test('follows the activity table', () {
+      for (final level in ActivityLevel.values) {
+        expect(
+          service.netCarbTargetFor(
+            UserProfileFixture.data(
+              activityLevel: level,
+              goals: {KetoGoal.metabolicHealth},
+            ),
+          ),
+          KetoConstants.netCarbTargetByActivity[level],
+          reason: 'activity ${level.name}',
+        );
+      }
+    });
+
+    test('athletic performance adds its bonus', () {
+      double at(ActivityLevel level, Set<KetoGoal> goals) =>
+          service.netCarbTargetFor(
+            UserProfileFixture.data(activityLevel: level, goals: goals),
+          );
+
+      for (final level in ActivityLevel.values) {
+        expect(
+          at(level, {KetoGoal.athleticPerformance}),
+          at(level, {KetoGoal.metabolicHealth}) +
+              KetoConstants.athleticPerformanceNetCarbBonusG,
+          reason: 'activity ${level.name}',
+        );
+      }
+    });
+
+    test('weight loss caps the target', () {
+      for (final level in ActivityLevel.values) {
+        expect(
+          service.netCarbTargetFor(
+            UserProfileFixture.data(
+              activityLevel: level,
+              goals: {KetoGoal.weightLoss},
+            ),
+          ),
+          lessThanOrEqualTo(KetoConstants.weightLossNetCarbCapG),
+          reason: 'activity ${level.name}',
+        );
+      }
+    });
+
+    test('the weight-loss cap wins over the athletic bonus', () {
+      // The case the two rules collide on: very active would start at 35 and
+      // the bonus would take it to 40, but a user who also wants to lose
+      // weight is held at the cap. A deficit is the point of that goal.
+      expect(
+        service.netCarbTargetFor(
+          UserProfileFixture.data(
+            activityLevel: ActivityLevel.veryActive,
+            goals: {KetoGoal.weightLoss, KetoGoal.athleticPerformance},
+          ),
+        ),
+        KetoConstants.weightLossNetCarbCapG,
+      );
+    });
+
+    // The invariant the method exists for: whatever the table says, the
+    // calculator can never propose a target that is itself a streak breach.
+    test('never leaves the 20-50 g band, for any level and any goal set', () {
+      for (final level in ActivityLevel.values) {
+        for (final goals in _everyNonEmptyGoalSet()) {
+          final grams = service.netCarbTargetFor(
+            UserProfileFixture.data(activityLevel: level, goals: goals),
+          );
+
+          expect(
+            grams,
+            inInclusiveRange(
+              KetoConstants.inductionNetCarbsG,
+              KetoConstants.maxCompliantNetCarbsG,
+            ),
+            reason:
+                '${level.name} with '
+                '${goals.map((g) => g.name).join("+")} gave $grams g',
+          );
+        }
+      }
+    });
+
+    test('returns whole grams', () {
+      for (final level in ActivityLevel.values) {
+        final grams = service.netCarbTargetFor(
+          UserProfileFixture.data(activityLevel: level),
+        );
+        expect(grams, grams.roundToDouble());
+      }
+    });
+  });
+
+  group('skipOnboarding', () {
+    test('saves a profile carrying the default targets', () async {
+      await service.skipOnboarding();
+
+      final saved =
+          verify(() => profiles.save(captureAny())).captured.single
+              as UserProfile;
+      expect(saved.targets, MacroTargets.defaults);
+    });
+
+    test('records no biometrics and no goals', () async {
+      final saved = await service.skipOnboarding();
+
+      expect(saved.hasBiometrics, isFalse);
+      expect(saved.sex, isNull);
+      expect(saved.age, isNull);
+      expect(saved.weightKg, isNull);
+      expect(saved.heightCm, isNull);
+      expect(saved.goals, isEmpty);
+    });
+
+    // The write is the whole point: the gate reads the record's existence, so
+    // a skip that stored nothing would send the user back into onboarding on
+    // the next launch.
+    test('writes a record, so the first launch is over', () async {
+      await service.skipOnboarding();
+
+      verify(() => profiles.save(any())).called(1);
+    });
+
+    test('seeds no streak — there is no start date to seed from', () async {
+      await service.skipOnboarding();
+
+      verifyNever(() => streaks.save(any()));
+    });
+
+    test('asks for notification permission', () async {
+      await service.skipOnboarding();
+
+      verify(notifications.requestPermission).called(1);
+    });
+
+    test('a failed profile save fails the skip', () async {
+      when(() => profiles.save(any())).thenThrow(
+        const PersistenceException('UserProfileRepository.save', 'closed'),
+      );
+
+      await expectLater(
+        service.skipOnboarding(),
+        throwsA(isA<PersistenceException>()),
+      );
+    });
+
+    test('a throwing permission prompt does not fail the skip', () async {
+      when(notifications.requestPermission).thenThrow(Exception('no plugin'));
+
+      await expectLater(service.skipOnboarding(), completes);
+    });
+  });
+
   group('completeOnboarding', () {
     test(
       'saves a profile carrying the answers and the given targets',
@@ -221,7 +513,7 @@ void main() {
           age: 41,
           weightKg: 91.2,
           heightCm: 183,
-          goal: KetoGoal.weightLoss,
+          goals: {KetoGoal.weightLoss},
         );
 
         await service.completeOnboarding(
@@ -236,7 +528,7 @@ void main() {
                 as UserProfile;
         expect(saved.sex, BiologicalSex.male);
         expect(saved.age, 41);
-        expect(saved.goal, KetoGoal.weightLoss);
+        expect(saved.goals, {KetoGoal.weightLoss});
         expect(saved.targets.fatG, 200);
         expect(saved.targets.netCarbsG, 25);
       },
@@ -484,4 +776,15 @@ void main() {
       expect(savedStreak()!.currentStreak, 14);
     });
   });
+}
+
+/// Every non-empty subset of [KetoGoal] — the seven goal sets a user can
+/// actually commit, since screen 3 will not let them commit none.
+Iterable<Set<KetoGoal>> _everyNonEmptyGoalSet() sync* {
+  for (var mask = 1; mask < 1 << KetoGoal.values.length; mask++) {
+    yield {
+      for (var i = 0; i < KetoGoal.values.length; i++)
+        if (mask & (1 << i) != 0) KetoGoal.values[i],
+    };
+  }
 }

@@ -5,9 +5,10 @@ import 'package:flutter/material.dart';
 /// #71 names this widget in its Approach table and never writes it
 /// (`design/m4_preflight.md` §2).
 ///
-/// Selection is drawn with a border and a tinted fill rather than a
-/// checkbox: three mutually exclusive cards are a radio group, and a card
-/// that looks checkable individually invites a second tap.
+/// Selection is drawn with a border, a tinted fill and a check mark rather
+/// than a `Checkbox` widget: the whole card is the target, which is a 44pt
+/// hit area instead of a 24pt one, and a checkbox beside it would give the
+/// same choice two controls.
 class GoalCard extends StatelessWidget {
   const GoalCard({
     required this.title,
@@ -30,10 +31,12 @@ class GoalCard extends StatelessWidget {
     final colors = theme.colorScheme;
 
     return Semantics(
-      // A card in a single-select group is a radio button, whatever it is
-      // drawn as. Without this a screen reader announces three unrelated
-      // buttons and never says which one is chosen.
-      inMutuallyExclusiveGroup: true,
+      // A card in a multi-select group is a checkbox, whatever it is drawn
+      // as — and saying so is what tells a screen reader that choosing this
+      // one does not un-choose the others. It announced
+      // `inMutuallyExclusiveGroup` while the group was single-select, which
+      // would now be a lie about how the screen behaves.
+      checked: selected,
       selected: selected,
       button: true,
       child: Card(

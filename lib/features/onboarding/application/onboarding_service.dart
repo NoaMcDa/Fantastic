@@ -1,13 +1,14 @@
 import 'dart:math' as math;
 
+import 'package:fantastic/core/constants/keto_constants.dart';
 import 'package:fantastic/core/providers/notification_providers.dart';
 import 'package:fantastic/core/services/notification_service.dart';
 import 'package:fantastic/features/adaptation/application/adaptation_phase_service.dart';
+import 'package:fantastic/features/adaptation/data/providers.dart';
 import 'package:fantastic/features/adaptation/domain/models/streak_state.dart';
 import 'package:fantastic/features/adaptation/domain/repositories/streak_repository.dart';
-import 'package:fantastic/features/adaptation/data/providers.dart';
 import 'package:fantastic/features/onboarding/data/providers.dart';
-import 'package:fantastic/features/onboarding/domain/models/biological_sex.dart';
+import 'package:fantastic/features/onboarding/domain/mifflin_st_jeor.dart';
 import 'package:fantastic/features/onboarding/domain/models/keto_goal.dart';
 import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
 import 'package:fantastic/features/onboarding/domain/models/onboarding_data.dart';
@@ -39,23 +40,12 @@ class OnboardingService {
   final AdaptationPhaseService adaptationPhaseService;
   final NotificationService notificationService;
 
-  /// Mifflin-St Jeor's sedentary activity factor.
-  ///
-  /// The flow asks no activity question, and 1.2 is the floor — a target set
-  /// too low leaves the user hungry and blaming keto, a target set too high
-  /// stalls weight loss silently. Under-promising on activity is the safer
-  /// error for a number the user can edit on the very next screen.
-  static const double sedentaryActivityMultiplier = 1.2;
-
   /// The fraction of TDEE a [KetoGoal.weightLoss] user eats — a 20% deficit.
-  static const double weightLossTdeeFactor = 0.8;
-
-  /// The induction net-carb allowance, in grams.
   ///
-  /// Calculated as fixed, then shown in an editable field on screen 4:
-  /// #73 calls it "not user-adjustable" and #72 renders it editable, and the
-  /// editable field wins — see `design/m4_preflight.md` §5.4.
-  static const double inductionNetCarbsG = 20;
+  /// Applied when weight loss is **one of** the goals, not only when it is
+  /// the sole goal: somebody who wants to lose weight and train well still
+  /// wants the deficit.
+  static const double weightLossTdeeFactor = 0.8;
 
   /// Protein grams per kilogram of **total** body mass.
   ///
@@ -85,30 +75,80 @@ class OnboardingService {
   /// Pure and synchronous — the same answers always produce the same targets,
   /// and screen 4 calls it in `initState` without awaiting anything.
   ///
-  /// Mifflin-St Jeor BMR → sedentary TDEE → a 20% deficit for
-  /// [KetoGoal.weightLoss] → 20 g net carbs and 0.8 g/kg protein taken off
-  /// the top → fat fills what is left.
+  /// Mifflin-St Jeor BMR → TDEE at the user's own activity factor → a 20%
+  /// deficit when [KetoGoal.weightLoss] is among the goals → [netCarbTargetFor]
+  /// grams of net carbs and 0.8 g/kg of protein taken off the top → fat fills
+  /// what is left.
+  ///
+  /// **The activity factor is the user's answer, not a constant.** M4
+  /// multiplied every BMR by a fixed 1.2 because the flow asked no activity
+  /// question; screen 2 asks one now, and a user who trains is no longer
+  /// handed a sedentary person's targets (`design/m4_handoff.md` §Known gaps).
   MacroTargets calculateMacroTargets(OnboardingData data) {
-    final bmr = _basalMetabolicRate(data);
-    var tdee = bmr * sedentaryActivityMultiplier;
-    if (data.goal == KetoGoal.weightLoss) {
+    final bmr = MifflinStJeor.bmr(
+      sex: data.sex,
+      age: data.age,
+      weightKg: data.weightKg,
+      heightCm: data.heightCm,
+    );
+    var tdee = bmr * data.activityLevel.multiplier;
+    if (data.goals.contains(KetoGoal.weightLoss)) {
       tdee *= weightLossTdeeFactor;
     }
 
+    final netCarbsG = netCarbTargetFor(data);
     final proteinG = (data.weightKg * proteinGramsPerKg).roundToDouble();
+    // The carb target is subtracted here too, so a higher one costs exactly
+    // its own energy in fat rather than being added on top of the day.
     final fatKcal =
-        tdee -
-        inductionNetCarbsG * kcalPerGramCarb -
-        proteinG * kcalPerGramProtein;
+        tdee - netCarbsG * kcalPerGramCarb - proteinG * kcalPerGramProtein;
 
     return MacroTargets(
       fatG: math.max(
         minimumFatTargetG,
         (fatKcal / kcalPerGramFat).roundToDouble(),
       ),
-      netCarbsG: inductionNetCarbsG,
+      netCarbsG: netCarbsG,
       proteinG: proteinG,
     );
+  }
+
+  /// The net-carb target for [data], in whole grams.
+  ///
+  /// **Always inside `[KetoConstants.inductionNetCarbsG,
+  /// KetoConstants.maxCompliantNetCarbsG]`** — 20 g to 50 g. That clamp is
+  /// the invariant and the reason this method exists: the calculator must
+  /// never propose a target that is itself a streak breach, whatever the
+  /// table says.
+  ///
+  /// Until now this was the constant 20, returned unchanged for everybody
+  /// while fat and protein were computed from the person. The only
+  /// personalisation available was to overtype it on screen 4 with no
+  /// guidance about what a sensible number for *this* user is.
+  ///
+  /// Activity sets the starting point; athletic performance adds
+  /// [KetoConstants.athleticPerformanceNetCarbBonusG]; weight loss caps at
+  /// [KetoConstants.weightLossNetCarbCapG] and wins when both are chosen.
+  /// Still only a *default* — screen 4 renders it in an editable field and
+  /// the user's number is what gets saved (`design/m4_preflight.md` §5.4).
+  double netCarbTargetFor(OnboardingData data) {
+    var grams = KetoConstants.netCarbTargetByActivity[data.activityLevel]!;
+
+    if (data.goals.contains(KetoGoal.athleticPerformance)) {
+      grams += KetoConstants.athleticPerformanceNetCarbBonusG;
+    }
+    // After the bonus, deliberately: the cap is a ceiling on the result, not
+    // an alternative starting point.
+    if (data.goals.contains(KetoGoal.weightLoss)) {
+      grams = math.min(grams, KetoConstants.weightLossNetCarbCapG);
+    }
+
+    return grams
+        .clamp(
+          KetoConstants.inductionNetCarbsG,
+          KetoConstants.maxCompliantNetCarbsG,
+        )
+        .roundToDouble();
   }
 
   /// Commits the finished flow: saves the profile, seeds the streak from a
@@ -144,8 +184,34 @@ class OnboardingService {
       UserProfile.fromOnboarding(data, targets),
     );
 
+    await _seedStreakAndPrompt(data.ketoStartDate, now);
+    return saved;
+  }
+
+  /// Commits a **skipped** flow (#262): a profile carrying
+  /// [MacroTargets.defaults], no biometrics and no goals.
+  ///
+  /// A skip is an ordinary completion whose answers are defaults, so
+  /// everything downstream — the gate, `macroTargetsProvider`,
+  /// `MacroSummaryCard` — needs no special case at all. What makes it a
+  /// completion rather than an escape is that it **writes a record**: the
+  /// gate reads the record's existence, so a skip that stored nothing would
+  /// send the user back into onboarding on the next launch.
+  ///
+  /// Fails for exactly one reason, like [completeOnboarding]: the profile
+  /// write. There is no start date to seed a streak from, and the permission
+  /// prompt is still a best-effort extra.
+  Future<UserProfile> skipOnboarding() async {
+    final saved = await profileRepository.save(UserProfile.skipped());
+    await _seedStreakAndPrompt(null, null);
+    return saved;
+  }
+
+  /// The two best-effort steps both commit paths take, neither of which may
+  /// fail the flow. See [completeOnboarding]'s doc for why each is caught.
+  Future<void> _seedStreakAndPrompt(DateTime? startDate, DateTime? now) async {
     try {
-      await _seedStreak(data.ketoStartDate, now ?? DateTime.now());
+      await _seedStreak(startDate, now ?? DateTime.now());
     } on Object catch (_) {
       // Deliberately swallowed — see the doc comment. The streak simply
       // starts at zero, which is what it would have done for a user who did
@@ -163,8 +229,6 @@ class OnboardingService {
       // Nor is an unavailable plugin. Notifications are an extra on top of a
       // finished profile, never a reason to fail one.
     }
-
-    return saved;
   }
 
   /// Writes a streak that reflects a keto run already under way.
@@ -201,14 +265,6 @@ class OnboardingService {
     await streakRepository.save(
       seed.copyWith(phase: adaptationPhaseService.currentPhase(seed)),
     );
-  }
-
-  double _basalMetabolicRate(OnboardingData data) {
-    final shared = 10 * data.weightKg + 6.25 * data.heightCm - 5 * data.age;
-    return switch (data.sex) {
-      BiologicalSex.male => shared + 5,
-      BiologicalSex.female => shared - 161,
-    };
   }
 
   /// Whole calendar days from [from] to [to], ignoring the time of day.

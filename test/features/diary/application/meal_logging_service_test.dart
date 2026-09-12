@@ -814,4 +814,27 @@ void main() {
       expect(log.sodiumMg, 3000);
     });
   });
+
+  // The training-day flag lives on the same record the macro totals do, so a
+  // meal logged after the user marked the day must not wipe it.
+  // `_recalculateDailyLog` starts from `existing.copyWith(...)`, which is what
+  // makes this true — this is the test that keeps it true.
+  group('the training-day flag', () {
+    test('survives a meal logged after the day was marked', () async {
+      when(() => dailyLogRepository.findByDate(any())).thenAnswer(
+        (_) async =>
+            DailyLogFixture.fixture(date: date).copyWith(trainingDay: true),
+      );
+
+      await service.logMeal(MealEntryFixture.fixture());
+
+      expect(capturedLog().trainingDay, isTrue);
+    });
+
+    test('stays false on a day that was never marked', () async {
+      await service.logMeal(MealEntryFixture.fixture());
+
+      expect(capturedLog().trainingDay, isFalse);
+    });
+  });
 }

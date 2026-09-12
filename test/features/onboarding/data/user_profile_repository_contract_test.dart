@@ -109,9 +109,9 @@ void runUserProfileRepositoryContractTests(
 
     test('every KetoGoal value survives the enum round-trip', () async {
       for (final goal in KetoGoal.values) {
-        await repo.save(UserProfileFixture.profile(goal: goal));
+        await repo.save(UserProfileFixture.profile(goals: {goal}));
 
-        expect((await repo.load())!.goal, goal, reason: 'goal $goal');
+        expect((await repo.load())!.goals, {goal}, reason: 'goal ${goal.name}');
       }
     });
   });

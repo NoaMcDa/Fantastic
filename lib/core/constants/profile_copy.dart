@@ -11,7 +11,7 @@ abstract final class ProfileCopy {
 
   // Section headings.
   static const String biometricsSection = 'נתונים אישיים';
-  static const String goalSection = 'מטרה';
+  static const String goalSection = 'מטרות';
   static const String targetsSection = 'יעדים יומיים';
   static const String notificationsSection = 'התראות';
   static const String aboutSection = 'אודות';
@@ -21,6 +21,7 @@ abstract final class ProfileCopy {
   static const String age = 'גיל';
   static const String weight = 'משקל';
   static const String height = 'גובה';
+  static const String activityLevel = 'רמת פעילות';
   static const String fat = 'שומן';
   static const String netCarbs = 'פחמימות נטו';
   static const String protein = 'חלבון';
@@ -43,6 +44,18 @@ abstract final class ProfileCopy {
   static const String kg = 'ק״ג';
   static const String cm = 'ס״מ';
   static const String grams = 'גרם';
+
+  /// Shown in place of the four biometric rows on a **skipped** profile
+  /// (#262), whose biometrics are genuinely null.
+  ///
+  /// A row saying the details are missing, rather than four rows of dashes or
+  /// four invented numbers: the app does not know these, and a profile screen
+  /// is the last place to pretend otherwise.
+  static const String biometricsMissing = 'לא מולאו פרטים אישיים';
+
+  /// Shown in place of the goal rows when the goal set is empty — the other
+  /// half of a skipped profile.
+  static const String noGoalsChosen = 'לא נבחרו מטרות';
 
   // States.
   static const String loadFailed = 'לא ניתן לטעון את הפרופיל';

@@ -9,6 +9,11 @@ import 'package:flutter/material.dart';
 ///
 /// [step] is 1-based and drives the dots; [onNext] being null disables the
 /// CTA, which is how screen 3 blocks progress until a goal is chosen.
+///
+/// [secondaryAction] renders **below** the CTA, which is the only place a
+/// skip belongs: an affordance that looks like the primary action gets
+/// tapped by accident, and skipping is not undoable while there is no
+/// profile-editing screen (#262).
 class OnboardingScaffold extends StatelessWidget {
   const OnboardingScaffold({
     required this.step,
@@ -16,6 +21,7 @@ class OnboardingScaffold extends StatelessWidget {
     required this.ctaLabel,
     required this.child,
     this.onNext,
+    this.secondaryAction,
     super.key,
   });
 
@@ -33,6 +39,9 @@ class OnboardingScaffold extends StatelessWidget {
   final String ctaLabel;
   final Widget child;
   final VoidCallback? onNext;
+
+  /// Shown under the CTA. Null on every screen but the first.
+  final Widget? secondaryAction;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +73,10 @@ class OnboardingScaffold extends StatelessWidget {
                   child: Text(ctaLabel),
                 ),
               ),
+              if (secondaryAction != null) ...[
+                const SizedBox(height: 8),
+                secondaryAction!,
+              ],
               const SizedBox(height: 24),
             ],
           ),

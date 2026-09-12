@@ -20,6 +20,7 @@ abstract final class DailyLogMapper {
     'potassiumMg': log.potassiumMg,
     'magnesiumMg': log.magnesiumMg,
     'ketoRatioAvg': log.ketoRatioAvg,
+    'trainingDay': log.trainingDay,
   };
 
   static DailyLog fromRecord(int key, Map<String, Object?> record) => DailyLog(
@@ -35,6 +36,10 @@ abstract final class DailyLogMapper {
     potassiumMg: (record['potassiumMg']! as num).toDouble(),
     magnesiumMg: (record['magnesiumMg']! as num).toDouble(),
     ketoRatioAvg: (record['ketoRatioAvg']! as num).toDouble(),
+    // Absent from every record written before the training-day chip shipped,
+    // and false is what those days meant. There is no migration step in this
+    // app, so the codec is where an added field is made backward-readable.
+    trainingDay: (record['trainingDay'] as bool?) ?? false,
   );
 
   /// yyyyMMdd key for [date] — the record key itself, and the value

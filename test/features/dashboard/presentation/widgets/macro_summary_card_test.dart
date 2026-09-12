@@ -1,18 +1,24 @@
 import 'dart:async';
 
+import 'package:fantastic/core/constants/dashboard_copy.dart';
 import 'package:fantastic/core/constants/keto_constants.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/core/theme/keto_ratio_palette.dart';
 import 'package:fantastic/features/adaptation/presentation/widgets/streak_ring_widget.dart';
+import 'package:fantastic/features/dashboard/application/daily_targets_service.dart';
 import 'package:fantastic/features/dashboard/application/providers/daily_log_providers.dart';
 import 'package:fantastic/features/dashboard/domain/models/daily_log.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card.dart';
 import 'package:fantastic/features/diary/presentation/widgets/empty_meals_state.dart';
 import 'package:fantastic/features/onboarding/application/providers/user_profile_providers.dart';
 import 'package:fantastic/features/onboarding/domain/models/macro_targets.dart';
+import 'package:fantastic/core/error/repository_exception.dart';
+import 'package:fantastic/features/onboarding/domain/models/activity_level.dart';
+import 'package:fantastic/features/onboarding/domain/models/user_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:fantastic/features/dashboard/presentation/widgets/macro_summary_card_skeleton.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 
 import '../../../../fixtures/fixtures.dart';
 import '../../../../helpers/pump_app.dart';
@@ -29,11 +35,15 @@ void main() {
     MacroSummaryCard(date: date),
     overrides: [
       todaysDailyLogProvider(date).overrideWith((ref) async => log),
-      // The targets the card measures against come from the onboarding
-      // profile now (#73). The defaults are what a user who has not onboarded
-      // sees, and what this card hard-coded through M2 and M3.
-      macroTargetsProvider.overrideWith(
-        (ref) => Stream.value(targets ?? MacroTargets.defaults),
+      // The profile is overridden rather than `dailyTargetsProvider` itself,
+      // so these tests still run the real composition the card depends on:
+      // profile + day's log → the day's targets. A null profile is a user who
+      // has not onboarded, whose targets are the defaults this card
+      // hard-coded through M2 and M3 (#73).
+      onboardedProfileProvider.overrideWith(
+        (ref) => Stream.value(
+          targets == null ? null : UserProfileFixture.profile(targets: targets),
+        ),
       ),
     ],
   );
@@ -252,9 +262,7 @@ void main() {
             // Never completes — holds the widget in its loading state.
             return Completer<DailyLog?>().future;
           }),
-          macroTargetsProvider.overrideWith(
-            (ref) => Stream.value(MacroTargets.defaults),
-          ),
+          onboardedProfileProvider.overrideWith((ref) => Stream.value(null)),
         ],
       );
       await tester.pump();
@@ -273,9 +281,7 @@ void main() {
         overrides: [
           todaysDailyLogProvider(date)
               .overrideWith((ref) async => throw Exception('disk gone')),
-          macroTargetsProvider.overrideWith(
-            (ref) => Stream.value(MacroTargets.defaults),
-          ),
+          onboardedProfileProvider.overrideWith((ref) => Stream.value(null)),
         ],
       );
       await tester.pumpAndSettle();
@@ -302,8 +308,8 @@ void main() {
         overrides: [
           todaysDailyLogProvider(date)
               .overrideWith((ref) async => DailyLogFixture.fixture()),
-          macroTargetsProvider.overrideWith(
-            (ref) => Stream<MacroTargets>.error(Exception('disk gone')),
+          onboardedProfileProvider.overrideWith(
+            (ref) => Stream<UserProfile?>.error(Exception('disk gone')),
           ),
         ],
       );
@@ -483,4 +489,192 @@ void main() {
       expect(ratioBar(tester).color, AppTheme.danger);
     });
   });
+
+  // #431's second bullet, at the point the user touches it. The chip lives in
+  // this card because the target it moves is the bar directly below it.
+  group('the training-day chip', () {
+    late _MockDailyTargetsService targetsService;
+
+    /// Today, because the chip is deliberately today-only: this card is also
+    /// the diary's day view, and a past day's targets are what they were.
+    final today = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+
+    setUpAll(() => registerFallbackValue(DateTime(2026)));
+
+    setUp(() {
+      targetsService = _MockDailyTargetsService();
+      when(
+        () => targetsService.setTrainingDay(
+          any(),
+          trained: any(named: 'trained'),
+        ),
+      ).thenAnswer((_) async {});
+    });
+
+    Future<void> pumpToday(
+      WidgetTester tester, {
+      required UserProfile? profile,
+      DailyLog? log,
+      DateTime? date,
+    }) => pumpApp(
+      tester,
+      MacroSummaryCard(date: date ?? today),
+      overrides: [
+        todaysDailyLogProvider(date ?? today).overrideWith((ref) async => log),
+        onboardedProfileProvider.overrideWith((ref) => Stream.value(profile)),
+        dailyTargetsServiceProvider.overrideWithValue(targetsService),
+      ],
+    );
+
+    testWidgets('renders for a profile with biometrics', (tester) async {
+      await pumpToday(
+        tester,
+        profile: UserProfileFixture.profile(),
+        log: DailyLogFixture.fixture(date: today),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('training_day_chip')), findsOneWidget);
+      expect(find.text(DashboardCopy.trainingDay), findsOneWidget);
+    });
+
+    testWidgets('is selected on a day already marked', (tester) async {
+      await pumpToday(
+        tester,
+        profile: UserProfileFixture.profile(),
+        log: DailyLogFixture.fixture(date: today).copyWith(trainingDay: true),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<FilterChip>(find.byKey(const Key('training_day_chip')))
+            .selected,
+        isTrue,
+      );
+    });
+
+    testWidgets('tapping it marks the day', (tester) async {
+      await pumpToday(
+        tester,
+        profile: UserProfileFixture.profile(),
+        log: DailyLogFixture.fixture(date: today),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('training_day_chip')));
+      await tester.pumpAndSettle();
+
+      verify(() => targetsService.setTrainingDay(today, trained: true))
+          .called(1);
+    });
+
+    testWidgets('tapping a marked day unmarks it', (tester) async {
+      await pumpToday(
+        tester,
+        profile: UserProfileFixture.profile(),
+        log: DailyLogFixture.fixture(date: today).copyWith(trainingDay: true),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('training_day_chip')));
+      await tester.pumpAndSettle();
+
+      verify(() => targetsService.setTrainingDay(today, trained: false))
+          .called(1);
+    });
+
+    // A tap that did nothing and said nothing is the worst outcome: the user
+    // re-taps, and the chip keeps snapping back for no stated reason.
+    testWidgets('a failed write says so and leaves the chip alone', (
+      tester,
+    ) async {
+      when(
+        () => targetsService.setTrainingDay(
+          any(),
+          trained: any(named: 'trained'),
+        ),
+      ).thenThrow(
+        const PersistenceException('DailyLogRepository.save', 'closed'),
+      );
+      await pumpToday(
+        tester,
+        profile: UserProfileFixture.profile(),
+        log: DailyLogFixture.fixture(date: today),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('training_day_chip')));
+      await tester.pumpAndSettle();
+
+      expect(find.text(DashboardCopy.trainingDaySaveFailed), findsOneWidget);
+      expect(
+        tester
+            .widget<FilterChip>(find.byKey(const Key('training_day_chip')))
+            .selected,
+        isFalse,
+      );
+    });
+
+    // A skipped flow (#262) leaves no BMR, so the chip would move no number.
+    testWidgets('is hidden for a profile with no biometrics', (tester) async {
+      await pumpToday(
+        tester,
+        profile: UserProfile.skipped(),
+        log: DailyLogFixture.fixture(date: today),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('training_day_chip')), findsNothing);
+    });
+
+    testWidgets('is hidden when nobody has onboarded', (tester) async {
+      await pumpToday(
+        tester,
+        profile: null,
+        log: DailyLogFixture.fixture(date: today),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('training_day_chip')), findsNothing);
+    });
+
+    testWidgets('is hidden on a past day', (tester) async {
+      final past = DateTime(2026, 1, 1);
+      await pumpToday(
+        tester,
+        profile: UserProfileFixture.profile(),
+        log: DailyLogFixture.fixture(date: past),
+        date: past,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('training_day_chip')), findsNothing);
+    });
+
+    // The card is the one place the raised target becomes visible.
+    testWidgets('a marked day shows the raised fat target', (tester) async {
+      final profile = UserProfileFixture.profile(
+        activityLevel: ActivityLevel.moderate,
+      );
+      final marked = DailyLogFixture.fixture(date: today)
+          .copyWith(trainingDay: true);
+
+      await pumpToday(tester, profile: profile, log: marked);
+      await tester.pumpAndSettle();
+
+      final raised = DailyTargetsService.forDay(profile: profile, log: marked);
+      expect(raised.fatG, greaterThan(profile.targets.fatG));
+      expect(
+        find.textContaining('/${raised.fatG.toStringAsFixed(0)}ג׳'),
+        findsOneWidget,
+      );
+    });
+  });
 }
+
+class _MockDailyTargetsService extends Mock implements DailyTargetsService {}

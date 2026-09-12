@@ -125,4 +125,33 @@ void main() {
       );
     });
   });
+
+  group('trainingDay', () {
+    test('round-trips as true', () {
+      final record = DailyLogMapper.toRecord(
+        DailyLogFixture.fixture().copyWith(trainingDay: true),
+      );
+
+      expect(record['trainingDay'], isTrue);
+      expect(DailyLogMapper.fromRecord(1, record).trainingDay, isTrue);
+    });
+
+    test('round-trips as false', () {
+      final record = DailyLogMapper.toRecord(DailyLogFixture.fixture());
+
+      expect(record['trainingDay'], isFalse);
+      expect(DailyLogMapper.fromRecord(1, record).trainingDay, isFalse);
+    });
+
+    // There is no migration step in this app, so the codec is where an added
+    // field is made backward-readable. Every day logged before the chip
+    // shipped meant "not a training day".
+    test('a record written before the field existed reads as false', () {
+      final record = Map<String, Object?>.from(
+        DailyLogMapper.toRecord(DailyLogFixture.fixture()),
+      )..remove('trainingDay');
+
+      expect(DailyLogMapper.fromRecord(1, record).trainingDay, isFalse);
+    });
+  });
 }

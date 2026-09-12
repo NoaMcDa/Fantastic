@@ -21,6 +21,7 @@ class DailyLog {
     this.potassiumMg = 0,
     this.magnesiumMg = 0,
     this.ketoRatioAvg = 0,
+    this.trainingDay = false,
   });
 
   /// Null until first persisted. Carries the record's yyyyMMdd key once it
@@ -45,6 +46,22 @@ class DailyLog {
   /// averages are not loaded when the dashboard reads the day.
   final double ketoRatioAvg;
 
+  /// Whether the user marked this day as one they trained on.
+  ///
+  /// Set from the dashboard's own chip, never inferred: the app has no
+  /// activity sensor and guessing would be a claim it cannot support.
+  /// `DailyTargetsService.forDay` reads it to raise the day's **fat** target
+  /// by the energy one tier of activity is worth; net carbs and protein are
+  /// untouched, because on keto the extra energy is fat.
+  ///
+  /// **Flagging a day does not log it.** Every macro total stays whatever it
+  /// was, so a flagged day with no meals is still all-zero — which
+  /// `AdaptationPhaseService` reads as *unlogged*, exactly as it did before.
+  /// A day cannot be banked toward a streak by saying you went to the gym.
+  ///
+  /// False for every record written before this field existed.
+  final bool trainingDay;
+
   DailyLog copyWith({
     int? id,
     DateTime? date,
@@ -56,6 +73,7 @@ class DailyLog {
     double? potassiumMg,
     double? magnesiumMg,
     double? ketoRatioAvg,
+    bool? trainingDay,
   }) => DailyLog(
     id: id ?? this.id,
     date: date ?? this.date,
@@ -67,6 +85,7 @@ class DailyLog {
     potassiumMg: potassiumMg ?? this.potassiumMg,
     magnesiumMg: magnesiumMg ?? this.magnesiumMg,
     ketoRatioAvg: ketoRatioAvg ?? this.ketoRatioAvg,
+    trainingDay: trainingDay ?? this.trainingDay,
   );
 
   @override
@@ -82,7 +101,8 @@ class DailyLog {
           other.sodiumMg == sodiumMg &&
           other.potassiumMg == potassiumMg &&
           other.magnesiumMg == magnesiumMg &&
-          other.ketoRatioAvg == ketoRatioAvg;
+          other.ketoRatioAvg == ketoRatioAvg &&
+          other.trainingDay == trainingDay;
 
   @override
   int get hashCode => Object.hash(
@@ -96,5 +116,6 @@ class DailyLog {
     potassiumMg,
     magnesiumMg,
     ketoRatioAvg,
+    trainingDay,
   );
 }

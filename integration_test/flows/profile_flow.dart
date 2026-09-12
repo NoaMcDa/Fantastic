@@ -41,6 +41,15 @@ void main() {
       ),
       findsOneWidget,
     );
+    // Scrolled to rather than merely looked for: the tab grew an activity
+    // row, and a `ListView` child below the fold has no element at all
+    // (`design/m5_handoff.md`), so a bare finder reports "missing" for a row
+    // that is simply further down.
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('profile_target_net_carbs')),
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(
       find.descendant(
         of: find.byKey(const Key('profile_target_net_carbs')),
