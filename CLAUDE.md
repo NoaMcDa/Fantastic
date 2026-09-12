@@ -447,7 +447,7 @@ CameraScreen / gallery import
                    android/ios → TesseractPluginRecognizer  (flutter_tesseract_ocr)
                    desktop     → TesseractFfiRecognizer     (dart:ffi → libtesseract)
                    otherwise   → UnavailableTextRecognizer  (not wrapped)
-  → LabelParser              → HebrewLabelParser + HebrewTextNormaliser
+  → LabelParser              → HebrewLabelParser + HebrewTextNormaliser (lib/core/utils/)
   → IngredientClassifier     → IngredientClassifierImpl
   → ScanResult               (sealed: ScanSucceeded | ScanFailed)
   → ScanResultSheet          → scales by ServingBasis → prefills AddMealBottomSheet

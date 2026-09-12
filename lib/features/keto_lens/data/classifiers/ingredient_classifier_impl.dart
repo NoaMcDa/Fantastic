@@ -1,5 +1,5 @@
 import 'package:fantastic/core/constants/ingredient_rules.dart';
-import 'package:fantastic/features/keto_lens/data/parsers/hebrew_text_normaliser.dart';
+import 'package:fantastic/core/utils/hebrew_text_normaliser.dart';
 import 'package:fantastic/features/keto_lens/domain/models/ingredient_verdict.dart';
 import 'package:fantastic/features/keto_lens/domain/models/verdict_badge.dart';
 import 'package:fantastic/features/keto_lens/domain/services/ingredient_classifier.dart';
