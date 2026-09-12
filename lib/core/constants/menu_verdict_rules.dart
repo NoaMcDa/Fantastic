@@ -1,3 +1,4 @@
+import 'package:fantastic/features/keto_lens/data/adapters/ocr_image_prep.dart';
 import 'package:fantastic/features/menu/domain/models/dish_verdict.dart';
 
 /// What the three dish verdicts mean, and the caps the menu-scanner request
@@ -135,4 +136,14 @@ abstract final class MenuVerdictRules {
   ///
   /// A page with only a logo and a page number is not a menu page.
   static const int minExtractedLetters = 20;
+
+  /// The width, in pixels, a PDF page is rendered at before OCR.
+  ///
+  /// Chosen to land inside the envelope `OcrImagePrep` already defines —
+  /// above `minWidth` so `ScalingTextRecognizer` does not upscale a page it
+  /// could have had sharp, and far below `maxEdge`/`maxPixels` so no page
+  /// size can provoke an unbounded allocation. `design/m6_platform_handoff.md`
+  /// records that this plateau is narrow and that adjacent settings return
+  /// plausible *wrong* numbers, so this is not a knob to turn casually.
+  static const int pdfRenderWidthPx = OcrImagePrep.targetWidth;
 }

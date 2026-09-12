@@ -2,14 +2,41 @@ import 'dart:io';
 
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
 import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
+import 'package:fantastic/features/menu/data/adapters/pdf_page_extractor_impl.dart';
 import 'package:fantastic/features/menu/data/analysis/menu_response_parser.dart';
 import 'package:fantastic/features/menu/domain/models/dish_verdict.dart';
 import 'package:fantastic/features/menu/domain/models/menu_analysis.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 import 'fixtures.dart';
 
-void main() {
+/// Mirrors `pdf_page_extractor_impl_test.dart`'s own probe: a genuinely
+/// valid, empty PDF, so any failure to open it is the environment gap (no
+/// PDFium native module), never a bug in the fixture or the adapter.
+Future<bool> _probePdfiumLoads() async {
+  try {
+    await const PdfrxPageExtractor().extract('test/fixtures/zero_page.pdf');
+    return true;
+  } on Object {
+    return false;
+  }
+}
+
+Future<void> main() async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  // Required once before the first `extract()` call — see
+  // `pdf_page_extractor_impl_test.dart` for why: `pdfrx` otherwise asks
+  // `path_provider` for a cache directory, and no platform channel answers
+  // that under `flutter test`.
+  Pdfrx.cacheDirectoryPath = Directory.systemTemp.path;
+
+  final pdfiumAvailable = await _probePdfiumLoads();
+  final String? pdfiumSkipReason = pdfiumAvailable
+      ? null
+      : 'PDFium native module could not be loaded in this environment';
+
   group('fixture defaults are keto-valid', () {
     test('MealEntryFixture defaults to a ratio of 1.0', () {
       expect(MealEntryFixture.fixture().ketoRatio, closeTo(1.0, 0.0001));
@@ -355,6 +382,29 @@ void main() {
         expect(file.lengthSync(), greaterThan(0));
       });
     }
+
+    // The scanned fixture's whole reason for existing (#406): it has no
+    // characters at all, so every one of its pages must come back in
+    // `pagesWithoutTextLayer` — the tightest possible check that #405's
+    // guard and #406's rasteriser consumer agree on what "no usable text
+    // layer" means.
+    test(
+      'hebrew_menu_scanned.pdf reports every page in pagesWithoutTextLayer',
+      () async {
+        const extractor = PdfrxPageExtractor();
+        final result = await extractor.extract(
+          'test/fixtures/hebrew_menu_scanned.pdf',
+        );
+
+        expect(result.pagesWithoutTextLayer, hasLength(result.pageCount));
+        expect(
+          result.pagesWithoutTextLayer,
+          List.generate(result.pageCount, (i) => i + 1),
+        );
+        expect(result.pages, isEmpty);
+      },
+      skip: pdfiumSkipReason,
+    );
   });
 
   group('RenderedMenuOcrFixture is a genuine capture', () {

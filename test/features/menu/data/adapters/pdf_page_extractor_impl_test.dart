@@ -4,10 +4,17 @@ library;
 import 'dart:io';
 
 import 'package:fantastic/core/constants/menu_verdict_rules.dart';
+import 'package:fantastic/features/keto_lens/data/adapters/ocr_image_prep.dart';
+import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
+import 'package:fantastic/features/menu/application/menu_page_reader.dart';
 import 'package:fantastic/features/menu/data/adapters/pdf_page_extractor_impl.dart';
 import 'package:fantastic/features/menu/domain/services/pdf_page_extractor.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
+import 'package:mocktail/mocktail.dart';
 import 'package:pdfrx/pdfrx.dart';
+
+class _MockRecognizer extends Mock implements TextRecognitionService {}
 
 /// `PdfrxPageExtractor` against real PDF fixtures, plus direct unit tests of
 /// the legibility guard — the reason #405 exists.
@@ -348,6 +355,260 @@ Future<void> main() async {
         final notAPdfReason = await reasonOf(notAPdf.path);
 
         expect(encryptedReason, isNot(notAPdfReason));
+      },
+      skip: fixtureSkipReason,
+    );
+  });
+
+  group(
+    'PdfrxPageExtractor.renderSizeFor — pure arithmetic, no PDFium needed',
+    () {
+      test('a portrait A4-shaped page renders pdfRenderWidthPx wide, aspect '
+          'ratio preserved', () {
+        // A4 in points: 595 x 842.
+        final size = PdfrxPageExtractor.renderSizeFor(
+          pageWidth: 595,
+          pageHeight: 842,
+        );
+
+        expect(size.width, MenuVerdictRules.pdfRenderWidthPx);
+        expect(size.height / size.width, closeTo(842 / 595, 0.001));
+      });
+
+      test('a landscape page is still exactly pdfRenderWidthPx wide', () {
+        final size = PdfrxPageExtractor.renderSizeFor(
+          pageWidth: 842,
+          pageHeight: 595,
+        );
+
+        expect(size.width, MenuVerdictRules.pdfRenderWidthPx);
+        expect(size.height, lessThan(size.width));
+      });
+
+      test(
+        'a large-format (A3 poster) page still renders within OcrImagePrep\'s '
+        'maxEdge and maxPixels caps',
+        () {
+          // A3 in points: 842 x 1191.
+          final size = PdfrxPageExtractor.renderSizeFor(
+            pageWidth: 842,
+            pageHeight: 1191,
+          );
+
+          expect(size.width, lessThanOrEqualTo(OcrImagePrep.maxEdge));
+          expect(size.height, lessThanOrEqualTo(OcrImagePrep.maxEdge));
+          expect(
+            size.width * size.height,
+            lessThanOrEqualTo(OcrImagePrep.maxPixels),
+          );
+        },
+      );
+
+      test(
+        // A narrow banner-shaped page: rendered naively at pdfRenderWidthPx
+        // wide its height would land far past maxEdge. The clamp must fire,
+        // and the page's own aspect ratio must survive it.
+        'an extreme banner-shaped page is clamped to maxEdge on its long '
+        'edge, never grown past it',
+        () {
+          final size = PdfrxPageExtractor.renderSizeFor(
+            pageWidth: 100,
+            pageHeight: 6000,
+          );
+
+          expect(size.height, lessThanOrEqualTo(OcrImagePrep.maxEdge));
+          expect(
+            size.width * size.height,
+            lessThanOrEqualTo(OcrImagePrep.maxPixels),
+          );
+          expect(size.height / size.width, closeTo(60, 0.5));
+        },
+      );
+
+      test('a tiny page is never upscaled past pdfRenderWidthPx', () {
+        final size = PdfrxPageExtractor.renderSizeFor(
+          pageWidth: 100,
+          pageHeight: 100,
+        );
+
+        expect(
+          size.width,
+          lessThanOrEqualTo(MenuVerdictRules.pdfRenderWidthPx),
+        );
+      });
+    },
+  );
+
+  group('PdfrxPageExtractor.renderPages', () {
+    const extractor = PdfrxPageExtractor();
+
+    test(
+      // Runs unconditionally, with no PDFium at all: the empty-list guard
+      // must return before the file is ever touched, so a nonexistent path
+      // proves the point rather than merely being a convenient input — if
+      // this ever tried to open the file it would throw
+      // PdfUnreadableException instead of returning quietly.
+      'an empty pages list returns an empty result and opens nothing',
+      () async {
+        final paths = await extractor.renderPages(
+          'test/fixtures/does_not_exist.pdf',
+          const [],
+        );
+
+        expect(paths, isEmpty);
+      },
+    );
+
+    test(
+      'the scanned fixture\'s one page renders to one existing PNG file',
+      () async {
+        final paths = await extractor.renderPages(
+          'test/fixtures/hebrew_menu_scanned.pdf',
+          [1],
+        );
+
+        expect(paths, hasLength(1));
+        expect(File(paths.single).existsSync(), isTrue);
+        expect(paths.single, endsWith('.png'));
+      },
+      skip: fixtureSkipReason,
+    );
+
+    test('the rendered image\'s width is pdfRenderWidthPx and its aspect '
+        'ratio matches the source page', () async {
+      final document = await PdfDocument.openFile(
+        'test/fixtures/hebrew_menu_scanned.pdf',
+      );
+      final sourceAspect =
+          document.pages.single.width / document.pages.single.height;
+      await document.dispose();
+
+      final paths = await extractor.renderPages(
+        'test/fixtures/hebrew_menu_scanned.pdf',
+        [1],
+      );
+      final decoded = img.decodePng(await File(paths.single).readAsBytes());
+
+      expect(decoded, isNotNull);
+      expect(decoded!.width, MenuVerdictRules.pdfRenderWidthPx);
+      expect(decoded.width / decoded.height, closeTo(sourceAspect, 0.01));
+    }, skip: fixtureSkipReason);
+
+    test('multiple valid pages render in the order requested', () async {
+      final paths = await extractor.renderPages(
+        'test/fixtures/hebrew_menu_mixed.pdf',
+        [1, 2],
+      );
+
+      expect(paths, hasLength(2));
+      for (final path in paths) {
+        expect(File(path).existsSync(), isTrue);
+      }
+    }, skip: fixtureSkipReason);
+
+    test(
+      // The mixed fixture's page 1 already has a good text layer; only
+      // page 2 needs rasterising. Requesting only [2] must not touch page 1
+      // at all.
+      'requesting a subset of pages renders only that subset',
+      () async {
+        final paths = await extractor.renderPages(
+          'test/fixtures/hebrew_menu_mixed.pdf',
+          [2],
+        );
+
+        expect(paths, hasLength(1));
+      },
+      skip: fixtureSkipReason,
+    );
+
+    test(
+      // Covers the same omission path a genuinely unrenderable page would
+      // take: the loop simply never adds a path for it, and every other
+      // requested page still comes back. An out-of-range number is the one
+      // way to trigger that path deterministically against a real fixture.
+      'a page number outside 1..pageCount is skipped, not thrown on, and '
+      'the pages that are in range still render',
+      () async {
+        final paths = await extractor.renderPages(
+          'test/fixtures/hebrew_menu_scanned.pdf',
+          [0, 1, 99, -5],
+        );
+
+        expect(paths, hasLength(1));
+      },
+      skip: fixtureSkipReason,
+    );
+
+    test(
+      'rendered files are written to a temporary directory, never the app '
+      'documents directory — Epic #351 forbids persisting anything',
+      () async {
+        final paths = await extractor.renderPages(
+          'test/fixtures/hebrew_menu_scanned.pdf',
+          [1],
+        );
+
+        expect(paths, hasLength(1));
+        expect(paths.single, startsWith(Directory.systemTemp.path));
+      },
+      skip: fixtureSkipReason,
+    );
+
+    test(
+      'an encrypted PDF throws PdfUnreadableException from renderPages too',
+      () async {
+        await expectLater(
+          extractor.renderPages('test/fixtures/hebrew_menu_encrypted.pdf', [1]),
+          throwsA(isA<PdfUnreadableException>()),
+        );
+      },
+      skip: fixtureSkipReason,
+    );
+
+    test('a file that is not a PDF throws PdfUnreadableException from '
+        'renderPages too', () async {
+      final dir = await Directory.systemTemp.createTemp(
+        'pdf_page_extractor_render_test',
+      );
+      addTearDown(() => dir.delete(recursive: true));
+      final notAPdf = File('${dir.path}/not_a_pdf.txt');
+      await notAPdf.writeAsString('this is definitely not a PDF file');
+
+      await expectLater(
+        extractor.renderPages(notAPdf.path, [1]),
+        throwsA(isA<PdfUnreadableException>()),
+      );
+    }, skip: fixtureSkipReason);
+
+    test(
+      'rendered pages, handed to a real MenuPageReader over a fake '
+      'recogniser, produce the marker-joined text shape the prompt expects',
+      () async {
+        final paths = await extractor.renderPages(
+          'test/fixtures/hebrew_menu_mixed.pdf',
+          [1, 2],
+        );
+        expect(paths, hasLength(2));
+
+        final recognizer = _MockRecognizer();
+        when(() => recognizer.isAvailable).thenReturn(true);
+        when(() => recognizer.recognise(paths[0]))
+            .thenAnswer((_) async => 'עוף בגריל');
+        when(() => recognizer.recognise(paths[1]))
+            .thenAnswer((_) async => 'סלט קיסר');
+
+        final reader = MenuPageReader(recognizer: recognizer);
+        final result = await reader.read(paths);
+
+        expect(result.pageCount, 2);
+        expect(result.unreadPages, isEmpty);
+        final marker1 = result.text.indexOf(MenuPageReader.pageMarker(1));
+        final marker2 = result.text.indexOf(MenuPageReader.pageMarker(2));
+        expect(marker1, isNonNegative);
+        expect(marker2, greaterThan(marker1));
+        expect(result.text, contains('עוף בגריל'));
+        expect(result.text, contains('סלט קיסר'));
       },
       skip: fixtureSkipReason,
     );

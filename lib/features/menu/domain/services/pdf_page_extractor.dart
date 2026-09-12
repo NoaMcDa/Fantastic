@@ -16,6 +16,19 @@ abstract interface class PdfPageExtractor {
   /// corrupt, or is encrypted. Never throws for a PDF that simply has no
   /// text layer — that is a normal result, reported per page.
   Future<PdfPagesText> extract(String pdfPath);
+
+  /// Renders [pages] (1-based) of the PDF at [pdfPath] to image files and
+  /// returns their paths, in page order.
+  ///
+  /// For a page whose text layer is missing or illegible — the pages
+  /// `PdfPagesText.pagesWithoutTextLayer` names — this is the only way to
+  /// read it: the result goes to `MenuPageReader`, exactly as a
+  /// photographed page would.
+  ///
+  /// Throws [PdfUnreadableException] on the same terms as [extract].
+  /// A page that cannot be rendered is **omitted** from the result rather
+  /// than failing the batch — one bad page must not lose the other seven.
+  Future<List<String>> renderPages(String pdfPath, List<int> pages);
 }
 
 /// Thrown when a PDF cannot be opened at all.

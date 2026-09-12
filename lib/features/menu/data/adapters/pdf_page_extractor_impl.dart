@@ -1,6 +1,11 @@
+import 'dart:io';
+import 'dart:math' as math;
+
 import 'package:fantastic/core/constants/menu_verdict_rules.dart';
+import 'package:fantastic/features/keto_lens/data/adapters/ocr_image_prep.dart';
 import 'package:fantastic/features/menu/domain/models/pdf_pages_text.dart';
 import 'package:fantastic/features/menu/domain/services/pdf_page_extractor.dart';
+import 'package:image/image.dart' as img;
 import 'package:meta/meta.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -81,6 +86,164 @@ class PdfrxPageExtractor implements PdfPageExtractor {
     } finally {
       await document.dispose();
     }
+  }
+
+  @override
+  Future<List<String>> renderPages(String pdfPath, List<int> pages) async {
+    // Opens nothing for an empty request — the happy path never needs a
+    // document at all, and a background render should not pay for one.
+    if (pages.isEmpty) {
+      return const [];
+    }
+
+    await pdfrxFlutterInitialize();
+
+    final PdfDocument document;
+    try {
+      document = await PdfDocument.openFile(pdfPath);
+    } on Object catch (error) {
+      throw PdfUnreadableException(error.toString());
+    }
+
+    try {
+      final pageCount = document.pages.length;
+
+      // A fresh directory per call, under the system temp root — never the
+      // app documents directory. Nothing rendered here is persisted: it
+      // exists only long enough for `MenuPageReader` to OCR it, per Epic
+      // #351's second invariant.
+      final tempDir = await Directory.systemTemp.createTemp(
+        'fantastic_pdf_pages_',
+      );
+
+      final renderedPaths = <String>[];
+
+      // Sequential, never `Future.wait` — the same reason `extract` above
+      // and `MenuPageReader.read` both give: pdfium's native calls are not
+      // free to parallelise, and a page that hangs should not hide behind
+      // the others.
+      for (final pageNumber in pages) {
+        // Out-of-range page numbers are skipped rather than thrown on. The
+        // caller derives this list from `extract`'s own `pageCount`, but a
+        // defensive skip costs nothing and a range error in a background
+        // render is a blank screen.
+        if (pageNumber < 1 || pageNumber > pageCount) {
+          continue;
+        }
+
+        final path = await _renderPage(
+          document.pages[pageNumber - 1],
+          pageNumber,
+          tempDir.path,
+        );
+        // A page that fails to render is omitted, not fatal — one bad page
+        // must not lose the other seven.
+        if (path != null) {
+          renderedPaths.add(path);
+        }
+      }
+
+      return renderedPaths;
+    } finally {
+      await document.dispose();
+    }
+  }
+
+  /// Renders one page to a PNG file under [tempDirPath], or returns `null`
+  /// if rendering that page failed for any reason.
+  static Future<String?> _renderPage(
+    PdfPage page,
+    int pageNumber,
+    String tempDirPath,
+  ) async {
+    final pageWidth = page.width;
+    final pageHeight = page.height;
+    // A degenerate page size (a corrupt page dictionary, not a corrupt
+    // file — `extract` already opened the document successfully) cannot be
+    // scaled to anything sensible. Omit it rather than divide by zero.
+    if (pageWidth <= 0 || pageHeight <= 0) {
+      return null;
+    }
+
+    final size = renderSizeFor(pageWidth: pageWidth, pageHeight: pageHeight);
+
+    PdfImage? image;
+    try {
+      // Leaving `width`/`height` unset renders the *whole* page — only
+      // `fullWidth`/`fullHeight` are given, which set the resolution the
+      // page is rasterised at while preserving its own aspect ratio. There
+      // is deliberately no fixed height and no letterboxing: a stretched
+      // page is a page the engine reads wrong.
+      image = await page.render(
+        fullWidth: size.width.toDouble(),
+        fullHeight: size.height.toDouble(),
+      );
+      if (image == null) {
+        return null;
+      }
+
+      // `PdfImage.pixels` is BGRA8888; `ChannelOrder.bgra` tells `package:
+      // image` to swap red and blue back on the way in rather than writing
+      // out a blue-tinted PNG.
+      final decoded = img.Image.fromBytes(
+        width: image.width,
+        height: image.height,
+        bytes: image.pixels.buffer,
+        bytesOffset: image.pixels.offsetInBytes,
+        numChannels: 4,
+        order: img.ChannelOrder.bgra,
+      );
+
+      final path = '$tempDirPath/page_$pageNumber.png';
+      // PNG, not JPEG: this file exists only to be read back by Tesseract
+      // moments later, and lossy compression around glyph edges is a
+      // recognition cost paid for a disk saving nobody needs — the same
+      // reason `ScalingTextRecognizer` encodes PNG for its own prepared
+      // copies.
+      await File(path).writeAsBytes(img.encodePng(decoded));
+      return path;
+    } on Object {
+      return null;
+    } finally {
+      image?.dispose();
+    }
+  }
+
+  /// The pixel size a page of [pageWidth]x[pageHeight] points (pdfrx's own
+  /// unit, at 72 dpi) is rendered at.
+  ///
+  /// [MenuVerdictRules.pdfRenderWidthPx] wide, with height following the
+  /// page's own aspect ratio — never a fixed height, never letterboxed. The
+  /// result is then clamped, never grown, so it never crosses
+  /// `OcrImagePrep.maxEdge` or `OcrImagePrep.maxPixels`: those two are
+  /// memory guards, not tuning knobs (see `OcrImagePrep`'s own doc comment),
+  /// and a tall poster-format menu page is exactly the shape that could
+  /// otherwise blow past them on height alone while its width stays capped.
+  ///
+  /// `@visibleForTesting`: pure arithmetic, checkable with no PDF and no
+  /// native module at all — the same reason [legibleTextOf] is exposed.
+  @visibleForTesting
+  static ({int width, int height}) renderSizeFor({
+    required double pageWidth,
+    required double pageHeight,
+  }) {
+    var width = MenuVerdictRules.pdfRenderWidthPx.toDouble();
+    var height = width * pageHeight / pageWidth;
+
+    final longestEdge = math.max(width, height);
+    if (longestEdge > OcrImagePrep.maxEdge) {
+      final factor = OcrImagePrep.maxEdge / longestEdge;
+      width *= factor;
+      height *= factor;
+    }
+
+    if (width * height > OcrImagePrep.maxPixels) {
+      final factor = math.sqrt(OcrImagePrep.maxPixels / (width * height));
+      width *= factor;
+      height *= factor;
+    }
+
+    return (width: width.round(), height: height.round());
   }
 
   /// The legibility guard, in the order the issue specifies:
