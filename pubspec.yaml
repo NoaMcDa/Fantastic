@@ -216,6 +216,11 @@ dev_dependencies:
   mocktail: ^1.0.4
   flutter_launcher_icons: ^0.14.4
 
+  # Already transitive through sembast_web and http; declared here because
+  # the browser-only estimator-lifecycle reproduction test imports it to
+  # stub `window.fetch`, and `depend_on_referenced_packages` requires it.
+  web: ^1.1.1
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
