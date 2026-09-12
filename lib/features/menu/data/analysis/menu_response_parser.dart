@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:fantastic/core/constants/menu_verdict_rules.dart';
-import 'package:fantastic/features/keto_lens/data/parsers/hebrew_text_normaliser.dart';
+import 'package:fantastic/core/utils/hebrew_text_normaliser.dart';
 import 'package:fantastic/features/menu/domain/models/analysed_dish.dart';
 import 'package:fantastic/features/menu/domain/models/dish_verdict.dart';
 import 'package:fantastic/features/menu/domain/models/menu_analysis.dart';

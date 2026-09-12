@@ -1,3 +1,4 @@
+import 'package:fantastic/core/widgets/app_illustration.dart';
 import 'package:fantastic/core/widgets/empty_state_widget.dart';
 import 'package:flutter/material.dart';
 
@@ -25,8 +26,11 @@ class EmptyMealsState extends StatelessWidget {
   static const String headline = 'לא נרשמו ארוחות להיום';
 
   @override
-  Widget build(BuildContext context) => const EmptyStateWidget(
+  Widget build(BuildContext context) => EmptyStateWidget(
     icon: Icons.restaurant_menu_outlined,
+    illustration: EmptyPlateIllustration(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    ),
     headline: headline,
     subtitle: 'הקש על + כדי להוסיף ארוחה',
   );

@@ -1,18 +1,26 @@
+import 'package:fantastic/core/constants/recipe_copy.dart';
 import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Persistent bottom tab bar shell for the app's 5 MVP tabs, rendered by
+/// Persistent bottom tab bar shell for the app's 6 tabs, rendered by
 /// the `ShellRoute` in `app_router.dart`.
 class AppShell extends StatelessWidget {
   const AppShell({required this.child, super.key});
 
   final Widget child;
 
-  static const _labels = ['בית', 'מצלמה', 'יומן', 'התאמה', 'פרופיל'];
+  static const _labels = [
+    'בית',
+    'מצלמה',
+    'יומן',
+    'התאמה',
+    RecipeCopy.tabLabel,
+    'פרופיל',
+  ];
 
-  /// Keys for the five destinations, in `kTabPaths` order.
+  /// Keys for the six destinations, in `kTabPaths` order.
   ///
   /// Not decoration: `'יומן'` is both this bar's third label and
   /// `DiaryScreen`'s own app-bar title, so a flow test that taps a tab by
@@ -22,6 +30,7 @@ class AppShell extends StatelessWidget {
     Key('tab_lens'),
     Key('tab_diary'),
     Key('tab_adaptation'),
+    Key('tab_recipe'),
     Key('tab_profile'),
   ];
   static const _icons = [
@@ -29,6 +38,7 @@ class AppShell extends StatelessWidget {
     Icons.camera_alt,
     Icons.book,
     Icons.trending_up,
+    Icons.menu_book_outlined,
     Icons.person,
   ];
 

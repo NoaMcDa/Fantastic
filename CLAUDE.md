@@ -41,6 +41,7 @@ All design decisions are documented in `design/`. Read these before making archi
 re-filed and rewritten, and the seven **GitHub milestones #11–#17** created with all 33 issues
 assigned and `v1.1` retired. §6 also records the one-shot Actions workflow that created them — the
 agent session's own tooling has no milestone API |
+| `design/m10_recipe_converter_research.md` | **M10 research & pre-flight** — Epic #265 and #118–#120 audited against the tree after M15. Three defects that would compile and ship wrong: **nothing in the app navigates to `/recipe`** and no issue added an entry point; #118's `AlreadyKeto` outcome had **no table to be drawn from**, so a real recipe came back mostly "unknown"; and #120 was labelled one layer while selecting another. The rationale for rejecting a model pass cited Keto Lens's invariant, which is scoped to scans — so M10 becomes **the hybrid `technology.md` §7 asked for**: a deterministic, offline rule table plus a staples table first, and M15's `LlmChatClient` as an opt-in second pass for the lines the table does not know, every replacement checked against `IngredientRules`. Records the final-form-folding trap that would silently break the classifier's `מלטודקסטרין` rule, the two promotions to `lib/core/` the layer rules force, and the nine issues in build order (#393, #118, #119, #395, #120, #394, #396, #397, #398). **Read before picking up any M10 issue** |
 | `design/m15_meal_entry_research.md` | **M15 research & pre-flight** — #312 asked for three ways to add a meal; the audit found **one already ships, half of another already ships, and only the third is a new engine**. Corrects the issue text on four counts ("photo with OCR" conflates a nutrition panel with a plate of food; `MealEntry.imageRef` and `ingredients` have been persisted and contract-tested since M1 and **written by nothing**). Carries the accuracy argument that drives the design — **the daily net-carb budget is 20 g, and the best 2026 vision model's 80.7 kcal calorie error *is* 20 g of carbohydrate**, so an estimate must always be editable and can never silently drive the streak. Records the engine decision (**cloud LLM via OpenRouter, BYOK because the free tier is 50 requests/day per key**, not gated on `epic:login`), why Keto Lens's no-network invariant is untouched, and the offline food table kept on the shelf behind the same interface. **Read before picking up any M15 issue** |
 | `design/m16_menu_scanner_research.md` | **M16 research & pre-flight** — the owner asked for an AI menu scanner (multi-photo or pasted text → Green / Modifiable / Red per dish, with a *why* and a modification instruction); the audit found **M12 Menu Analyzer (#267, #121, #122) already exists for this capability and cannot deliver it**: `IngredientRules` has no word for bread, rice, pasta, potato, flour or sugar, so a pizza classifies as "unknown", and Keto Lens's amber badge means *quantity dependent*, not *modifiable*. Records the engine decision — **a cloud model over locally-OCR'd text through M15's `LlmChatClient` seam, so the photograph never leaves the device** — the parser rules that demote an unexplained yellow and an invented dish to *unclassified*, why red is grouped rather than hidden, that OpenRouter's own docs were unreachable from the session, and the fourteen issues (#352–#366). **M16 supersedes M12; read before picking up any M16 issue, and before touching #121 or #122** |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
@@ -428,7 +429,13 @@ recognition via **Tesseract** — no network call is made during a scan, and Epi
 
 **M15's macro estimation is a different feature and does not relax that.** A
 scan still makes no request. Estimation is opt-in, needs the user's own key,
-and lives entirely behind `LlmChatClient` — named in exactly two files. See
+and lives entirely behind `LlmChatClient`. The interface itself moved to
+`lib/core/llm/llm_chat_client.dart` (#394) once the recipe converter became
+its second consumer — a `lib/features/recipe/` file importing the diary
+feature's data layer would have been a cross-feature reach. The OpenRouter
+implementation and its provider deliberately stay behind in
+`lib/features/diary/data/`, because they depend on the estimation-settings
+sembast store that belongs to the diary feature. See
 `design/m15_meal_entry_research.md` §4 and `design/technology.md`.
 
 **ML Kit was removed, and the reason matters: it has no Hebrew script model.**
@@ -448,7 +455,7 @@ CameraScreen / gallery import
                    android/ios → TesseractPluginRecognizer  (flutter_tesseract_ocr)
                    desktop     → TesseractFfiRecognizer     (dart:ffi → libtesseract)
                    otherwise   → UnavailableTextRecognizer  (not wrapped)
-  → LabelParser              → HebrewLabelParser + HebrewTextNormaliser
+  → LabelParser              → HebrewLabelParser + HebrewTextNormaliser (lib/core/utils/)
   → IngredientClassifier     → IngredientClassifierImpl
   → ScanResult               (sealed: ScanSucceeded | ScanFailed)
   → ScanResultSheet          → scales by ServingBasis → prefills AddMealBottomSheet
@@ -752,7 +759,7 @@ repo-admin operation from a session.
 | M8 — CI & Integration | `epic:m8-ci-integration` | #95–#102, #150, #197, #199 | 11 — **1 open (#98)** |
 | Release v1.0 — App Store | `epic:release-v1` | #125–#128 | 4 |
 | M9 — Biomarker Logging | `epic:m9-biomarkers` | #103–#107 | 5 |
-| M10 — Recipe Converter | `epic:m10-recipe-converter` | #118–#120 | 3 |
+| M10 — Recipe Converter | `epic:m10-recipe-converter` | #118–#120, #393–#398 | 9 — see `design/m10_recipe_converter_research.md` |
 | M11 — Restaurant Directory | `epic:m11-directory` | #111–#117 | 7 |
 | M12 — Menu Analyzer | `epic:m12-menu-analyzer` | #121–#122 | 2 — **superseded by M16, closure pending** |
 | M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |
