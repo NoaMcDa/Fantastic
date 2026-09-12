@@ -339,13 +339,22 @@ that curls. Three facts and one non-fact:
   the price digits themselves, on every row (`₪28`→`₪588`, `₪32`→`2`, `64 ש"ח`→`4 ש"ח`,
   `58 ש"ח`→`8 ש"ח`) — not a new defect, but the already-known "the Hebrew model cannot
   read an isolated column of Latin digits" (`design/m6_platform_handoff.md`) reappearing
-  on a menu's much wider price-margin gap. Every dish name and the one wrapped
-  description came back at 92–93% confidence with zero errors. Because
-  `MenuResponseParser` has no price field and the "name" the model must copy verbatim
-  came through unharmed, **this capture does not show OCR as the bottleneck for a
-  dish/price row, and the "columns may be interleaved" prompt mitigation is not shown
-  insufficient by it** — it stays in as a cheap safety net rather than becoming an urgent
-  fix. It also does not clear the layout the mitigation's wording was actually written
+  on a menu's much wider price-margin gap.
+
+  **One dish name was corrupted too, and it is the more useful finding of the two.**
+  `סלט ירוק עם רוטב שמן זית ולימון` came back with `שמן` replaced by the Latin
+  token `Pow` — the `heb+eng` trade-off `CLAUDE.md` already documents, landing on a dish
+  name rather than on a macro row. The other four dish names and the wrapped description
+  came through unharmed. A corrupted price never reaches the parser's output at all
+  (`MenuResponseParser` has no price field), but a corrupted *word inside a dish name*
+  does — and this is the first evidence that the provenance rule survives one:
+  `nameOccursIn` needs a single qualifying word of the model's name to occur in the
+  source, and `סלט`, `ירוק`, `רוטב`, `זית` and `ולימון` all still do. #357
+  documented that rule as loose enough to survive one OCR-corrupted letter and could not
+  prove it; this capture proves it against a whole corrupted word. Because of that,
+  **this capture does not show OCR as the bottleneck for a dish/price row, and the
+  "columns may be interleaved" prompt mitigation is not shown insufficient by it** — it
+  stays in as a cheap safety net rather than becoming an urgent fix. It also does not clear the layout the mitigation's wording was actually written
   for: a **side-by-side two-section menu** (two independent lists printed next to each
   other, the shape `HebrewMenuFixture.twoColumn` types by hand), which #372 did not build
   and which stays unmeasured.

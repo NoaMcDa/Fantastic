@@ -28,21 +28,30 @@
 /// three of the four, a wrong extra one gained in the fourth. That is not a
 /// new defect: it is the already-documented "the Hebrew model cannot read
 /// an isolated column of Latin digits" (`design/m6_platform_handoff.md`),
-/// reappearing on a menu's much wider price-margin gap. Every dish name and
-/// the one wrapped description came back at 92-93% confidence with zero
-/// errors.
+/// reappearing on a menu's much wider price-margin gap.
+///
+/// **One dish name was corrupted too, and it is the more interesting
+/// finding.** `סלט ירוק עם רוטב שמן זית ולימון` came back with `שמן`
+/// replaced by the Latin token `Pow`. That is the `heb+eng` trade-off
+/// `CLAUDE.md` already documents - English sometimes wins a Hebrew word -
+/// landing on a dish name rather than on a macro row. The other four dish
+/// names and the one wrapped description came through unharmed.
 ///
 /// **What this means for `MenuAnalysisPrompt`'s "columns may be
 /// interleaved" instruction:** it is aimed at a failure mode this capture
-/// did not produce. The failure mode this capture did produce - a
-/// corrupted price - never reaches the parser's output at all:
-/// `MenuResponseParser` has no price field, and the "name" the model must
-/// copy verbatim came through unharmed on every row. **This one capture
-/// does not show OCR as the bottleneck for a dish/price row, and does not
-/// by itself justify filing the vision swap.** It does not clear a
-/// side-by-side two-section layout (two independent lists printed next to
-/// each other, not built here) - the shape "interleaved" was actually
-/// written for - which stays unmeasured. See
+/// did not produce. Of the two it did produce, a corrupted price never
+/// reaches the parser's output at all - `MenuResponseParser` has no price
+/// field. A corrupted *word inside a dish name* does reach it, and this
+/// capture is the first evidence that the provenance rule survives one:
+/// `nameOccursIn` needs only one qualifying word of the model's name to
+/// occur in the source, and `סלט`, `ירוק`, `רוטב`, `זית` and
+/// `ולימון` all still do. That is exactly the case #357 documented
+/// itself as loose enough to survive and could not previously prove.
+/// **This one capture does not show OCR as the bottleneck for a dish/price
+/// row, and does not by itself justify filing the vision swap.** It does
+/// not clear a side-by-side two-section layout (two independent lists
+/// printed next to each other, not built here) - the shape "interleaved"
+/// was actually written for - which stays unmeasured. See
 /// `design/m16_menu_scanner_research.md` §5.
 abstract final class RenderedMenuOcrFixture {
   /// A two-section grill menu (ראשונות / עיקריות), each dish printed with
