@@ -46,5 +46,22 @@ abstract final class RecipeCopy {
 
   static String ingredientCount(int count) => '$count מצרכים';
   static String substitutedCount(int count) => '$count הוחלפו';
-  // #396 and #397 add their strings here.
+
+  // --- #396: the opt-in model pass over unrecognised lines ---
+
+  static const String suggestButton = 'הצעות לשורות שלא זוהו';
+  static const String suggesting = 'מבקשים הצעות...';
+
+  /// Shown when the model was reached and answered, but nothing usable came
+  /// back for any unrecognised line — a real, non-error outcome, not a
+  /// failure banner.
+  static const String noSuggestions = 'לא התקבלה הצעה עבור אף שורה';
+
+  static const String openProfile = 'פתחו את הפרופיל';
+
+  static const String suggestFailedNotConfigured = 'הצעות אוטומטיות לא מופעלות';
+  static const String suggestFailedOffline = 'אין חיבור לאינטרנט';
+  static const String suggestFailedRateLimited = 'חרגתם ממכסת ההצעות היומית';
+  static const String suggestFailedBadResponse = 'קבלת ההצעות נכשלה';
+  // #397 adds its strings here.
 }
