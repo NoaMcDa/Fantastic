@@ -139,4 +139,51 @@ abstract final class MenuCopy {
   static const String adviceUnauthorised = 'בדקו את המפתח שהוזן בפרופיל.';
   static const String adviceBadResponse = 'נסו שוב.';
   static const String adviceNoDishesFound = 'ערכו את הטקסט ונסו שוב.';
+
+  // --- MenuPagesTab (#365) ---
+
+  /// The link out of the OCR-unavailable state, back to `הדביקו טקסט`. Not
+  /// a retry — the M6 rule that an engine that cannot run here is not worth
+  /// asking again.
+  static const String switchToTextMode = 'הדביקו את הטקסט במקום';
+
+  /// Paired with `Key('menu_reading_page')` while [MenuPageReader]
+  /// recognises one page — never an indicator alone, per
+  /// `design/m6_handoff.md`'s labelled-progress rule.
+  static String readingPageLabel(int page, int of) =>
+      'קורא עמוד $page מתוך $of…';
+
+  /// Shown when a capture or a gallery pick would exceed
+  /// [MenuVerdictRules.maxPages] — a one-line notice, not an error, per the
+  /// issue's own instruction. The extra photos are simply not added.
+  static String pageCapNotice(int maxPages) =>
+      'ניתן לצלם עד $maxPages עמודים. התמונות הנוספות לא נוספו.';
+
+  /// `3 / 8` — kept in its own method, not built inline, so every page
+  /// counter in this feature reads identically. Wrapped by the caller in an
+  /// LTR `Directionality`, per `CLAUDE.md`'s digit-run rule.
+  static String pageCounterLabel(int count, int maxPages) =>
+      '$count / $maxPages';
+
+  /// A refused photo-library permission, most often. The same Hebrew
+  /// `CameraScreen._pickFromGallery` shows inline; kept here as its own
+  /// constant because this file, unlike that one, owns every string this
+  /// feature renders.
+  static const String galleryError = 'לא ניתן לפתוח את הגלריה';
+
+  /// A capture that threw — a disposed controller, a capture already in
+  /// flight, no storage. The same Hebrew `CameraScreen._capture` shows
+  /// inline, for the same reason as [galleryError].
+  static const String captureFailed = 'הצילום נכשל, נסו שוב';
+
+  /// The camera-starting state's label, mirroring `CameraScreen`'s own.
+  static const String cameraStartingLabel = 'פותח מצלמה...';
+
+  /// The gallery affordance offered even when the camera itself will not
+  /// open — "a menu photographed earlier is a real case" (the issue's own
+  /// words).
+  static const String importFromGallery = 'ייבוא מהגלריה';
+
+  /// Tooltip on the per-thumbnail remove control.
+  static const String removePageTooltip = 'הסירו עמוד';
 }

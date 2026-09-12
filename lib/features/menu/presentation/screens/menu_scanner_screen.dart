@@ -4,13 +4,14 @@ import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/features/menu/data/providers.dart';
 import 'package:fantastic/features/menu/domain/models/menu_analysis.dart';
 import 'package:fantastic/features/menu/domain/models/menu_analysis_failure_reason.dart';
+import 'package:fantastic/features/menu/presentation/widgets/menu_pages_tab.dart';
 import 'package:fantastic/features/menu/presentation/widgets/menu_result_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 /// The lens tab's `תפריט` chip lands here: paste a menu's text and get a
-/// verdict per dish. Photographing pages is a stub until #365.
+/// verdict per dish, or photograph its pages and get the same.
 ///
 /// ## The states, in the order they are checked
 ///
@@ -29,14 +30,17 @@ import 'package:go_router/go_router.dart';
 ///    input with the pasted text kept.
 /// 2. **Failure.** A [MenuAnalysisFailed] renders one headline and one way
 ///    out per [MenuAnalysisFailureReason] (research §7's table) underneath
-///    the still-visible, still-editable text field — nothing typed is ever
+///    the still-visible input — the pasted text or the collected pages,
+///    whichever mode is selected. Nothing typed or photographed is ever
 ///    discarded.
-/// 3. **Analysing.** A labelled progress row under the button; the pasted
-///    text stays exactly where it was.
+/// 3. **Analysing.** A labelled progress row under the input. In the photo
+///    mode this is `קורא עמוד N מתוך M…` while [MenuPagesTab]'s pages are
+///    OCR'd (#365's `onPage` callback), then the same `מנתח את התפריט…` row
+///    the text mode shows.
 /// 4. **Input**, `הדביקו טקסט` selected by default: a multi-line field and
-///    `נתחו`, disabled on blank text or mid-analysis. `צלמו עמודים` is a
-///    stub reading `בקרוב` — deliberately, so the pasted-text mode ships
-///    without waiting on a camera or an OCR engine.
+///    `נתחו`, disabled on blank text or mid-analysis. `צלמו עמודים`
+///    ([MenuPagesTab], #365) captures or imports pages instead and enables
+///    `נתחו` at one page — feeding the identical analyser call.
 class MenuScannerScreen extends ConsumerStatefulWidget {
   const MenuScannerScreen({super.key});
 
@@ -89,11 +93,22 @@ class MenuScannerScreen extends ConsumerStatefulWidget {
 class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
   final TextEditingController _text = TextEditingController();
 
-  /// Which input tab is selected. `false` (text) is the default and the
-  /// only one with a working analyse button in this issue.
+  /// Which input tab is selected. `false` (text) is the default.
   bool _photoTab = false;
   bool _analysing = false;
   MenuAnalysis? _result;
+
+  /// The paths [MenuPagesTab] last submitted, held only so a retry on a
+  /// retryable photo-mode failure can resend the identical pages without
+  /// [MenuPagesTab] itself having to expose its internal list.
+  List<String> _lastPages = const [];
+
+  /// The page [MenuPageReader] is reading and the total, from the
+  /// analyser's `onPage` callback — null before the first page and once
+  /// analysis finishes. Drives the `קורא עמוד N מתוך M…` row; a text-only
+  /// analysis never calls `onPage`, so this stays null throughout it.
+  int? _readingPage;
+  int? _readingOf;
 
   @override
   void initState() {
@@ -140,11 +155,41 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
             onSelect: (photo) => setState(() => _photoTab = photo),
           ),
           const SizedBox(height: 16),
-          if (_photoTab) const _PhotoTabStub() else ..._buildTextTab(failure),
+          if (_photoTab)
+            ..._buildPhotoTab(failure)
+          else
+            ..._buildTextTab(failure),
         ],
       ),
     );
   }
+
+  List<Widget> _buildPhotoTab(MenuAnalysisFailureReason? failure) => [
+    // Mounted for the whole time the photo tab is selected — including
+    // while `_analysing` is true and while a failure is shown below it — so
+    // its own collected pages are never rebuilt away. That is what makes
+    // "every failure returns to the pages tab with the thumbnails intact"
+    // true without lifting the page list up into this screen.
+    MenuPagesTab(
+      onAnalyse: _analysePages,
+      onSwitchToTextMode: () => setState(() => _photoTab = false),
+      analysing: _analysing,
+    ),
+    if (_analysing) ...[
+      const SizedBox(height: 16),
+      _readingPage != null && _readingOf != null && _readingPage! < _readingOf!
+          ? _ReadingPageIndicator(page: _readingPage!, of: _readingOf!)
+          : const _AnalysingIndicator(),
+    ],
+    if (failure != null) ...[
+      const SizedBox(height: 16),
+      _FailureView(
+        reason: failure,
+        onRetry: () => _analysePages(_lastPages),
+        onProfile: _openProfile,
+      ),
+    ],
+  ];
 
   List<Widget> _buildTextTab(MenuAnalysisFailureReason? failure) => [
     TextField(
@@ -198,6 +243,51 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
     });
   }
 
+  /// Runs the identical analyser call the text mode uses, with [paths] as
+  /// the image paths instead of pasted text — the same result, the same
+  /// [MenuResultView], and the same failure states.
+  Future<void> _analysePages(List<String> paths) async {
+    _lastPages = paths;
+    setState(() {
+      _analysing = true;
+      _result = null;
+      _readingPage = null;
+      _readingOf = null;
+    });
+
+    MenuAnalysis outcome;
+    try {
+      outcome = await ref
+          .read(menuAnalyzerProvider)
+          .analyse(
+            imagePaths: paths,
+            onPage: (page, of) {
+              if (mounted) {
+                setState(() {
+                  _readingPage = page;
+                  _readingOf = of;
+                });
+              }
+            },
+          );
+    } on Object catch (_) {
+      // The same guard `_analyse` keeps around the same promise.
+      outcome = const MenuAnalysisFailed(
+        reason: MenuAnalysisFailureReason.badResponse,
+      );
+    }
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _analysing = false;
+      _result = outcome;
+      _readingPage = null;
+      _readingOf = null;
+    });
+  }
+
   /// Leaves a result and returns to input. Deliberately does not touch
   /// [_text] — the pasted text is kept, per the issue's happy path.
   void _backToInput() => setState(() => _result = null);
@@ -235,21 +325,33 @@ class _ModeTabs extends StatelessWidget {
   );
 }
 
-/// `צלמו עמודים` until #365 replaces it — deliberate, so the pasted-text
-/// mode this issue ships is independent of a camera or an OCR engine.
-class _PhotoTabStub extends StatelessWidget {
-  const _PhotoTabStub();
+/// The photo mode's OCR-progress row — `קורא עמוד N מתוך M…`, driven by the
+/// analyser's `onPage` callback. Shown in place of [_AnalysingIndicator]
+/// while a page is being read; once the last page has been reported,
+/// [_MenuScannerScreenState._buildPhotoTab] switches to
+/// [_AnalysingIndicator] for the request that follows.
+class _ReadingPageIndicator extends StatelessWidget {
+  const _ReadingPageIndicator({required this.page, required this.of});
+
+  final int page;
+  final int of;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    key: const Key('menu_photo_stub'),
-    padding: const EdgeInsets.symmetric(vertical: 48),
-    child: Center(
-      child: Text(
-        MenuCopy.photoTabComingSoon,
-        style: Theme.of(context).textTheme.titleMedium,
+  Widget build(BuildContext context) => Row(
+    key: const Key('menu_reading_page'),
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      const SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(strokeWidth: 2),
       ),
-    ),
+      const SizedBox(width: 12),
+      Text(
+        MenuCopy.readingPageLabel(page, of),
+        style: Theme.of(context).textTheme.bodyMedium,
+      ),
+    ],
   );
 }
 
