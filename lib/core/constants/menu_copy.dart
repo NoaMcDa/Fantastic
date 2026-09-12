@@ -147,6 +147,12 @@ abstract final class MenuCopy {
       'בדקו את החיבור לאינטרנט ונסו שוב. הטקסט שהדבקתם נשמר.';
   static const String adviceUnauthorised = 'בדקו את המפתח שהוזן בפרופיל.';
   static const String adviceBadResponse = 'נסו שוב.';
+
+  /// The one technical line a failure may carry: the HTTP status the model
+  /// provider answered with. Shown small beneath the advice, so a user who
+  /// reports "הניתוח נכשל" can also report the number that tells a refused
+  /// request (400) from a retired model (404) from an unusable answer (200).
+  static String failedStatusCode(int code) => 'קוד תשובה מהשרת: $code';
   static const String adviceNoDishesFound = 'ערכו את הטקסט ונסו שוב.';
 
   /// The PDF is not a PDF at all, is corrupt, or is password-protected — not

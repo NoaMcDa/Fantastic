@@ -111,6 +111,54 @@ instruction does not exist"), a green or red with `null` keeps its verdict, and 
   `MenuVerdictRules.maxOutputTokens` lowered, and if that passes, the pinned endpoint's
   `max_completion_tokens` is below 6000.
 
+## Second report: "still doesn't work", with a photo and a PDF
+
+The owner reported the failure again with a photographed business-lunch menu, a
+photographed VIVIE menu and a six-page InDesign PDF, and suggested switching the model to
+`dots-studio/dots-3-note-preview:free`. The report arrived minutes after the fix above
+was pushed and before anything could have been rebuilt from it, so it is treated as a
+report against the unfixed build until a build of this branch says otherwise. What could
+be established without reaching `openrouter.ai`:
+
+- **The PDF takes the text-layer route, so it fails exactly as pasted text does.** Both
+  uploads were the same file. Its first three pages carry 1985–2883 letters each with a
+  Hebrew share of 0.58–0.63 — above `MenuVerdictRules.minHebrewLetterRatio` (0.5) and far
+  above `minExtractedLetters` (20). `PdfrxPageExtractor` therefore hands the text layer
+  straight to the same single `complete` call. OCR is not in that path.
+- **The business-lunch photo (750×1050) OCRs cleanly** with the app's settings (`psm 4`,
+  `heb+eng`, `oem 1`, greyscale, scaled to 1600 px wide): 2940 Hebrew letters, dish
+  names and prices intact. The 320×452 VIVIE thumbnail does not — it is below any
+  resolution Tesseract can read Hebrew from and comes back as fragments — but that is a
+  `noDishesFound` or an `unclassified`-only result, never the same failure as pasted text.
+- **Secondary sources list `nex-agi/nex-n2.5-pro:free` as supporting structured outputs
+  and image input** (OpenRouter's own page, read through a search summary). If accurate,
+  the endpoint does honour `json_schema`, which narrows the original failure to the strict
+  validator refusing the old schema — the second of the two cases above, and the one the
+  schema change fixes without needing the fallback.
+- **Not switched to `dots`.** `design/m15_openrouter_models_fix.md` records what
+  choosing a model without measuring it against the real prompt cost, and this session
+  cannot measure anything. `OpenRouterClient.defaultModel` is one constant when the
+  measurement exists.
+
+Two things were added so the next report is decisive rather than a third guess:
+
+1. **The provider's HTTP status now reaches the screen.** `ChatFailed.statusCode` is
+   stamped by `OpenRouterClient._read` on every failure derived from a response (a
+   refused 400, a retired-model 404, and an unusable 200 alike; null for no key, offline
+   and timeout), `MenuAnalysisFailed.statusCode` carries it up, and `MenuScannerScreen`
+   prints it as a small "קוד תשובה מהשרת: N" line beneath the advice. A status code is a
+   number the provider chose — it cannot echo a header or a body, so the no-detail rule on
+   `ChatFailed` still holds.
+2. **`tool/openrouter_probe.sh`** sends a short real Hebrew menu to the endpoint in the
+   three shapes the app can send it — the old strict schema, the new strict schema, and
+   plain `json_object` — and prints the status and the reply head for each, reading the
+   key from `OPENROUTER_API_KEY` and never printing it. Run where the app runs; the three
+   statuses say which of the shapes the model accepts and which the fix needed.
+
+**On the key:** the owner pasted an OpenRouter key into the session. It was not used —
+the host is unreachable from here — and it is not stored anywhere in this repository. A
+key that has been in a chat should be rotated.
+
 ## Lessons
 
 - **A request shape a feature adds must be exercised live before it ships**, with the
@@ -119,6 +167,9 @@ instruction does not exist"), a green or red with `null` keeps its verdict, and 
   sends one.
 - **A documented fallback is not a fallback until it is code.** §4.4 and §6.4 of the
   research document described `json_object` as the fallback from the start.
+- **A failure the user can see must carry the one safe number that tells its causes
+  apart.** `badResponse` covered three different fixes under one headline, and a whole
+  report cycle went to guessing which. The status code costs nothing and leaks nothing.
 - **Failure reasons that carry no detail need a table like the one above somewhere.**
   Comparing the two requests field by field is what located this, and it is a two-minute
   exercise once written down.

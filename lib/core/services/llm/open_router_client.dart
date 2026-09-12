@@ -266,35 +266,48 @@ class OpenRouterClient implements LlmChatClient {
   /// 50-per-day quota will not succeed a second later, and retrying a request
   /// that may already have been counted is worse than reporting it.
   ChatResult _read(http.Response response) {
-    switch (response.statusCode) {
+    final status = response.statusCode;
+    switch (status) {
       case 401:
       case 403:
-        return const ChatFailed(ChatFailureReason.unauthorised);
+        return ChatFailed(ChatFailureReason.unauthorised, statusCode: status);
       case 429:
-        return const ChatFailed(ChatFailureReason.rateLimited);
+        return ChatFailed(ChatFailureReason.rateLimited, statusCode: status);
     }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      return const ChatFailed(ChatFailureReason.badResponse);
+    if (status < 200 || status >= 300) {
+      return ChatFailed(ChatFailureReason.badResponse, statusCode: status);
     }
 
-    final Object? decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    // Every unusable 2xx below carries its status too: a `badResponse` with
+    // `http 200` says "the model answered and we could not use it", which
+    // is a different fix from a 400 or a 404 and the same headline.
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    } on FormatException catch (_) {
+      // A 2xx that is not JSON at all (an HTML error page from a proxy, a
+      // truncated body) is still "the provider answered": stamped with its
+      // status here rather than left to `complete`'s catch-all, which has
+      // no status to give it.
+      return ChatFailed(ChatFailureReason.badResponse, statusCode: status);
+    }
     if (decoded is! Map<String, Object?>) {
-      return const ChatFailed(ChatFailureReason.badResponse);
+      return ChatFailed(ChatFailureReason.badResponse, statusCode: status);
     }
 
     final choices = decoded['choices'];
     if (choices is! List || choices.isEmpty) {
-      return const ChatFailed(ChatFailureReason.badResponse);
+      return ChatFailed(ChatFailureReason.badResponse, statusCode: status);
     }
 
     final first = choices.first;
     if (first is! Map) {
-      return const ChatFailed(ChatFailureReason.badResponse);
+      return ChatFailed(ChatFailureReason.badResponse, statusCode: status);
     }
 
     final message = first['message'];
     if (message is! Map) {
-      return const ChatFailed(ChatFailureReason.badResponse);
+      return ChatFailed(ChatFailureReason.badResponse, statusCode: status);
     }
 
     final content = message['content'];
@@ -302,7 +315,7 @@ class OpenRouterClient implements LlmChatClient {
     // empty string would parse it, find no macros, and have to invent a
     // second failure path for a case this one already owns.
     if (content is! String || content.isEmpty) {
-      return const ChatFailed(ChatFailureReason.badResponse);
+      return ChatFailed(ChatFailureReason.badResponse, statusCode: status);
     }
 
     return ChatSucceeded(content);

@@ -378,6 +378,29 @@ void main() {
         );
       });
     }
+
+    test('the provider status rides through onto the failure', () async {
+      answers(const ChatFailed(ChatFailureReason.badResponse, statusCode: 404));
+
+      final result = await analyzer.analyse(text: pastedText);
+
+      expect(
+        result,
+        const MenuAnalysisFailed(
+          reason: MenuAnalysisFailureReason.badResponse,
+          statusCode: 404,
+        ),
+      );
+    });
+
+    test('a failure with no status carries none', () async {
+      answers(const ChatFailed(ChatFailureReason.offline));
+
+      final result =
+          await analyzer.analyse(text: pastedText) as MenuAnalysisFailed;
+
+      expect(result.statusCode, isNull);
+    });
   });
 
   group('the never-throws contract', () {
