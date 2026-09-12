@@ -5,3 +5,4 @@ export 'electrolyte_constants.dart';
 export 'ingredient_rules.dart';
 export 'keto_constants.dart';
 export 'product_verdict_constants.dart';
+export 'substitution_rules.dart';

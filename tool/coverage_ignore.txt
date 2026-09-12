@@ -24,6 +24,10 @@ lib/features/diary/domain/models/physical_symptom.dart
 # carries no members, deliberately, so the UI chooses words per reason rather
 # than the enum carrying them (#316).
 lib/features/diary/domain/models/estimate_failure_reason.dart
+# `.rule`/`.suggested` only, no fields — `AlreadyKeto` and `Substituted` carry
+# the field, deliberately, so a model's answer (#396) is visibly marked
+# rather than the enum rendering it (#118).
+lib/features/recipe/domain/models/outcome_source.dart
 
 # `abstract interface class` — method signatures, no bodies.
 lib/features/adaptation/domain/repositories/streak_repository.dart
