@@ -3,6 +3,13 @@ import 'dart:async';
 import 'package:fantastic/core/constants/add_meal_copy.dart';
 import 'package:fantastic/core/constants/menu_copy.dart';
 import 'package:fantastic/core/router/app_router.dart';
+import 'package:fantastic/features/keto_lens/data/providers.dart';
+import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
+import 'package:fantastic/features/keto_lens/presentation/camera/camera_controller_session.dart';
+import 'package:fantastic/features/keto_lens/presentation/camera/camera_session.dart';
+import 'package:fantastic/features/keto_lens/presentation/camera/image_picker_photo_picker.dart';
+import 'package:fantastic/features/keto_lens/presentation/camera/photo_picker.dart';
+import 'package:fantastic/features/keto_lens/presentation/screens/camera_screen.dart';
 import 'package:fantastic/features/menu/data/providers.dart';
 import 'package:fantastic/features/menu/domain/models/menu_analysis.dart';
 import 'package:fantastic/features/menu/domain/models/menu_analysis_failure_reason.dart';
@@ -35,6 +42,9 @@ class _FakeMenuAnalyzer implements MenuAnalyzer {
   /// microtask drain never renders the intermediate frame.
   Completer<void>? gate;
 
+  /// `(page, of)` pairs delivered to `onPage`, for a test to drive.
+  void Function(int page, int of)? onPage;
+
   @override
   Future<MenuAnalysis> analyse({
     String? text,
@@ -43,6 +53,7 @@ class _FakeMenuAnalyzer implements MenuAnalyzer {
   }) async {
     capturedText = text;
     capturedImagePaths = imagePaths;
+    this.onPage = onPage;
     await gate?.future;
     if (error != null) {
       throw error!;
@@ -51,19 +62,101 @@ class _FakeMenuAnalyzer implements MenuAnalyzer {
   }
 }
 
+/// A camera that is whatever the test needs it to be — the same fake
+/// `camera_screen_test.dart` uses, duplicated per that file's own
+/// hand-rolled-fake convention rather than shared, so this suite has no
+/// dependency on Keto Lens's test file.
+class _FakeSession implements CameraSession {
+  CameraSessionException? startError;
+  bool started = false;
+  bool stopped = false;
+  final List<String> captures = [];
+
+  @override
+  Future<void> start() async {
+    if (startError != null) {
+      throw startError!;
+    }
+    started = true;
+  }
+
+  @override
+  Widget buildPreview() =>
+      const ColoredBox(key: Key('fake_preview'), color: Colors.black);
+
+  @override
+  Future<String> capturePhoto() async {
+    final path = '/tmp/menu-page-${captures.length + 1}.jpg';
+    captures.add(path);
+    return path;
+  }
+
+  @override
+  Future<void> setTorch({required bool on}) async {}
+
+  @override
+  Future<void> stop() async {
+    stopped = true;
+  }
+}
+
+/// OCR whose availability the test controls.
+class _FakeRecognizer implements TextRecognitionService {
+  _FakeRecognizer({this.isAvailable = true});
+
+  @override
+  final bool isAvailable;
+
+  @override
+  Future<String> recognise(String imagePath) async => '';
+}
+
+/// A gallery that returns whatever the test put in it.
+class _FakePicker implements PhotoPicker {
+  List<String> multiplePaths = const [];
+  PhotoPickerException? error;
+
+  @override
+  Future<String?> pickFromGallery() async => null;
+
+  @override
+  Future<List<String>> pickMultiple({required int limit}) async {
+    if (error != null) {
+      throw error!;
+    }
+    return multiplePaths;
+  }
+}
+
 void main() {
   late _FakeMenuAnalyzer analyzer;
+  late _FakeSession session;
+  late _FakePicker picker;
 
   setUp(() {
     analyzer = _FakeMenuAnalyzer();
+    session = _FakeSession();
+    picker = _FakePicker();
   });
 
-  List<Override> overrides() => [
+  List<Override> overrides({bool ocrAvailable = true}) => [
     menuAnalyzerProvider.overrideWithValue(analyzer),
+    cameraSessionBuilderProvider.overrideWithValue(() => session),
+    photoPickerProvider.overrideWithValue(picker),
+    textRecognitionServiceProvider.overrideWithValue(
+      _FakeRecognizer(isAvailable: ocrAvailable),
+    ),
   ];
 
-  Future<void> pumpScreen(WidgetTester tester) async {
-    await pumpApp(tester, const MenuScannerScreen(), overrides: overrides());
+  Future<void> pumpScreen(
+    WidgetTester tester, {
+    bool ocrAvailable = true,
+  }) async {
+    await pumpApp(
+      tester,
+      const MenuScannerScreen(),
+      overrides: overrides(ocrAvailable: ocrAvailable),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -72,6 +165,20 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('menu_analyse_button')));
     await tester.pumpAndSettle();
+  }
+
+  /// Switches to `צלמו עמודים`.
+  Future<void> openPhotoTab(WidgetTester tester) async {
+    await tester.tap(find.text(MenuCopy.photoPagesTab));
+    await tester.pumpAndSettle();
+  }
+
+  /// Captures [count] pages on an already-open photo tab.
+  Future<void> capturePages(WidgetTester tester, int count) async {
+    for (var i = 0; i < count; i++) {
+      await tester.tap(find.byKey(const Key('menu_capture_button')));
+      await tester.pumpAndSettle();
+    }
   }
 
   group('input', () {
@@ -99,18 +206,207 @@ void main() {
       expect(button.onPressed, isNotNull);
     });
 
-    testWidgets('the photo tab is a stub, with no analyse button', (
+    testWidgets(
+      'the photo tab is a real camera and page collector, not the stub',
+      (tester) async {
+        await pumpScreen(tester);
+
+        await openPhotoTab(tester);
+
+        expect(find.byKey(const Key('fake_preview')), findsOneWidget);
+        expect(find.byKey(const Key('menu_capture_button')), findsOneWidget);
+        expect(find.byKey(const Key('menu_gallery_button')), findsOneWidget);
+        expect(find.byKey(const Key('menu_text_field')), findsNothing);
+        expect(find.byKey(const Key('menu_analyse_button')), findsNothing);
+      },
+    );
+  });
+
+  group('photo mode (#365)', () {
+    testWidgets(
+      'captures and a gallery pick together produce the right count',
+      (tester) async {
+        picker.multiplePaths = ['/tmp/g1.jpg', '/tmp/g2.jpg'];
+        await pumpScreen(tester);
+        await openPhotoTab(tester);
+
+        await capturePages(tester, 2);
+        await tester.tap(find.byKey(const Key('menu_gallery_button')));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('menu_page_thumb_0')), findsOneWidget);
+        expect(find.byKey(const Key('menu_page_thumb_3')), findsOneWidget);
+        expect(find.text('4 / 8'), findsOneWidget);
+      },
+    );
+
+    testWidgets('נתחו calls the analyser with the paths, in order, no text', (
       tester,
     ) async {
       await pumpScreen(tester);
+      await openPhotoTab(tester);
+      await capturePages(tester, 2);
 
-      await tester.tap(find.text(MenuCopy.photoPagesTab));
+      await tester.tap(find.byKey(const Key('menu_analyse_pages_button')));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('menu_photo_stub')), findsOneWidget);
-      expect(find.text(MenuCopy.photoTabComingSoon), findsOneWidget);
-      expect(find.byKey(const Key('menu_text_field')), findsNothing);
-      expect(find.byKey(const Key('menu_analyse_button')), findsNothing);
+      expect(analyzer.capturedText, isNull);
+      expect(analyzer.capturedImagePaths, [
+        '/tmp/menu-page-1.jpg',
+        '/tmp/menu-page-2.jpg',
+      ]);
+    });
+
+    testWidgets('onPage renders קורא עמוד N מתוך M during OCR', (tester) async {
+      analyzer.gate = Completer<void>();
+      await pumpScreen(tester);
+      await openPhotoTab(tester);
+      await capturePages(tester, 1);
+
+      await tester.tap(find.byKey(const Key('menu_analyse_pages_button')));
+      await tester.pump();
+      analyzer.onPage?.call(2, 4);
+      await tester.pump();
+
+      expect(find.byKey(const Key('menu_reading_page')), findsOneWidget);
+      expect(find.text(MenuCopy.readingPageLabel(2, 4)), findsOneWidget);
+
+      analyzer.gate!.complete();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets(
+      'נתחו is disabled at zero pages, enabled once one is collected',
+      (tester) async {
+        await pumpScreen(tester);
+        await openPhotoTab(tester);
+
+        var button = tester.widget<FilledButton>(
+          find.byKey(const Key('menu_analyse_pages_button')),
+        );
+        expect(button.onPressed, isNull);
+
+        await capturePages(tester, 1);
+
+        button = tester.widget<FilledButton>(
+          find.byKey(const Key('menu_analyse_pages_button')),
+        );
+        expect(button.onPressed, isNotNull);
+      },
+    );
+
+    testWidgets('a MenuAnalysed with unreadPages renders the unread line', (
+      tester,
+    ) async {
+      analyzer.result = MenuAnalysisFixture.analysed(unreadPages: const [3]);
+      await pumpScreen(tester);
+      await openPhotoTab(tester);
+      await capturePages(tester, 1);
+
+      await tester.tap(find.byKey(const Key('menu_analyse_pages_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('menu_unread_pages')), findsOneWidget);
+      expect(find.text(MenuCopy.unreadPagesLine(const [3])), findsOneWidget);
+    });
+
+    testWidgets(
+      'a failure returns to the pages tab with the thumbnails intact',
+      (tester) async {
+        analyzer.result = MenuAnalysisFixture.failed(
+          reason: MenuAnalysisFailureReason.badResponse,
+        );
+        await pumpScreen(tester);
+        await openPhotoTab(tester);
+        await capturePages(tester, 2);
+
+        await tester.tap(find.byKey(const Key('menu_analyse_pages_button')));
+        await tester.pumpAndSettle();
+
+        expect(find.text(MenuCopy.failedBadResponseHeadline), findsOneWidget);
+        expect(find.byKey(const Key('menu_page_thumb_0')), findsOneWidget);
+        expect(find.byKey(const Key('menu_page_thumb_1')), findsOneWidget);
+        expect(find.text('2 / 8'), findsOneWidget);
+        // The button works again — the retry a user actually has, since the
+        // pages tab and its analyse button are still right there.
+        final button = tester.widget<FilledButton>(
+          find.byKey(const Key('menu_analyse_pages_button')),
+        );
+        expect(button.onPressed, isNotNull);
+      },
+    );
+
+    testWidgets('offline offers a retry that resends the same pages', (
+      tester,
+    ) async {
+      analyzer.result = MenuAnalysisFixture.failed(
+        reason: MenuAnalysisFailureReason.offline,
+      );
+      await pumpScreen(tester);
+      await openPhotoTab(tester);
+      await capturePages(tester, 2);
+      await tester.tap(find.byKey(const Key('menu_analyse_pages_button')));
+      await tester.pumpAndSettle();
+
+      analyzer.result = MenuAnalysisFixture.clean();
+      // The photo tab's viewfinder plus thumbnails plus the failure view
+      // together exceed the test surface's height, so the retry button
+      // needs scrolling into view before it can be hit-tested.
+      await tester.ensureVisible(find.byKey(const Key('menu_retry_button')));
+      await tester.tap(find.byKey(const Key('menu_retry_button')));
+      await tester.pumpAndSettle();
+
+      expect(analyzer.capturedImagePaths, [
+        '/tmp/menu-page-1.jpg',
+        '/tmp/menu-page-2.jpg',
+      ]);
+      expect(find.byKey(const Key('menu_legend')), findsOneWidget);
+    });
+
+    testWidgets(
+      'OCR unavailable explains instead of opening the camera, with a link '
+      'to the text tab',
+      (tester) async {
+        await pumpScreen(tester, ocrAvailable: false);
+        await openPhotoTab(tester);
+
+        expect(find.byKey(const Key('menu_pages_unavailable')), findsOneWidget);
+        expect(find.byKey(const Key('fake_preview')), findsNothing);
+        expect(session.started, isFalse);
+        expect(analyzer.capturedImagePaths, isEmpty);
+
+        await tester.tap(find.byKey(const Key('menu_switch_to_text_button')));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('menu_text_field')), findsOneWidget);
+      },
+    );
+
+    testWidgets('every CameraProblem renders M6 copy and still offers the '
+        'gallery', (tester) async {
+      session.startError = const CameraSessionException(CameraProblem.noCamera);
+      await pumpScreen(tester);
+      await openPhotoTab(tester);
+
+      expect(
+        find.text(CameraScreen.problemTitle(CameraProblem.noCamera)),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('menu_gallery_button')), findsOneWidget);
+    });
+
+    testWidgets('a PhotoPickerException renders an error line and keeps '
+        'existing pages', (tester) async {
+      await pumpScreen(tester);
+      await openPhotoTab(tester);
+      await capturePages(tester, 1);
+
+      picker.error = const PhotoPickerException('denied');
+      await tester.tap(find.byKey(const Key('menu_gallery_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text(MenuCopy.galleryError), findsOneWidget);
+      expect(find.byKey(const Key('menu_page_thumb_0')), findsOneWidget);
     });
   });
 
