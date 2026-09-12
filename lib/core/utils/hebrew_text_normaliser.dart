@@ -1,4 +1,5 @@
-/// Turns raw ML Kit output into a form Hebrew keyword matching can rely on.
+/// Turns raw OCR output, or any pasted Hebrew, into a form Hebrew keyword
+/// matching can rely on.
 ///
 /// Pure Dart, no Flutter, no plugin types - it is a string function. It is
 /// separated from `HebrewLabelParser` because every rule here is about the
