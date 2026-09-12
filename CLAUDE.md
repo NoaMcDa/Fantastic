@@ -203,7 +203,7 @@ Per `design/tests.md`:
 | M9 — Biomarker Logging | `epic:m9-biomarkers` | #103–#107 | 5 |
 | M10 — Recipe Converter | `epic:m10-recipe-converter` | #118–#120, #393–#398 | 9 — see `design/m10_recipe_converter_research.md` |
 | M11 — Restaurant Directory | `epic:m11-directory` | #111–#117 | 7 |
-| M12 — Menu Analyzer | `epic:m12-menu-analyzer` | #121–#122 | 2 — **superseded by M16, closure pending** |
+| ~~M12 — Menu Analyzer~~ | `epic:m12-menu-analyzer` | ~~#121–#122~~ | **closed — superseded by M16**; milestone #14 retired |
 | M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |
 | M14 — Backup & Restore | `epic:m14-backup` | #123–#124 | 2 |
 | M15 — Meal Entry | `epic:m15-meal-entry` | #315–#328 | 14 — **complete** |
@@ -221,9 +221,12 @@ an outbound network call, which is a different feature from Keto Lens and **does
 relax the OCR no-network invariant**; see `design/m15_meal_entry_research.md` §4.
 
 **M16 is the second milestone opened from a user's request** — Epic #351, milestone #19,
-`design/m16_menu_scanner_research.md`. It **supersedes M12 Menu Analyzer** (#267, #121,
-#122), whose closure is decision 1 on the Epic and is the owner's call; until it is taken,
-#121 and #122 are not to be picked up. It reuses M15's `LlmChatClient` seam and key, sends
+`design/m16_menu_scanner_research.md`. It **superseded M12 Menu Analyzer**, which the owner
+closed on 2026-09-12: #267, #121 and #122 are closed as superseded and milestone #14 is
+retired. M12 classified a dish by running its *name* through `IngredientClassifier`, whose
+rules have no word for bread, rice, pasta, potato, flour or sugar, so pizza and pasta came
+back "we do not know" — see the research document §1.1. It reuses M15's `LlmChatClient`
+seam and key, sends
 only locally-recognised or locally-extracted **text** — neither the menu photograph nor the
 PDF ever leaves the device — and, like M15, **does not relax the OCR no-network
 invariant**. PDF input (#405–#408) reads a text layer directly where one is legible and
@@ -247,7 +250,7 @@ what that verified and what it did not.
 | M9 Biomarker Logging | #264 |
 | M10 Recipe Converter | #265 |
 | M11 Restaurant Directory | #266 |
-| M12 Menu Analyzer | #267 |
+| ~~M12 Menu Analyzer~~ | ~~#267~~ — closed, superseded by M16 |
 | M13 Apple Health Sync | #268 |
 | M14 Backup & Restore | #269 |
 | M15 Meal Entry | #312 |

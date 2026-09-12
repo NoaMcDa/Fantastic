@@ -13,7 +13,8 @@ Everything in the MVP serves one of those two goals. Features that don't serve t
 - Not a full restaurant directory (static data takes time to curate)
 - Not a recipe converter (useful, not critical to first-week retention)
 - Not a menu analyzer in the MVP — shipped post-MVP as M16 AI Menu Scanner
-  (`design/m16_menu_scanner_research.md`), which supersedes the M12 slot below
+  (`design/m16_menu_scanner_research.md`), which superseded the M12 slot below;
+  M12 was closed as redundant on 2026-09-12 and its milestone retired
 - Not a social / community feature
 - Not a cloud-sync product (offline-first; backup & restore deferred to M14)
 
