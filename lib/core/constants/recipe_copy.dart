@@ -23,5 +23,28 @@ abstract final class RecipeCopy {
   static const String suggestedMarker = 'הצעה אוטומטית — בדקו';
 
   static const String emptyResult = 'לא הודבק מתכון';
-  // #120, #396 and #397 add their strings here.
+
+  // --- #120: the library and the save affordance ---
+
+  static const String openLibrary = 'המתכונים השמורים שלי';
+  static const String save = 'שמירת מתכון';
+  static const String saved = 'המתכון נשמר';
+  static const String saveFailed = 'שמירת המתכון נכשלה. נסו שוב.';
+  static const String cancel = 'ביטול';
+  static const String recipeTitleHint = 'שם המתכון';
+
+  static const String libraryTitle = 'מתכונים שמורים';
+  static const String emptyLibraryTitle = 'טרם נשמרו מתכונים';
+  static const String emptyLibraryBody =
+      'המירו מתכון וסמנו לשמירה כדי לראות אותו כאן.';
+  static const String loadFailed = 'לא ניתן לטעון את המתכונים השמורים';
+  static const String deleteFailed = 'מחיקת המתכון נכשלה. נסו שוב.';
+
+  /// Shown by `SavedRecipeLoader` when a path id is missing, non-numeric, or
+  /// resolves to no stored recipe. Never a crash on a bad deep link.
+  static const String recipeNotFound = 'המתכון המבוקש לא נמצא';
+
+  static String ingredientCount(int count) => '$count מצרכים';
+  static String substitutedCount(int count) => '$count הוחלפו';
+  // #396 and #397 add their strings here.
 }

@@ -30,6 +30,16 @@ void main() {
       expect(AppShell.activeIndexForLocation('/adaptation/detail'), 3);
     });
 
+    // #120's two child routes — no change to `activeIndexForLocation` itself
+    // was needed, and this is what proves that rather than assuming it.
+    test(
+      '/recipe/library and /recipe/saved/1 both activate the recipe tab',
+      () {
+        expect(AppShell.activeIndexForLocation('/recipe/library'), 4);
+        expect(AppShell.activeIndexForLocation('/recipe/saved/1'), 4);
+      },
+    );
+
     test('an unrecognised location defaults to index 0 (Home)', () {
       expect(AppShell.activeIndexForLocation('/does-not-exist'), 0);
     });
