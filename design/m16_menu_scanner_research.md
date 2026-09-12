@@ -1119,6 +1119,21 @@ real-fixture gaps above are what remain.
 
 ---
 
+## 13. The structured-output refusal, found after §12 shipped
+
+The first user report after PDF input merged was that **every** input mode failed while
+Daily Intake's description mode worked, and that a two-minute timeout changed nothing.
+§4.4 and §6.4 above describe the `json_schema` request as a strong hint with
+`json_object` as the fallback; the fallback was never implemented, and the schema as
+pinned (from secondary sources — §10 records that `openrouter.ai` was unreachable) was
+not valid under strict mode either. The gateway refuses such a request before any model
+sees it, and `OpenRouterClient` read that 4xx as `badResponse`. `OpenRouterClient.complete`
+now falls back once to `json_object` on 400/404/422, and `MenuAnalysisPrompt.schema` is
+strict-mode valid. The full account, the comparison table that located it, and what
+remains unverified are in `design/m16_structured_output_fix.md`.
+
+---
+
 ## Sources
 
 Primary OpenRouter documentation (`openrouter.ai/docs/...`) was **unreachable from this

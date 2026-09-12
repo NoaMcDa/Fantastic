@@ -59,6 +59,57 @@ void main() {
     MenuAnalysisFailed(reason: reason),
   );
 
+  // Under the strict-mode schema every dish carries `description` and
+  // `modification` as keys, `null` when it has neither — so `null` has to
+  // read exactly as an omitted key did.
+  group('an explicit null', () {
+    test('description null is a dish with no description', () {
+      final result = ok(
+        reply([
+          {...dish(), 'description': null},
+        ]),
+      );
+
+      expect(result.dishes.single.description, isNull);
+      expect(result.dishes.single.verdict, DishVerdict.orderAsIs);
+    });
+
+    test('modification null on a green dish keeps it green', () {
+      final result = ok(
+        reply([
+          {...dish(), 'modification': null},
+        ]),
+      );
+
+      expect(result.dishes.single.verdict, DishVerdict.orderAsIs);
+      expect(result.dishes.single.modification, isNull);
+      expect(result.unclassified, isEmpty);
+    });
+
+    test('modification null on a red dish keeps it red', () {
+      final result = ok(
+        reply([
+          {...dish(verdict: 'nonKeto'), 'modification': null},
+        ]),
+      );
+
+      expect(result.dishes.single.verdict, DishVerdict.nonKeto);
+    });
+
+    test('modification null on a modifiable dish demotes it', () {
+      // A yellow without an instruction does not exist, and `null` is not
+      // an instruction.
+      final result = ok(
+        reply([
+          {...dish(verdict: 'modifiable'), 'modification': null},
+        ]),
+      );
+
+      expect(result.dishes, isEmpty);
+      expect(result.unclassified, ['אנטריקוט על הגריל']);
+    });
+  });
+
   group('a well-formed reply', () {
     test('becomes MenuAnalysed with one dish per element, verdicts intact', () {
       final result = ok(

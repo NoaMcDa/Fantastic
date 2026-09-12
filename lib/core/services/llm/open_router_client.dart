@@ -120,25 +120,48 @@ class OpenRouterClient implements LlmChatClient {
     }
 
     try {
-      final response = await _http
-          .post(
-            _endpoint,
-            headers: {
-              'Authorization': 'Bearer $token',
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode(
-              _body(
-                systemPrompt: systemPrompt,
-                userPrompt: userPrompt,
-                imageBase64: imageBase64,
-                imageMediaType: imageMediaType,
-                maxOutputTokens: maxOutputTokens,
-                responseSchema: responseSchema,
-              ),
-            ),
-          )
-          .timeout(timeout);
+      var response = await _post(
+        token,
+        _body(
+          systemPrompt: systemPrompt,
+          userPrompt: userPrompt,
+          imageBase64: imageBase64,
+          imageMediaType: imageMediaType,
+          maxOutputTokens: maxOutputTokens,
+          responseSchema: responseSchema,
+        ),
+      );
+
+      if (responseSchema != null && rejectsRequestShape(response.statusCode)) {
+        // **The structured-output fallback** (`design/m16_structured_output_fix.md`).
+        //
+        // A `json_schema` request is only honoured by models whose endpoint
+        // advertises structured outputs, and a strict schema is also
+        // validated before any model sees it. Either way the gateway answers
+        // with a 4xx **before the request reaches a model** — so the refusal
+        // costs no quota and comes back in well under a second, which is why
+        // a menu analysis failed on every input mode while an identical
+        // `json_object` request from the meal estimator succeeded, and why
+        // lengthening the timeout changed nothing.
+        //
+        // Re-sent once, as the exact `json_object` shape the estimator has
+        // been verified live with. The schema was only ever a strong hint —
+        // `MenuResponseParser` trusts nothing in the reply — so dropping it
+        // loses no correctness. Not a general retry: 401/403/429 and 5xx are
+        // answers about the key, the quota and the provider, and asking
+        // again with a different `response_format` changes none of them.
+        response = await _post(
+          token,
+          _body(
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            imageBase64: imageBase64,
+            imageMediaType: imageMediaType,
+            maxOutputTokens: maxOutputTokens,
+            responseSchema: null,
+          ),
+        );
+      }
 
       return _read(response);
     } on TimeoutException catch (_) {
@@ -158,6 +181,31 @@ class OpenRouterClient implements LlmChatClient {
       );
     }
   }
+
+  /// Whether [statusCode] is the gateway refusing the *shape* of a request
+  /// rather than answering it: a malformed or unsupported parameter (400),
+  /// no endpoint able to serve the requested parameters (404), or a body that
+  /// parsed but failed validation (422).
+  ///
+  /// These are the only statuses the structured-output fallback acts on.
+  /// Public and static so the test names each of them; nothing else calls it.
+  static bool rejectsRequestShape(int statusCode) =>
+      statusCode == 400 || statusCode == 404 || statusCode == 422;
+
+  /// One POST of [body] with [token], bounded by [timeout].
+  ///
+  /// Each request gets the full [timeout] of its own, so a fallback after a
+  /// slow refusal is never cut short by time the first attempt spent.
+  Future<http.Response> _post(String token, Map<String, Object?> body) => _http
+      .post(
+        _endpoint,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(body),
+      )
+      .timeout(timeout);
 
   /// The OpenAI-compatible request body.
   Map<String, Object?> _body({
@@ -195,6 +243,9 @@ class OpenRouterClient implements LlmChatClient {
     // meaningful fraction of it at random.
     'temperature': 0,
     'max_tokens': ?maxOutputTokens,
+    // `json_object` is the shape M15 verified live; `json_schema` is what a
+    // menu asks for first, and falls back to `json_object` when the gateway
+    // refuses it — see `complete`.
     'response_format': responseSchema == null
         ? {'type': 'json_object'}
         : {

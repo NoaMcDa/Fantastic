@@ -62,12 +62,13 @@ $trapList
    קטגוריה (כמו "עיקריות" או "קינוחים") אינם מנה, ואינם מופיעים ב-"dishes".
 2. "why" תמיד בעברית, במשפט או שניים, ומזהה את מלכודת הפחמימות או את
    המאקרו-נוטריאנטים הקטוגניים שבזכותם המנה מתאימה.
-3. "modification" חובה אם ורק אם "verdict" הוא "modifiable" — ואסור שיופיע
-   עבור כל סיווג אחר. הכתיבה בשפה שבה מודפס התפריט, כמשפט אחד שהמשתמש יכול
+3. "modification" חובה אם ורק אם "verdict" הוא "modifiable" — ועבור כל סיווג
+   אחר ערכו null. הכתיבה בשפה שבה מודפס התפריט, כמשפט אחד שהמשתמש יכול
    לומר למלצר כדי שהמנה תתאים.
 4. מנה שלא ניתן לסווג אותה בביטחון מופיעה במערך "unclassified", בשמה
    המדויק כפי שהוא מודפס — לעולם לא מנוחשת, ולעולם לא מושמטת בשתיקה.
 5. "unclassified" מופיע תמיד, גם כשהוא ריק.
+6. "description" הוא תיאור המנה כפי שהוא מודפס בתפריט, או null כשאין תיאור.
 """;
   }
 
@@ -119,6 +120,17 @@ $capped
   /// -time constant list — the enum names still come from [MenuVerdictRules]
   /// rather than being retyped here, so a fourth verdict changes this schema
   /// without an edit to this file.
+  ///
+  /// **Shaped to pass a strict-mode validator**
+  /// (`design/m16_structured_output_fix.md`). A provider that enforces
+  /// `strict: true` rejects — before any model sees the request — a schema
+  /// with an optional property or without `additionalProperties: false`, and
+  /// that refusal reached the user as "הניתוח נכשל" on every input mode. So
+  /// every property is listed in `required`, both objects close with
+  /// `additionalProperties: false`, and the two fields a dish may lack
+  /// (`description`, `modification`) are typed `string | null` instead of
+  /// being left out. `MenuResponseParser` already reads `null` and absent
+  /// the same way, so the reply contract above the seam is unchanged.
   static Map<String, Object?> get schema => {
     'type': 'object',
     'properties': {
@@ -128,15 +140,16 @@ $capped
           'type': 'object',
           'properties': {
             'name': {'type': 'string'},
-            'description': {'type': 'string'},
+            'description': {'type': nullableString},
             'verdict': {
               'type': 'string',
               'enum': DishVerdict.values.map(MenuVerdictRules.nameOf).toList(),
             },
             'why': {'type': 'string'},
-            'modification': {'type': 'string'},
+            'modification': {'type': nullableString},
           },
-          'required': ['name', 'verdict', 'why'],
+          'required': ['name', 'description', 'verdict', 'why', 'modification'],
+          'additionalProperties': false,
         },
       },
       'unclassified': {
@@ -145,5 +158,10 @@ $capped
       },
     },
     'required': ['dishes', 'unclassified'],
+    'additionalProperties': false,
   };
+
+  /// The JSON Schema type of a field a dish may legitimately lack — a string
+  /// when present, `null` when not. Strict mode forbids leaving it out.
+  static const List<String> nullableString = ['string', 'null'];
 }
