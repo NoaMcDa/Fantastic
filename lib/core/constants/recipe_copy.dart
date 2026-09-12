@@ -1,3 +1,5 @@
+import 'package:fantastic/core/utils/numeric_input.dart';
+
 /// The Hebrew the recipe converter tab is worded in.
 ///
 /// In `lib/core/constants/` with the other copy files rather than inline in
@@ -63,5 +65,35 @@ abstract final class RecipeCopy {
   static const String suggestFailedOffline = 'אין חיבור לאינטרנט';
   static const String suggestFailedRateLimited = 'חרגתם ממכסת ההצעות היומית';
   static const String suggestFailedBadResponse = 'קבלת ההצעות נכשלה';
-  // #397 adds its strings here.
+
+  // --- #397: per-serving macro estimation and logging a serving ---
+
+  /// Shown below the results before the recipe has been saved — an id is
+  /// what `RecipeMacrosSection` writes its answer onto.
+  static const String saveToSeeMacrosHint =
+      'שמרו את המתכון כדי לחשב ערכים למנה';
+
+  static const String servingsFieldLabel = 'כמות מנות';
+  static const String estimateMacrosButton = 'ערכים למנה';
+
+  /// Shown instead of [estimateMacrosButton] once a stored estimate already
+  /// exists — a fresh request is a recalculation, not a first attempt.
+  static const String recalculateMacrosButton = 'חשבו מחדש';
+
+  static const String perServingLabel = 'למנה';
+  static const String saveMacrosButton = 'שמרו על המתכון';
+  static const String macrosSaved = 'ערכי המנה נשמרו';
+  static const String macrosSaveFailed = 'שמירת ערכי המנה נכשלה. נסו שוב.';
+  static const String logServingButton = 'הוסיפו מנה ליומן';
+
+  /// `שומן 12 · פחמימות 3 · חלבון 9 למנה` — the library card's compact line,
+  /// and the section's own per-serving row.
+  static String perServingSummary(
+    double fatG,
+    double netCarbsG,
+    double proteinG,
+  ) =>
+      'שומן ${GramsText.format(fatG)} · '
+      'פחמימות ${GramsText.format(netCarbsG)} · '
+      'חלבון ${GramsText.format(proteinG)} $perServingLabel';
 }
