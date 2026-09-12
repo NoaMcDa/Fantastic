@@ -52,6 +52,9 @@ class _FixturePhotoPicker implements PhotoPicker {
 
   @override
   Future<String?> pickFromGallery() async => path;
+
+  @override
+  Future<List<String>> pickMultiple({required int limit}) async => const [];
 }
 
 class _CannedRecognizer implements TextRecognitionService {

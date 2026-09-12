@@ -30,6 +30,12 @@ void main() {
       expect(AppShell.activeIndexForLocation('/adaptation/detail'), 3);
     });
 
+    // #364: `/lens/menu` is a child route of `/lens`, registered so the tab
+    // bar stays — this is what makes that true.
+    test('the menu scanner route keeps the lens tab active', () {
+      expect(AppShell.activeIndexForLocation(kMenuScannerPath), 1);
+    });
+
     test('an unrecognised location defaults to index 0 (Home)', () {
       expect(AppShell.activeIndexForLocation('/does-not-exist'), 0);
     });

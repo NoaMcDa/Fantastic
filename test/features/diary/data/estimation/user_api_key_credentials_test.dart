@@ -1,5 +1,5 @@
 import 'package:fantastic/core/error/repository_exception.dart';
-import 'package:fantastic/features/diary/data/estimation/estimation_credentials.dart';
+import 'package:fantastic/features/diary/data/estimation/user_api_key_credentials.dart';
 import 'package:fantastic/features/diary/domain/models/estimation_settings.dart';
 import 'package:fantastic/features/diary/domain/repositories/estimation_settings_repository.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/core/theme/app_theme.dart';
 import 'package:fantastic/features/keto_lens/application/scan_orchestrator.dart';
 import 'package:fantastic/features/keto_lens/data/providers.dart';
@@ -11,6 +12,7 @@ import 'package:fantastic/features/keto_lens/presentation/widgets/scan_result_sh
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// The Keto Lens tab: a live viewfinder, a crop guide, and a shutter.
 ///
@@ -171,8 +173,39 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     await _start();
   }
 
+  /// Rendered in every camera state — unavailable, problem, starting and
+  /// ready — so a build with no working OCR engine can still reach the
+  /// pasted-text menu path (#364). Placed here, in `Stack`, rather than
+  /// inside each of the four returns below, which is what "additive only"
+  /// means: not one line of the existing states' own content changes.
+  ///
+  /// Wrapped in a transparent `Material`: each state below supplies its own
+  /// `Scaffold`, but that `Scaffold` is a sibling of the chip row inside this
+  /// `Stack`, not an ancestor of it, so the chip row needs a `Material` of
+  /// its own rather than borrowing one that happens to be further up
+  /// (`AppShell`'s, in the real router; whatever a test wraps this screen
+  /// in, otherwise).
   @override
   Widget build(BuildContext context) {
+    return Material(
+      type: MaterialType.transparency,
+      child: Stack(
+        children: [
+          Positioned.fill(child: _buildScreenContent(context)),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _LensModeChips(
+              onMenuSelected: () => context.push(kMenuScannerPath),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScreenContent(BuildContext context) {
     if (_ocrUnavailable) {
       return _MessageState(
         key: const Key('lens_unavailable'),
@@ -406,6 +439,45 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       onRetry: () {},
     );
   }
+}
+
+/// The `תווית` / `תפריט` mode selector pinned to the top of every camera
+/// state (#364). `תווית` is this tab, always selected and inert; `תפריט`
+/// pushes [kMenuScannerPath] — a child route of `/lens`, so
+/// `AppShell.activeIndexForLocation`'s prefix match keeps the lens tab lit
+/// with no change to the shell.
+class _LensModeChips extends StatelessWidget {
+  const _LensModeChips({required this.onMenuSelected});
+
+  final VoidCallback onMenuSelected;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    bottom: false,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          ChoiceChip(
+            key: const Key('lens_mode_label'),
+            label: const Text('תווית'),
+            selected: true,
+            // A no-op, not `null`: `null` renders the chip disabled/dimmed,
+            // and this is the tab already showing, not an unavailable one.
+            onSelected: (_) {},
+          ),
+          const SizedBox(width: 8),
+          ChoiceChip(
+            key: const Key('lens_mode_menu'),
+            label: const Text('תפריט'),
+            selected: false,
+            onSelected: (_) => onMenuSelected(),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// A full-screen icon, headline, explanation and optional retry.

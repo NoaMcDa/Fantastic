@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/features/keto_lens/data/providers.dart';
 import 'package:fantastic/features/keto_lens/domain/models/scan_result.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
@@ -11,7 +12,9 @@ import 'package:fantastic/features/keto_lens/presentation/screens/camera_screen.
 import 'package:fantastic/features/keto_lens/presentation/widgets/scan_result_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:fantastic/core/widgets/skeleton_box.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../../fixtures/fixtures.dart';
@@ -98,6 +101,7 @@ class _FakePicker implements PhotoPicker {
   String? path;
   PhotoPickerException? error;
   int calls = 0;
+  List<String> multiplePaths = const [];
 
   @override
   Future<String?> pickFromGallery() async {
@@ -106,6 +110,14 @@ class _FakePicker implements PhotoPicker {
       throw error!;
     }
     return path;
+  }
+
+  @override
+  Future<List<String>> pickMultiple({required int limit}) async {
+    if (error != null) {
+      throw error!;
+    }
+    return multiplePaths;
   }
 }
 
@@ -473,6 +485,66 @@ void main() {
 
       expect(find.byKey(const Key('gallery_fallback_button')), findsNothing);
       expect(find.byKey(const Key('gallery_button')), findsNothing);
+    });
+  });
+
+  // #364: the `תפריט` chip has to reach a desktop with no Tesseract just as
+  // much as it reaches a working camera, so it is asserted in the
+  // OCR-unavailable and camera-problem states, not only the ready one.
+  group('the תפריט chip (#364)', () {
+    testWidgets('is present when OCR cannot run here', (tester) async {
+      await pumpScreen(tester, ocrAvailable: false);
+
+      expect(find.byKey(const Key('lens_mode_label')), findsOneWidget);
+      expect(find.byKey(const Key('lens_mode_menu')), findsOneWidget);
+    });
+
+    testWidgets('is present when the camera will not open', (tester) async {
+      session.startError = const CameraSessionException(
+        CameraProblem.permissionDenied,
+      );
+      await pumpScreen(tester);
+
+      expect(find.byKey(const Key('lens_mode_menu')), findsOneWidget);
+    });
+
+    testWidgets('is present on the ready viewfinder', (tester) async {
+      await pumpScreen(tester);
+
+      expect(find.byKey(const Key('lens_mode_menu')), findsOneWidget);
+    });
+
+    testWidgets('pushes the menu scanner route and keeps the lens tab', (
+      tester,
+    ) async {
+      String? pushed;
+      final router = GoRouter(
+        initialLocation: '/lens',
+        routes: [
+          GoRoute(path: '/lens', builder: (_, _) => const CameraScreen()),
+          GoRoute(
+            path: kMenuScannerPath,
+            builder: (_, state) {
+              pushed = state.uri.toString();
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: overrides(),
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('lens_mode_menu')));
+      await tester.pumpAndSettle();
+
+      expect(pushed, kMenuScannerPath);
     });
   });
 }
