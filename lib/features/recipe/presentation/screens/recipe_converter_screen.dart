@@ -1,10 +1,13 @@
 import 'package:fantastic/core/constants/recipe_copy.dart';
 import 'package:fantastic/core/error/repository_exception.dart';
+import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/features/recipe/application/providers/recipe_providers.dart';
 import 'package:fantastic/features/recipe/data/providers.dart';
 import 'package:fantastic/features/recipe/domain/ingredient_line_parser.dart';
 import 'package:fantastic/features/recipe/domain/models/ingredient_outcome.dart';
 import 'package:fantastic/features/recipe/domain/models/saved_recipe.dart';
+import 'package:fantastic/features/recipe/domain/models/suggestion_result.dart';
+import 'package:fantastic/features/recipe/domain/substitution_engine.dart';
 import 'package:fantastic/features/recipe/presentation/widgets/ingredient_outcome_row.dart';
 import 'package:fantastic/features/recipe/presentation/widgets/save_recipe_dialog.dart';
 import 'package:flutter/material.dart';
@@ -60,6 +63,24 @@ class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen> {
   /// next successful save and by every new conversion.
   bool _saveFailed = false;
 
+  /// True only while a #396 suggestion request is in flight.
+  ///
+  /// **Never true before a tap.** This screen is a tab root inside the
+  /// `ShellRoute`, and `test/widget_test.dart` walks every tab knowing
+  /// nothing about what is on it — the class doc's "nothing animates before
+  /// a tap" invariant extends to this spinner exactly as it does to the
+  /// convert button.
+  bool _suggesting = false;
+
+  /// Set only by a request that reached the model and returned zero usable
+  /// outcomes — a real answer, not an error. Cleared by every new attempt and
+  /// by every new conversion.
+  bool _noSuggestions = false;
+
+  /// Set only by a request that did not produce an answer. Cleared by every
+  /// new attempt and by every new conversion.
+  SuggestionFailureReason? _suggestFailure;
+
   @override
   void initState() {
     super.initState();
@@ -89,7 +110,81 @@ class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen> {
     setState(() {
       _results = engine.convert(ingredients);
       _saveFailed = false;
+      // A fresh conversion invalidates whatever the model answered about the
+      // previous one — the unrecognised lines themselves may have changed.
+      _noSuggestions = false;
+      _suggestFailure = null;
     });
+  }
+
+  /// Whether the suggest button renders: results exist and at least one
+  /// outcome is `Unrecognised`. Absent otherwise — a recipe the rule table
+  /// fully answered must cost nothing against a 50-requests-a-day quota.
+  bool get _hasUnrecognised =>
+      _results?.any((outcome) => outcome is Unrecognised) ?? false;
+
+  Future<void> _suggest() async {
+    final results = _results;
+    if (results == null) {
+      return;
+    }
+    setState(() {
+      _suggesting = true;
+      _noSuggestions = false;
+      _suggestFailure = null;
+    });
+
+    final unrecognised = [
+      for (final outcome in results)
+        if (outcome is Unrecognised) outcome.ingredient,
+    ];
+
+    SuggestionResult result;
+    try {
+      result = await ref
+          .read(substitutionSuggesterProvider)
+          .suggest(unrecognised);
+    } on Object catch (_) {
+      // `SubstitutionSuggester` promises never to throw. This catch exists
+      // because a promise is not an enforcement — the same reasoning
+      // `AddMealDescriptionSheet._estimate` records for its own estimator.
+      result = const SuggestionsFailed(
+        reason: SuggestionFailureReason.badResponse,
+      );
+    }
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _suggesting = false;
+      switch (result) {
+        case SuggestionsReturned(:final outcomes):
+          if (outcomes.isEmpty) {
+            _noSuggestions = true;
+            return;
+          }
+          // Every returned key replaces that line's `Unrecognised` outcome;
+          // everything else — including lines the model did not answer — is
+          // untouched.
+          _results = [
+            for (final outcome in results)
+              if (outcome is Unrecognised)
+                outcomes[SubstitutionEngine.key(outcome.ingredient.name)] ??
+                    outcome
+              else
+                outcome,
+          ];
+        case SuggestionsFailed(:final reason):
+          _suggestFailure = reason;
+      }
+    });
+  }
+
+  void _openProfileForEstimation() {
+    // `maybeOf`, not `of`: a widget test may render this screen inside a
+    // `MaterialApp` with no router, where `of` throws.
+    GoRouter.maybeOf(context)?.go(kProfilePath);
   }
 
   /// Whether the save affordance renders: results exist and at least one
@@ -161,10 +256,11 @@ class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen> {
             // A push, not a go: this stays inside the `ShellRoute` as a
             // child of the recipe tab route, so it keeps the tab bar and
             // gains its own back affordance — the tab root has none, its
-            // child does. `app_router.dart` cannot be imported here (it
-            // imports this file), so the path is spelled out rather than
-            // named — `kRecipePath` is `/recipe`.
-            onPressed: () => context.push('/recipe/library'),
+            // child does. The path is built from `kRecipePath` rather than
+            // spelled out: `app_router.dart` and this file import each other,
+            // which Dart resolves without complaint, and #396 needs the same
+            // import for `kProfilePath` anyway.
+            onPressed: () => context.push('$kRecipePath/library'),
           ),
         ],
       ),
@@ -227,6 +323,44 @@ class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen> {
                 ),
               ],
             ],
+            if (_hasUnrecognised) ...[
+              const SizedBox(height: 12),
+              FilledButton.tonal(
+                key: const Key('suggest_button'),
+                // Disabled while a request is in flight — never a second
+                // request stacked on the first.
+                onPressed: _suggesting ? null : _suggest,
+                child: Text(
+                  _suggesting
+                      ? RecipeCopy.suggesting
+                      : RecipeCopy.suggestButton,
+                ),
+              ),
+              // Rendered only after a tap, never on build: this screen is a
+              // tab root and `test/widget_test.dart` walks every tab without
+              // interacting with any of them — an animation visible before a
+              // tap is what hung `pumpAndSettle` for two router tests in M6.
+              if (_suggesting) ...[
+                const SizedBox(height: 8),
+                const Center(
+                  child: CircularProgressIndicator(
+                    key: Key('suggest_progress'),
+                  ),
+                ),
+              ],
+              if (_noSuggestions) ...[
+                const SizedBox(height: 4),
+                const Text(
+                  RecipeCopy.noSuggestions,
+                  key: Key('recipe_no_suggestions'),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              if (_suggestFailure != null) ...[
+                const SizedBox(height: 8),
+                _suggestFailureView(_suggestFailure!),
+              ],
+            ],
             const SizedBox(height: 16),
             Expanded(flex: 3, child: _resultsList()),
           ],
@@ -262,5 +396,55 @@ class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen> {
     AlreadyKeto() => Key('outcome_already_keto_$index'),
     Flagged() => Key('outcome_flagged_$index'),
     Unrecognised() => Key('outcome_unrecognised_$index'),
+  };
+
+  /// One headline per [SuggestionFailureReason], and a way out for the one
+  /// reason retrying cannot fix.
+  ///
+  /// **The deterministic results stay on screen through every failure** —
+  /// this widget renders below them, never over them, and nothing here ever
+  /// touches [_results].
+  Widget _suggestFailureView(SuggestionFailureReason reason) {
+    final theme = Theme.of(context);
+    return Column(
+      key: const Key('suggest_failure'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          _suggestFailureHeadline(reason),
+          key: const Key('suggest_failure_headline'),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.error,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        if (reason == SuggestionFailureReason.notConfigured) ...[
+          const SizedBox(height: 4),
+          Center(
+            child: TextButton(
+              key: const Key('suggest_profile_button'),
+              onPressed: _openProfileForEstimation,
+              child: const Text(RecipeCopy.openProfile),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  static String _suggestFailureHeadline(
+    SuggestionFailureReason reason,
+  ) => switch (reason) {
+    // Unreachable here — the button is absent below the empty-input case
+    // (`_suggest` is only ever called with at least one `Unrecognised`
+    // line) — and worded anyway, so an unhandled case is a compile error
+    // rather than a blank headline.
+    SuggestionFailureReason.emptyInput => RecipeCopy.suggestFailedBadResponse,
+    SuggestionFailureReason.notConfigured =>
+      RecipeCopy.suggestFailedNotConfigured,
+    SuggestionFailureReason.offline => RecipeCopy.suggestFailedOffline,
+    SuggestionFailureReason.rateLimited => RecipeCopy.suggestFailedRateLimited,
+    SuggestionFailureReason.badResponse => RecipeCopy.suggestFailedBadResponse,
   };
 }
