@@ -1,8 +1,8 @@
+import 'package:fantastic/core/utils/hebrew_text_normaliser.dart';
 import 'package:fantastic/features/keto_lens/application/scan_orchestrator.dart';
 import 'package:fantastic/features/keto_lens/data/classifiers/ingredient_classifier_impl.dart';
 import 'package:fantastic/features/keto_lens/data/classifiers/macro_classifier_impl.dart';
 import 'package:fantastic/features/keto_lens/data/parsers/hebrew_label_parser.dart';
-import 'package:fantastic/features/keto_lens/data/parsers/hebrew_text_normaliser.dart';
 import 'package:fantastic/features/keto_lens/domain/models/scan_result.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
 import 'package:flutter_test/flutter_test.dart';
