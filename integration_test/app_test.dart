@@ -5,6 +5,7 @@ import 'flows/add_meal_description_flow.dart' as add_meal_description;
 import 'flows/add_meal_manual_flow.dart' as add_meal_manual;
 import 'flows/add_meal_photo_flow.dart' as add_meal_photo;
 import 'flows/edit_meal_flow.dart' as edit_meal;
+import 'flows/estimation_transport_flow.dart' as estimation_transport;
 import 'flows/grace_period_flow.dart' as grace_period;
 import 'flows/keto_lens_flow.dart' as keto_lens;
 import 'flows/meal_logging_flow.dart' as meal_logging;
@@ -57,6 +58,10 @@ void main() {
   group('menu text', menu_text.main);
   group('menu photo', menu_photo.main);
   group('menu pdf', menu_pdf.main);
+  // Above `storage failure` deliberately, per the note below: this one drives
+  // a real HTTP round trip through the real provider graph, and giving it a
+  // clean binding is cheaper than debugging it against that flow's backoff.
+  group('estimation transport', estimation_transport.main);
   // Position matters here. This flow leaves the app over a permanently
   // retrying broken store with no settle (`design/m8_preflight.md`), and
   // riverpod 3's exponential backoff keeps scheduling frames — and logging
