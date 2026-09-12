@@ -53,8 +53,22 @@ class OpenRouterClient implements LlmChatClient {
   /// **Vision-capable, and that is a requirement rather than a preference:**
   /// #312's photo mode sends a plate of food, so a text-only model would fail
   /// half the feature.
-  static const String defaultModel =
-      'meta-llama/llama-3.2-11b-vision-instruct:free';
+  ///
+  /// **Verified live against `/api/v1/chat/completions` on 2026-09-12** (see
+  /// #411 and #414). The three ids M15 originally shipped had all retired
+  /// upstream, so the description mode failed with `badResponse` — surfaced
+  /// to the user as "אין חיבור אינטרנט".
+  ///
+  /// **Chosen for latency, not for JSON quality** (#414). The pick that produced
+  /// the tidiest itemised JSON on a Hebrew shakshuka prompt
+  /// (`dots-studio/dots-3-note-preview:free`) took 32 s to answer the app's
+  /// real system prompt, one second over [defaultTimeout] — and
+  /// `RemoteMacroEstimator._reasonFor` maps [ChatFailureReason.timeout] onto
+  /// [EstimateFailureReason.offline], which is the same "אין חיבור אינטרנט"
+  /// chip the user saw. This id answered the same prompt in 8–12 s across
+  /// four runs, well inside the budget, with valid JSON in the required
+  /// schema and Hebrew item names. Speed is a correctness property here.
+  static const String defaultModel = 'nex-agi/nex-n2.5-pro:free';
 
   /// Free model ids come and go upstream.
   ///
@@ -63,9 +77,15 @@ class OpenRouterClient implements LlmChatClient {
   /// them is a product decision with a settings screen behind it — not
   /// something a network adapter should do silently on a user's behalf, since
   /// two models do not return the same carb count.
+  ///
+  /// Both entries produce cleaner itemised JSON than the primary on the
+  /// Hebrew test prompts but did not fit [defaultTimeout] in measurement
+  /// (32 s and 52 s respectively). Kept as documented alternatives from
+  /// unrelated providers, for the day someone bumps the timeout or the
+  /// provider gets faster.
   static const List<String> fallbackModels = [
-    'qwen/qwen2.5-vl-32b-instruct:free',
-    'google/gemini-2.0-flash-exp:free',
+    'dots-studio/dots-3-note-preview:free',
+    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
   ];
 
   /// How long a request may take before it is abandoned.
