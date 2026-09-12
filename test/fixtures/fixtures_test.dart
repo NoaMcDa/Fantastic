@@ -1,5 +1,8 @@
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
 import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
+import 'package:fantastic/features/menu/data/analysis/menu_response_parser.dart';
+import 'package:fantastic/features/menu/domain/models/dish_verdict.dart';
+import 'package:fantastic/features/menu/domain/models/menu_analysis.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fixtures.dart';
@@ -31,6 +34,39 @@ void main() {
 
       expect(log.energyScore, 3);
       expect(log.moodScore, 3);
+    });
+
+    test('AnalysedDishFixture.modifiable always carries a modification', () {
+      expect(AnalysedDishFixture.modifiable().modification, isNotEmpty);
+    });
+
+    test('AnalysedDishFixture.orderAsIs and nonKeto carry no modification', () {
+      expect(AnalysedDishFixture.orderAsIs().modification, isNull);
+      expect(AnalysedDishFixture.nonKeto().modification, isNull);
+    });
+
+    test(
+      'MenuAnalysisFixture.clean carries no unclassified or unread page',
+      () {
+        final analysis = MenuAnalysisFixture.clean();
+
+        expect(analysis.unclassified, isEmpty);
+        expect(analysis.unreadPages, isEmpty);
+      },
+    );
+
+    test('MenuReplyFixture.grill is accepted by the real parser and carries '
+        'all three verdicts', () {
+      final result = MenuResponseParser.parse(
+        MenuReplyFixture.grill,
+        sourceText: HebrewMenuFixture.grill,
+      ) as MenuAnalysed;
+
+      expect(
+        result.dishes.map((dish) => dish.verdict).toSet(),
+        DishVerdict.values.toSet(),
+      );
+      expect(result.unclassified, isNotEmpty);
     });
   });
 
@@ -103,6 +139,32 @@ void main() {
       },
     );
 
+    test('AnalysedDishFixture overrides carry through', () {
+      final dish = AnalysedDishFixture.orderAsIs(
+        name: 'שם אחר',
+        description: 'תיאור אחר',
+        why: 'סיבה אחרת',
+      );
+
+      expect(dish.name, 'שם אחר');
+      expect(dish.description, 'תיאור אחר');
+      expect(dish.why, 'סיבה אחרת');
+    });
+
+    test('MenuAnalysisFixture.analysed overrides carry through', () {
+      final analysis = MenuAnalysisFixture.analysed(
+        withDishes: [AnalysedDishFixture.orderAsIs()],
+        unclassified: const ['מנה א', 'מנה ב'],
+        pageCount: 5,
+        unreadPages: const [4, 5],
+      );
+
+      expect(analysis.dishes, hasLength(1));
+      expect(analysis.unclassified, ['מנה א', 'מנה ב']);
+      expect(analysis.pageCount, 5);
+      expect(analysis.unreadPages, [4, 5]);
+    });
+
     test('SymptomLogFixture boundary days sit at 1 and 5', () {
       expect(SymptomLogFixture.worstDay().energyScore, 1);
       expect(SymptomLogFixture.worstDay().moodScore, 1);
@@ -133,6 +195,11 @@ void main() {
       expect(DailyLogFixture.fixture(), DailyLogFixture.fixture());
       expect(StreakStateFixture.initial(), StreakStateFixture.initial());
       expect(SymptomLogFixture.fixture(), SymptomLogFixture.fixture());
+      expect(
+        AnalysedDishFixture.modifiable(),
+        AnalysedDishFixture.modifiable(),
+      );
+      expect(MenuAnalysisFixture.clean(), MenuAnalysisFixture.clean());
     });
 
     test('no fixture date depends on the current clock', () {
@@ -152,6 +219,125 @@ void main() {
       expect(DailyLogFixture.fixture(), isNotNull);
       expect(StreakStateFixture.initial(), isNotNull);
       expect(SymptomLogFixture.bestDay(), isNotNull);
+      expect(AnalysedDishFixture.orderAsIs(), isNotNull);
+      expect(MenuAnalysisFixture.analysed(), isNotNull);
+    });
+  });
+
+  group('HebrewMenuFixture covers real Israeli menu shapes', () {
+    final hebrewLetter = RegExp('[\u0590-\u05FF]');
+    final sectionHeaders = ['ראשונות', 'עיקריות', 'קינוחים', 'שתייה'];
+
+    test('all holds exactly the six named transcripts', () {
+      expect(HebrewMenuFixture.all, hasLength(6));
+      expect(HebrewMenuFixture.all, [
+        HebrewMenuFixture.grill,
+        HebrewMenuFixture.italian,
+        HebrewMenuFixture.bilingualCafe,
+        HebrewMenuFixture.fish,
+        HebrewMenuFixture.twoColumn,
+        HebrewMenuFixture.notAMenu,
+      ]);
+    });
+
+    test('every transcript is non-empty and contains a Hebrew letter', () {
+      for (final transcript in HebrewMenuFixture.all) {
+        expect(transcript.trim(), isNotEmpty);
+        expect(hebrewLetter.hasMatch(transcript), isTrue);
+      }
+    });
+
+    test('every real-menu transcript carries a section header', () {
+      final realMenus = [
+        HebrewMenuFixture.grill,
+        HebrewMenuFixture.italian,
+        HebrewMenuFixture.bilingualCafe,
+        HebrewMenuFixture.fish,
+        HebrewMenuFixture.twoColumn,
+      ];
+
+      for (final transcript in realMenus) {
+        expect(
+          sectionHeaders.any(transcript.contains),
+          isTrue,
+          reason: 'expected a section header in: $transcript',
+        );
+      }
+    });
+
+    test('every real-menu transcript carries a price', () {
+      final realMenus = [
+        HebrewMenuFixture.grill,
+        HebrewMenuFixture.italian,
+        HebrewMenuFixture.bilingualCafe,
+        HebrewMenuFixture.fish,
+        HebrewMenuFixture.twoColumn,
+      ];
+      final price = RegExp(r'₪\d|\d+\s*ש"ח');
+
+      for (final transcript in realMenus) {
+        expect(
+          price.hasMatch(transcript),
+          isTrue,
+          reason: 'expected a price in: $transcript',
+        );
+      }
+    });
+
+    test('grill wraps a description onto a second line', () {
+      expect(HebrewMenuFixture.grill, contains('חומוס עם פטרוזיליה וזעתר'));
+      expect(HebrewMenuFixture.grill, contains('\nוזעתר טרי,'));
+    });
+
+    // The provenance check's word-overlap rule needs a word shared between
+    // two sections that is not itself a dish name — "פירה" (purée) names a
+    // side in the starters and a component of a main.
+    test('grill repeats a word across two different sections', () {
+      final occurrences = 'פירה'.allMatches(HebrewMenuFixture.grill).length;
+
+      expect(occurrences, greaterThanOrEqualTo(2));
+    });
+
+    test('fish holds a green grilled fish and a yellow fish-and-chips', () {
+      expect(HebrewMenuFixture.fish, contains('דג לברק על הגריל בחמאה'));
+      expect(HebrewMenuFixture.fish, contains("פיש אנד צ'יפס"));
+    });
+
+    test('italian covers all four red request examples', () {
+      expect(HebrewMenuFixture.italian, contains('פיצה'));
+      expect(HebrewMenuFixture.italian, contains('פסטה'));
+      expect(HebrewMenuFixture.italian, contains('שניצל'));
+      expect(HebrewMenuFixture.italian, contains('ריזוטו'));
+    });
+
+    test('bilingualCafe prints Hebrew and English on the same page', () {
+      expect(hebrewLetter.hasMatch(HebrewMenuFixture.bilingualCafe), isTrue);
+      expect(HebrewMenuFixture.bilingualCafe, contains('Grilled Salmon'));
+    });
+
+    // notAMenu is noise, not a menu: no section header, and no line shaped
+    // like a dish entry (name/description separated by " - ").
+    test('notAMenu contains no section header and no dish-shaped line', () {
+      for (final header in sectionHeaders) {
+        expect(HebrewMenuFixture.notAMenu, isNot(contains(header)));
+      }
+      expect(HebrewMenuFixture.notAMenu, isNot(contains(' - ')));
+    });
+  });
+
+  group('RenderedMenuOcrFixture is a genuine capture', () {
+    final hebrewLetter = RegExp('[\u0590-\u05FF]');
+
+    // The whole value of this fixture is that an engine produced it, not a
+    // hand - this pins only that the capture is non-empty and Hebrew, never
+    // the exact corrupted text an engine version might read differently.
+    test('grill is non-empty and contains a Hebrew letter', () {
+      expect(RenderedMenuOcrFixture.grill.trim(), isNotEmpty);
+      expect(hebrewLetter.hasMatch(RenderedMenuOcrFixture.grill), isTrue);
+    });
+
+    test('grill is reachable through fixtures.dart alone', () {
+      expect(RenderedMenuOcrFixture.grill, isNotNull);
     });
   });
 }

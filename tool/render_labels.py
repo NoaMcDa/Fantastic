@@ -93,6 +93,148 @@ def main_into(out_dir):
     return [render(name, text, out_dir) for name, text in LABELS.items()]
 
 
+# Menu layout constants. Kept separate from the label constants above because
+# a menu row is two columns on one baseline, not one column of stacked lines.
+_MENU_WIDTH = 1240
+_MENU_MARGIN = 50
+_MENU_HEADER_HEIGHT = 76
+_MENU_ROW_HEIGHT = 58
+_MENU_DESC_HEIGHT = 44
+
+
+def _wrap_rtl(draw, text, font, max_width):
+    """Greedy word-wraps `text` to lines no wider than `max_width`.
+
+    Pillow does not wrap text on its own; this measures each candidate line
+    with the same `draw.textlength(..., direction="rtl", language="he")`
+    call `render_menu` uses to draw it, so the wrap decision and the drawn
+    width always agree.
+    """
+    words = text.split(" ")
+    lines = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        width = draw.textlength(
+            candidate, font=font, direction="rtl", language="he"
+        )
+        if current and width > max_width:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines
+
+
+def render_menu(name: str, rows: list, out_dir: str) -> str:
+    """Writes one two-column Hebrew menu as a PNG and returns its path.
+
+    `rows` holds, in print order, three kinds of entry:
+
+    * a bare `str` — a section header (e.g. "ראשונות"), spanning the full
+      width in bold, exactly as `render()` above sets a label's product-name
+      line heavier.
+    * a `(dish_text, price_text)` tuple — one menu row. The dish is drawn
+      anchored `ra` at the right margin and the price anchored `la` at the
+      left margin, on the same baseline: two columns on one line, which is
+      how an Israeli menu prints and exactly the shape that raises the
+      column-interleaving question `psm 4` has never been tested against.
+    * a `(dish_text, price_text, description_text)` triple — the same row,
+      plus a wrapped description line underneath in the regular face at a
+      smaller size, matching a real menu's dish blurb. Pass `None` as the
+      third element for a row with no description.
+
+    Same white background, same Assistant font, same `direction="rtl"`,
+    `language="he"` arguments the label renderer above uses.
+    """
+    regular = ImageFont.truetype(FONT, 34)
+    bold = ImageFont.truetype(BOLD, 38)
+    desc_font = ImageFont.truetype(FONT, 26)
+
+    # A throwaway canvas to measure description wraps against before the
+    # real image's height is known.
+    probe = ImageDraw.Draw(Image.new("RGB", (_MENU_WIDTH, 10), "white"))
+    desc_max_width = _MENU_WIDTH - 2 * _MENU_MARGIN
+
+    lines = []
+    for row in rows:
+        if isinstance(row, str):
+            lines.append(("header", row))
+            continue
+        dish, price = row[0], row[1]
+        lines.append(("row", dish, price))
+        description = row[2] if len(row) > 2 else None
+        if description:
+            for wrapped in _wrap_rtl(probe, description, desc_font, desc_max_width):
+                lines.append(("desc", wrapped))
+
+    height = 80
+    for entry in lines:
+        kind = entry[0]
+        if kind == "header":
+            height += _MENU_HEADER_HEIGHT
+        elif kind == "row":
+            height += _MENU_ROW_HEIGHT
+        else:
+            height += _MENU_DESC_HEIGHT
+
+    image = Image.new("RGB", (_MENU_WIDTH, height), "white")
+    draw = ImageDraw.Draw(image)
+
+    y = 40
+    for entry in lines:
+        kind = entry[0]
+        if kind == "header":
+            draw.text(
+                (_MENU_WIDTH - _MENU_MARGIN, y),
+                entry[1],
+                font=bold,
+                fill="black",
+                anchor="ra",
+                direction="rtl",
+                language="he",
+            )
+            y += _MENU_HEADER_HEIGHT
+        elif kind == "row":
+            _, dish, price = entry
+            draw.text(
+                (_MENU_WIDTH - _MENU_MARGIN, y),
+                dish,
+                font=regular,
+                fill="black",
+                anchor="ra",
+                direction="rtl",
+                language="he",
+            )
+            draw.text(
+                (_MENU_MARGIN, y),
+                price,
+                font=regular,
+                fill="black",
+                anchor="la",
+                direction="rtl",
+                language="he",
+            )
+            y += _MENU_ROW_HEIGHT
+        else:
+            draw.text(
+                (_MENU_WIDTH - _MENU_MARGIN, y),
+                entry[1],
+                font=desc_font,
+                fill="black",
+                anchor="ra",
+                direction="rtl",
+                language="he",
+            )
+            y += _MENU_DESC_HEIGHT
+
+    path = f"{out_dir}/{name}.png"
+    image.save(path)
+    return path
+
+
 if __name__ == "__main__":
     target = sys.argv[1] if len(sys.argv) > 1 else "."
     for path in main_into(target):

@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:fantastic/core/llm/llm_chat_client.dart';
-import 'package:fantastic/features/diary/data/estimation/estimation_credentials.dart';
+import 'package:fantastic/core/services/llm/llm_chat_client.dart';
+import 'package:fantastic/core/services/llm/llm_credentials.dart';
 import 'package:http/http.dart' as http;
 
 /// [LlmChatClient] against OpenRouter.
@@ -32,7 +32,7 @@ class OpenRouterClient implements LlmChatClient {
   /// cannot start with an underscore, so a private field here cannot satisfy
   /// `prefer_initializing_formals`. It is an interface, and the tests already
   /// hold it.
-  final EstimationCredentials credentials;
+  final LlmCredentials credentials;
 
   final Uri _endpoint;
 
@@ -108,6 +108,8 @@ class OpenRouterClient implements LlmChatClient {
     required String userPrompt,
     String? imageBase64,
     String? imageMediaType,
+    int? maxOutputTokens,
+    Map<String, Object?>? responseSchema,
   }) async {
     final token = await credentials.token();
     if (token == null || token.isEmpty) {
@@ -131,6 +133,8 @@ class OpenRouterClient implements LlmChatClient {
                 userPrompt: userPrompt,
                 imageBase64: imageBase64,
                 imageMediaType: imageMediaType,
+                maxOutputTokens: maxOutputTokens,
+                responseSchema: responseSchema,
               ),
             ),
           )
@@ -161,6 +165,8 @@ class OpenRouterClient implements LlmChatClient {
     required String userPrompt,
     String? imageBase64,
     String? imageMediaType,
+    int? maxOutputTokens,
+    Map<String, Object?>? responseSchema,
   }) => {
     'model': model,
     'messages': [
@@ -188,7 +194,17 @@ class OpenRouterClient implements LlmChatClient {
     // The daily net-carb budget is 20 g; a sampled answer would move a
     // meaningful fraction of it at random.
     'temperature': 0,
-    'response_format': {'type': 'json_object'},
+    'max_tokens': ?maxOutputTokens,
+    'response_format': responseSchema == null
+        ? {'type': 'json_object'}
+        : {
+            'type': 'json_schema',
+            'json_schema': {
+              'name': 'reply',
+              'strict': true,
+              'schema': responseSchema,
+            },
+          },
   };
 
   static const String _defaultImageMediaType = 'image/jpeg';

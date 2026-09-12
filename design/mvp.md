@@ -12,7 +12,8 @@ Everything in the MVP serves one of those two goals. Features that don't serve t
 
 - Not a full restaurant directory (static data takes time to curate)
 - Not a recipe converter (useful, not critical to first-week retention)
-- Not a menu analyzer (complex ML flow, v2)
+- Not a menu analyzer in the MVP — shipped post-MVP as M16 AI Menu Scanner
+  (`design/m16_menu_scanner_research.md`), which supersedes the M12 slot below
 - Not a social / community feature
 - Not a cloud-sync product (offline-first; backup & restore deferred to M14)
 
@@ -110,7 +111,7 @@ bucket — see `design/v1_1_split.md` and `milestone_conventions.md` §1.2.
 | Biomarker logging (ketones, glucose, weight) | M9 | Valuable but not day-1 critical |
 | Recipe converter | M10 | Nice-to-have; adds complexity without proving core loop |
 | Restaurant directory | M11 | Requires manual content curation of Israeli venues |
-| Menu analyzer | M12 | Extends M6's OCR pipeline; complexity deferred |
+| Menu analyzer | ~~M12~~ M16 | M12's `IngredientRules`-based design could not deliver a Green/Modifiable/Red verdict per dish; M16 (`design/m16_menu_scanner_research.md`) replaced it with local OCR + a cloud model over recognised text — shipped |
 | Apple Health integration | M13 | Requires HealthKit entitlement review |
 | Backup & restore | M14 | Offline-first is sufficient for v1 |
 | Food database / barcode scanner | *(unplanned)* | Manual entry covers MVP |

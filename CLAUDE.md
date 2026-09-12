@@ -44,7 +44,7 @@ agent session's own tooling has no milestone API |
 | `design/m10_recipe_converter_research.md` | **M10 research & pre-flight** — Epic #265 and #118–#120 audited against the tree after M15. Three defects that would compile and ship wrong: **nothing in the app navigates to `/recipe`** and no issue added an entry point; #118's `AlreadyKeto` outcome had **no table to be drawn from**, so a real recipe came back mostly "unknown"; and #120 was labelled one layer while selecting another. The rationale for rejecting a model pass cited Keto Lens's invariant, which is scoped to scans — so M10 becomes **the hybrid `technology.md` §7 asked for**: a deterministic, offline rule table plus a staples table first, and M15's `LlmChatClient` as an opt-in second pass for the lines the table does not know, every replacement checked against `IngredientRules`. Records the final-form-folding trap that would silently break the classifier's `מלטודקסטרין` rule, the two promotions to `lib/core/` the layer rules force, and the nine issues in build order (#393, #118, #119, #395, #120, #394, #396, #397, #398). **Read before picking up any M10 issue** |
 | `design/m15_meal_entry_research.md` | **M15 research & pre-flight** — #312 asked for three ways to add a meal; the audit found **one already ships, half of another already ships, and only the third is a new engine**. Corrects the issue text on four counts ("photo with OCR" conflates a nutrition panel with a plate of food; `MealEntry.imageRef` and `ingredients` have been persisted and contract-tested since M1 and **written by nothing**). Carries the accuracy argument that drives the design — **the daily net-carb budget is 20 g, and the best 2026 vision model's 80.7 kcal calorie error *is* 20 g of carbohydrate**, so an estimate must always be editable and can never silently drive the streak. Records the engine decision (**cloud LLM via OpenRouter, BYOK because the free tier is 50 requests/day per key**, not gated on `epic:login`), why Keto Lens's no-network invariant is untouched, and the offline food table kept on the shelf behind the same interface. **Read before picking up any M15 issue** |
 | `design/m15_openrouter_models_fix.md` | **M15 OpenRouter issue #411 & #414** — Three shipped :free model IDs retired within weeks; the user-reported fix cost more than finding three replacements. **Timeout coupling in the error path**: the replacement was chosen for JSON quality and existed, but took 32 seconds to answer, exceeding the 30-second timeout and mapping to the identical "אין חיבור" offline error. Latency is a **correctness property**, not polish — the daily carb budget is 20 g, and an indeterminate spinner trains users to distrust the feature. The fix pinned `nex-agi/nex-n2.5-pro:free` (8–12 s) after measuring every candidate against the real system prompt, not a smoke test. Lesson: **never test with a convenient short version of what matters**. Records the fallback model list for the day someone raises the timeout, and why free IDs come and go. |
-| `design/m16_menu_scanner_research.md` | **M16 research — two measured sections, and §0 says plainly that the rest is missing.** #352, #372 and #373 all cite this document; none of them had written it. §5 settles the question the other two were opened to ask: **`psm 4` did *not* interleave a real menu's columns** — dish and price land on one line — so the column risk is not what goes wrong. `psm 6` returned 21% more text and kept 20 of 23 dish rows against `psm 4`'s 12, which is a finding and **not yet a recommendation**. §10 carries the first photographed menu in the repository and the asymmetry that should drive M16: **9 of 23 dish names came back character-perfect and 17 of 23 are plainly readable, while only 2 of 23 prices did** — the other ten arriving as a *plausible wrong number* with the leading digit lost (`28` → `8`). Hence the hard rule: **M16 must never present a scanned price as fact.** Also records that resolution is not the lever (1600→4500 px recovers nothing) and that a menu correctly reads as `ScanFailed(notALabel)` to the shipped scanner. **Read before picking up any M16 issue** |
+| `design/m16_menu_scanner_research.md` | **M16 research & pre-flight** — the owner asked for an AI menu scanner (multi-photo or pasted text → Green / Modifiable / Red per dish, with a *why* and a modification instruction); the audit found **M12 Menu Analyzer (#267, #121, #122) already exists for this capability and cannot deliver it**: `IngredientRules` has no word for bread, rice, pasta, potato, flour or sugar, so a pizza classifies as "unknown". Records the engine decision — **a cloud model over locally-OCR'd text through M15's `LlmChatClient` seam, so the photograph never leaves the device** — the parser rules that demote an unexplained yellow and an invented dish to *unclassified*, and §12's **PDF input** design (#405–#408). **§5 and §10 are measured, not speculated:** `psm 4` did *not* interleave a real menu's columns — dish and price land on one line — but `psm 6` returned 21% more text and kept 20 of 23 dish rows against `psm 4`'s 12, which is a finding and **not yet a recommendation**. §10 carries the first photographed menu in the repository and the asymmetry that governs the milestone: **9 of 23 dish names came back character-perfect and 17 of 23 are plainly readable, while only 2 of 23 prices did** — the rest arriving as a *plausible wrong number* with the leading digit lost (`28` → `8`). Hence the hard rule: **M16 must never present a scanned price as fact.** Resolution is not the lever (1600→4500 px recovers nothing). **M16 supersedes M12; read before picking up any M16 issue, and before touching #121 or #122** |
 | `design/mvp.md` | MVP scope — 5 must-ship features, build order, success metrics, what is deferred |
 | `design/architecture.md` | Layer model, persistence schemas, Riverpod provider hierarchy, OCR pipeline, data flow, routing |
 | `design/base_design.md` | SOLID abstractions — repository interfaces, service contracts, domain models, and the **Error Handling Contract** (repositories throw typed exceptions; §"Why not `Result<T>`" records why that pattern was dropped before M1 — do not reintroduce it) |
@@ -243,6 +243,7 @@ Shared code (constants, utilities, theming) lives in `lib/core/`.
 | Onboarding & user profile | `lib/features/onboarding/` |
 | Keto Lens (Hebrew OCR scanner) | `lib/features/keto_lens/` |
 | Diary (meals, symptoms, biomarkers) | `lib/features/diary/` |
+| Menu Scanner (pasted-text / photo-pages, M16) | `lib/features/menu/` |
 | Adaptation phase & streak | `lib/features/adaptation/` |
 | Restaurant directory | `lib/features/restaurant/` |
 | Recipe converter | `lib/features/recipe/` |
@@ -585,6 +586,15 @@ produced it". It does not close the gap to glare, curvature and shop lighting �
 there is still no camera here, no accuracy percentage is claimed, and issue #256
 and Epic #10 stay open. See `design/m6_platform_handoff.md`.
 
+**A menu analysis (M16, `lib/features/menu/`) is a different feature from a Keto Lens
+scan, and it does make one outbound call.** `MenuScannerScreen`'s photo mode reads each
+photographed page on the device with the same `TextRecognitionService` Keto Lens uses,
+then sends the recognised **text** — never the photograph — to a cloud model over M15's
+`LlmChatClient` seam. Pasted text skips OCR and goes straight to the same call. **A Keto
+Lens *scan* still sends nothing**: this does not relax Epic #10's no-network invariant,
+it adds a second, separate feature next to it — see `design/m16_menu_scanner_research.md`
+and its architectural-invariant note in the milestone table below.
+
 ## Keto Business Logic
 
 **Scanned values are per 100 g unless the label says otherwise** — see the OCR
@@ -721,10 +731,10 @@ Full testing strategy in `design/tests.md`. Summary:
 All atomic issues are created, labelled and added to project board #2. Epic tracking
 issues #4–#12 pin the MVP milestones; #264–#270 pin the post-MVP milestones and the
 v1.0 release; **#312 pins M15 Meal Entry**, the first milestone opened from a user's own
-request. #13 (v1.1 Post-MVP) is closed — it was split into seven milestones,
+request; **#351 pins M16 AI Menu Scanner**, the second, which supersedes M12. #13 (v1.1 Post-MVP) is closed — it was split into seven milestones,
 recorded in `design/v1_1_split.md`.
 
-**GitHub milestones #11–#18 cover M9–M15 and the release**, and all 33 v1.1-split issues — the 26
+**GitHub milestones #11–#19 cover M9–M16 and the release**, and all 33 v1.1-split issues — the 26
 work issues plus the seven Epics — are assigned to them. `v1.1 — Post-MVP Backlog`
 (milestone #8) is retired. **Filtering by milestone and filtering by `epic:*` label give
 the same view**, so either is accurate; the Epics additionally report per-child progress
@@ -752,13 +762,14 @@ repo-admin operation from a session.
 | M9 — Biomarker Logging | `epic:m9-biomarkers` | #103–#107 | 5 |
 | M10 — Recipe Converter | `epic:m10-recipe-converter` | #118–#120, #393–#398 | 9 — see `design/m10_recipe_converter_research.md` |
 | M11 — Restaurant Directory | `epic:m11-directory` | #111–#117 | 7 |
-| M12 — Menu Analyzer | `epic:m12-menu-analyzer` | #121–#122 | 2 |
+| M12 — Menu Analyzer | `epic:m12-menu-analyzer` | #121–#122 | 2 — **superseded by M16, closure pending** |
 | M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |
 | M14 — Backup & Restore | `epic:m14-backup` | #123–#124 | 2 |
 | M15 — Meal Entry | `epic:m15-meal-entry` | #315–#328 | 14 — **complete** |
+| M16 — AI Menu Scanner | `epic:m16-menu-scanner` | #352–#366 (not #363), #372, #373, #405–#408 | 20 — **text and photo modes shipped; 5 open (#373, #405–#408 PDF input)** |
 | Login — accounts & identity | `epic:login` | #206–#226 | 16 |
 
-**M9–M15 are numbered by recommended build order, not by dependency** — they are
+**M9–M16 are numbered by recommended build order, not by dependency** — they are
 parallel peers and `milestone_conventions.md` §1.2's sequential gate applies to
 M0–M8 only. **`epic:release-v1` ships the MVP**, so it runs before M9, not after.
 `epic:post-mvp` is retired — see `design/v1_1_split.md`.
@@ -767,6 +778,13 @@ M0–M8 only. **`epic:release-v1` ships the MVP**, so it runs before M9, not aft
 original plan** — issue #312, rewritten into its Epic. It is also the first to make
 an outbound network call, which is a different feature from Keto Lens and **does not
 relax the OCR no-network invariant**; see `design/m15_meal_entry_research.md` §4.
+
+**M16 is the second milestone opened from a user's request** — Epic #351, milestone #19,
+`design/m16_menu_scanner_research.md`. It **supersedes M12 Menu Analyzer** (#267, #121,
+#122), whose closure is decision 1 on the Epic and is the owner's call; until it is taken,
+#121 and #122 are not to be picked up. It reuses M15's `LlmChatClient` seam and key, sends
+only locally-recognised **text** — the menu photograph never leaves the device — and, like
+M15, **does not relax the OCR no-network invariant**.
 
 ### Epic tracking issues
 
@@ -789,6 +807,7 @@ relax the OCR no-network invariant**; see `design/m15_meal_entry_research.md` §
 | M13 Apple Health Sync | #268 |
 | M14 Backup & Restore | #269 |
 | M15 Meal Entry | #312 |
+| M16 AI Menu Scanner | #351 |
 | ~~v1.1 Post-MVP~~ | ~~#13~~ — closed, split into the seven above |
 | Login (unscheduled) | #226 |
 
@@ -800,9 +819,9 @@ relax the OCR no-network invariant**; see `design/m15_meal_entry_research.md` §
 **Layer labels** (7) — prefix `layer:`:
 `layer:core` · `layer:domain` · `layer:data` · `layer:application` · `layer:presentation` · `layer:infra` · `layer:test`
 
-**Epic labels** (18) — prefix `epic:` — see milestone table above. Ten MVP/epic
+**Epic labels** (19) — prefix `epic:` — see milestone table above. Ten MVP/epic
 labels (`epic:m0-foundation`–`epic:m8-ci-integration`, plus `epic` on tracking
-issues), seven post-MVP milestones (`epic:m9-biomarkers`–`epic:m15-meal-entry`),
+issues), eight post-MVP milestones (`epic:m9-biomarkers`–`epic:m16-menu-scanner`),
 `epic:release-v1`, and `epic:login`. **`epic:post-mvp` is retired.**
 
 **The Login milestone (#206–#226) sits outside the M0–M8 MVP boundary** and is

@@ -1,24 +1,14 @@
 import 'package:fantastic/core/error/repository_exception.dart';
+import 'package:fantastic/core/services/llm/llm_credentials.dart';
 import 'package:fantastic/features/diary/domain/repositories/estimation_settings_repository.dart';
 
-/// Where the token for an estimation request comes from.
-///
-/// The second thing that changes when the destination does, and the reason it
-/// is an interface rather than a `String` parameter on
-/// [LlmChatClient.complete]: today it is the user's own key out of the
-/// settings store; later it is whatever a session with our own backend looks
-/// like. Retrofitting that would touch every call site; declaring it now
-/// costs one file.
-abstract interface class EstimationCredentials {
-  /// The bearer token to send, or null when estimation is not configured.
-  ///
-  /// **Never throws.** A storage failure resolves to null, which the layer
-  /// above already reports as "not configured".
-  Future<String?> token();
-}
-
 /// BYOK: the key the user entered, if they have also accepted the disclosure.
-class UserApiKeyCredentials implements EstimationCredentials {
+///
+/// The concrete piece of [LlmCredentials] that knows what "estimation
+/// settings" are — which is exactly why it stays in the diary feature rather
+/// than moving to `lib/core/` with the interface it implements: `core` must
+/// not import a feature's domain repository.
+class UserApiKeyCredentials implements LlmCredentials {
   const UserApiKeyCredentials(this.repository);
 
   final EstimationSettingsRepository repository;

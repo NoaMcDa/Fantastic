@@ -291,22 +291,47 @@ Tap pin → bottom card with restaurant summary and "נווט" button.
 
 ---
 
-### 7. Restaurant Menu Analyzer
+### 7. Menu Scanner (M16 — supersedes this section's original design)
 
-**Accessed from:** FAB → "מסעדה" or within restaurant detail
+**This section originally specified a FAB → "מסעדה" entry point, a camera-only
+capture flow and an "הוסף לסל" button logging a dish to the diary. None of
+that shipped.** M16's audit (`design/m16_menu_scanner_research.md`) found the
+restaurant directory (M11) not yet built, so there is no restaurant detail to
+launch from, and decision 4 there records why a dish verdict is not loggable
+as a macro — a menu's Green/Modifiable/Red badge is not a nutrition estimate.
+What shipped instead:
 
-#### Camera / Upload View
-Same camera UX as Keto Lens.
-Prompt overlay: "כוון לתפריט"
+**Accessed from:** the lens tab's `תפריט` chip, pinned beside `תווית` at the
+top of every Keto Lens camera state (`/lens/menu`) — the smallest entry point
+per decision 5, and the tab bar stays on the lens tab since it is a child
+route of `/lens`.
 
-#### Results Sheet
-List of dishes detected with:
-- Dish name
-- Estimated macro breakdown (fat / carbs / protein)
-- Keto suitability badge
-- Modification tip inline ("בקש ללא לחם" / "Request without bread")
+#### Input — two modes, `הדביקו טקסט` selected by default
+- **`הדביקו טקסט`** — a multi-line field for pasted menu text, and `נתחו`.
+- **`צלמו עמודים`** — the same camera UX as Keto Lens (viewfinder, torch,
+  gallery import), collecting up to 8 pages with a thumbnail strip and a page
+  counter, before the identical `נתחו` call. OCR runs on the device first —
+  the photograph itself is never sent, only the recognised text.
 
-"הוסף לסל" button logs selected dish to today's diary.
+Both modes feed the same analyser call; a screen with no working OCR engine
+still offers the pasted-text path via a `הדביקו את הטקסט במקום` link.
+
+#### Result — grouped, not a flat list
+- A legend naming what each of the three badges means.
+- **אפשר להזמין** (green) dishes, then **אפשר עם שינוי** (yellow), each dish
+  card collapsed to its name and badge, expanding on tap to its *why* and —
+  for a yellow dish — the modification instruction with a copy button.
+- **לא מתאים לקטו** (red) dishes are grouped under a header showing the count,
+  collapsed by default — never hidden, never filtered out, but not the first
+  thing a screen full of red opens on.
+- A **לא ניתן לקבוע** section for any name the model could not place, reported
+  rather than dropped.
+- A page OCR could not read is named in a warning line, not silently skipped.
+
+No "הוסף לסל" or any other diary-logging affordance: research decision 4
+records the honest bridge as a follow-up ("estimate this dish" into M15's
+description sheet, prefilled with the dish name), filed separately and not
+part of M16.
 
 ---
 
