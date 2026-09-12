@@ -1,7 +1,18 @@
-// Browser twin of provider_lifecycle_repro_test.dart: real IndexedDB via
-// sembast_web, the real BrowserClient, and window.fetch replaced by a stub
-// that counts calls and answers 200 — so the only question is whether the
-// request is ever made.
+// Browser twin of `llm_chat_client_lifecycle_test.dart` (#419).
+//
+// The VM test proves the request is attempted; this one proves it is allowed
+// to *finish*. They are not the same assertion, because `close` cancels
+// differently on each transport: `IOClient.close` force-closes the socket, so
+// a request that has not started never starts, while `BrowserClient.close`
+// calls `abort()` on the `AbortController` of every open `fetch` — a request
+// already in flight is torn down mid-answer and rejects with an `AbortError`,
+// which `package:http` rewraps as a `ClientException` and `OpenRouterClient`
+// reports as `offline`. That is the shape the bug took for the user, who was
+// on web.
+//
+// Real `BrowserClient`, real IndexedDB via `sembast_web`. Only `window.fetch`
+// is stubbed, in JavaScript so that it honours its `AbortSignal` exactly as
+// the browser's own does.
 @TestOn('browser')
 library;
 
@@ -19,10 +30,13 @@ import 'package:sembast_web/sembast_web.dart';
 import 'package:web/web.dart' as web;
 
 void main() {
-  // The stub is written in JavaScript so it behaves exactly like the
-  // browser's fetch: it settles after 300 ms, or rejects with an AbortError
-  // the moment its AbortSignal is aborted.
-  const stubJs = """
+  // 300 ms is the point: long enough to outlast the frame riverpod would have
+  // disposed the client on, short enough not to slow the suite. A real
+  // OpenRouter answer takes 8–12 s (#414).
+  const answerDelayMs = 300;
+
+  const stubJs =
+      '''
     window.__fetchCalls = 0;
     window.__lastSignal = null;
     window.fetch = function (input, init) {
@@ -37,13 +51,14 @@ void main() {
             '{"choices":[{"message":{"content":"{}"}}]}',
             { status: 200, headers: { 'content-type': 'application/json' } }
           ));
-        }, 300);
+        }, $answerDelayMs);
       });
     };
-  """;
+  ''';
 
   int fetchCalls() =>
       (globalContext.getProperty('__fetchCalls'.toJS) as JSNumber).toDartInt;
+
   bool? lastAborted() {
     final signal = globalContext.getProperty('__lastSignal'.toJS);
     return signal.isUndefinedOrNull
@@ -51,13 +66,11 @@ void main() {
         : (signal as web.AbortSignal).aborted;
   }
 
-  setUp(() {
-    globalContext.callMethod('eval'.toJS, stubJs.toJS);
-  });
+  setUp(() => globalContext.callMethod('eval'.toJS, stubJs.toJS));
 
   Future<ProviderContainer> containerWithKey() async {
     final db = await databaseFactoryWeb.openDatabase(
-      'repro_${DateTime.now().microsecondsSinceEpoch}',
+      'llm_lifecycle_${DateTime.now().microsecondsSinceEpoch}',
     );
     final container = ProviderContainer(
       overrides: [databaseProvider.overrideWithValue(db)],
@@ -77,41 +90,24 @@ void main() {
     return container;
   }
 
-  test('shipped path (bare ref.read): offline before the answer arrives, request aborted', () async {
+  test('a bare ref.read of the estimator: fetch runs to completion', () async {
     final container = await containerWithKey();
 
-    final sw = Stopwatch()..start();
-    final estimator = container.read(macroEstimatorProvider);
-    final result = await estimator.estimate(description: 'סלט טונה');
-    sw.stop();
+    final stopwatch = Stopwatch()..start();
+    // Exactly what `AddMealDescriptionSheet._estimate` does.
+    final result = await container
+        .read(macroEstimatorProvider)
+        .estimate(description: 'סלט טונה');
+    stopwatch.stop();
 
-    // ignore: avoid_print
-    print(
-      'browser shipped path: $result after ${sw.elapsedMilliseconds} ms, '
-      'fetch calls: ${fetchCalls()}, request aborted: ${lastAborted()}',
-    );
-    expect(result, const EstimateFailed(reason: EstimateFailureReason.offline));
-    expect(fetchCalls(), 1);
-    expect(lastAborted(), isTrue);
-    // Reported long before the 300 ms answer could have arrived.
-    expect(sw.elapsedMilliseconds, lessThan(250));
-  });
-
-  test('provider kept alive: fetch is called and the answer is read', () async {
-    final container = await containerWithKey();
-    final sub = container.listen(macroEstimatorProvider, (_, _) {});
-    addTearDown(sub.close);
-
-    final estimator = container.read(macroEstimatorProvider);
-    final result = await estimator.estimate(description: 'סלט טונה');
-
-    // ignore: avoid_print
-    print(
-      'browser kept alive: $result, fetch calls: ${fetchCalls()}, '
-      'request aborted: ${lastAborted()}',
-    );
     expect(fetchCalls(), 1);
     expect(lastAborted(), isFalse);
+    // The whole round trip was waited out rather than cut short one frame in.
+    expect(stopwatch.elapsedMilliseconds, greaterThanOrEqualTo(answerDelayMs));
+    // The stub's `{}` body has no items, so this is a parse failure rather
+    // than a success — the assertion is about the transport, not the parser.
+    // `offline` is what the aborted request produced, and is what must not
+    // come back.
     expect(
       result,
       isNot(const EstimateFailed(reason: EstimateFailureReason.offline)),

@@ -81,6 +81,15 @@ Feature-first layered: each `lib/features/<name>/` has `presentation/`, `applica
 
 **Riverpod 3** — `@riverpod` only (code-gen), no manual `Provider()`. Providers in `application/` (services) or `presentation/` (UI); repository providers in `data/providers.dart` return domain interface only. `databaseProvider` synchronous. Error wrapped in `ProviderException` — match `toString()` in tests, not type.
 
+**A provider that owns a cancel-on-close resource must be `keepAlive` (#419).** riverpod
+disposes an autoDispose provider one frame after its last listener goes, and a screen that
+`ref.read`s an engine in a button handler holds **no** listener while it awaits. So
+`llmChatClientProvider`'s `http.Client` was closed mid-request — and closing a client
+*cancels what it is carrying* (`BrowserClient.close` aborts the `fetch`, `IOClient.close`
+force-closes the socket), which surfaced as an instant "אין חיבור לאינטרנט" on a working
+connection. `ref.onDispose` still frees it when the container goes. See
+`design/m15_openrouter_models_fix.md`.
+
 ## Local Persistence
 
 **`sembast` ^3.8.10** (pure Dart, works everywhere). NoSQL, one-record-per-day via `dateIndex(date)`.
