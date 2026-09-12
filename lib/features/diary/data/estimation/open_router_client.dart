@@ -53,8 +53,13 @@ class OpenRouterClient implements LlmChatClient {
   /// **Vision-capable, and that is a requirement rather than a preference:**
   /// #312's photo mode sends a plate of food, so a text-only model would fail
   /// half the feature.
-  static const String defaultModel =
-      'meta-llama/llama-3.2-11b-vision-instruct:free';
+  ///
+  /// **Verified live against `/api/v1/chat/completions` on 2026-09-12** (see
+  /// #411). The three ids M15 originally shipped had all retired upstream,
+  /// so the description mode failed with `badResponse` — surfaced to the
+  /// user as "אין חיבור אינטרנט". This id and both fallbacks are drawn from
+  /// unrelated providers so a single retirement does not restore that bug.
+  static const String defaultModel = 'dots-studio/dots-3-note-preview:free';
 
   /// Free model ids come and go upstream.
   ///
@@ -64,8 +69,8 @@ class OpenRouterClient implements LlmChatClient {
   /// something a network adapter should do silently on a user's behalf, since
   /// two models do not return the same carb count.
   static const List<String> fallbackModels = [
-    'qwen/qwen2.5-vl-32b-instruct:free',
-    'google/gemini-2.0-flash-exp:free',
+    'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+    'nex-agi/nex-n2.5-pro:free',
   ];
 
   /// How long a request may take before it is abandoned.
