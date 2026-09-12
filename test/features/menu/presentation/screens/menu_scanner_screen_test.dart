@@ -2,18 +2,23 @@ import 'dart:async';
 
 import 'package:fantastic/core/constants/add_meal_copy.dart';
 import 'package:fantastic/core/constants/menu_copy.dart';
+import 'package:fantastic/core/constants/menu_verdict_rules.dart';
 import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/features/keto_lens/data/providers.dart';
 import 'package:fantastic/features/keto_lens/domain/services/text_recognition_service.dart';
 import 'package:fantastic/features/keto_lens/presentation/camera/camera_controller_session.dart';
 import 'package:fantastic/features/keto_lens/presentation/camera/camera_session.dart';
+import 'package:fantastic/features/keto_lens/presentation/camera/document_picker.dart';
+import 'package:fantastic/features/keto_lens/presentation/camera/file_selector_document_picker.dart';
 import 'package:fantastic/features/keto_lens/presentation/camera/image_picker_photo_picker.dart';
 import 'package:fantastic/features/keto_lens/presentation/camera/photo_picker.dart';
 import 'package:fantastic/features/keto_lens/presentation/screens/camera_screen.dart';
 import 'package:fantastic/features/menu/data/providers.dart';
 import 'package:fantastic/features/menu/domain/models/menu_analysis.dart';
 import 'package:fantastic/features/menu/domain/models/menu_analysis_failure_reason.dart';
+import 'package:fantastic/features/menu/domain/models/pdf_pages_text.dart';
 import 'package:fantastic/features/menu/domain/services/menu_analyzer.dart';
+import 'package:fantastic/features/menu/domain/services/pdf_page_extractor.dart';
 import 'package:fantastic/features/menu/presentation/screens/menu_scanner_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,6 +38,11 @@ class _FakeMenuAnalyzer implements MenuAnalyzer {
   MenuAnalysis result = MenuAnalysisFixture.clean();
   Object? error;
 
+  /// How many times [analyse] was called — the PDF mode's own DoD item is
+  /// that a mixed PDF makes exactly **one** call carrying both parameters,
+  /// never two.
+  int calls = 0;
+
   String? capturedText;
   List<String> capturedImagePaths = const [];
 
@@ -51,6 +61,7 @@ class _FakeMenuAnalyzer implements MenuAnalyzer {
     List<String> imagePaths = const [],
     void Function(int page, int of)? onPage,
   }) async {
+    calls++;
     capturedText = text;
     capturedImagePaths = imagePaths;
     this.onPage = onPage;
@@ -128,15 +139,74 @@ class _FakePicker implements PhotoPicker {
   }
 }
 
+/// A [DocumentPicker] that is whatever the test needs it to be — the same
+/// hand-rolled-fake technique `camera_screen_test.dart` established.
+class _FakeDocumentPicker implements DocumentPicker {
+  String? path;
+  DocumentPickerException? error;
+
+  @override
+  Future<String?> pickPdf() async {
+    if (error != null) {
+      throw error!;
+    }
+    return path;
+  }
+}
+
+/// A [PdfPageExtractor] that returns whatever the test put in it. `isAvailable`
+/// is always `true` — `PdfrxPageExtractor` declares every platform, and the
+/// PDF mode's own OCR gate is [_FakeRecognizer], never this.
+class _FakePdfPageExtractor implements PdfPageExtractor {
+  @override
+  bool get isAvailable => true;
+
+  PdfPagesText extractResult = const PdfPagesText(pages: {}, pageCount: 0);
+  PdfUnreadableException? extractError;
+
+  List<String> renderResult = const [];
+  PdfUnreadableException? renderError;
+
+  /// The path `extract` was called with, or null if it never was.
+  String? extractedPath;
+
+  /// The `(path, pages)` `renderPages` was called with, or null if it never
+  /// was — the mode's own DoD item is that a text-layer-only PDF never
+  /// reaches this at all.
+  ({String path, List<int> pages})? renderedCall;
+
+  @override
+  Future<PdfPagesText> extract(String pdfPath) async {
+    extractedPath = pdfPath;
+    if (extractError != null) {
+      throw extractError!;
+    }
+    return extractResult;
+  }
+
+  @override
+  Future<List<String>> renderPages(String pdfPath, List<int> pages) async {
+    renderedCall = (path: pdfPath, pages: pages);
+    if (renderError != null) {
+      throw renderError!;
+    }
+    return renderResult;
+  }
+}
+
 void main() {
   late _FakeMenuAnalyzer analyzer;
   late _FakeSession session;
   late _FakePicker picker;
+  late _FakeDocumentPicker docPicker;
+  late _FakePdfPageExtractor pdfExtractor;
 
   setUp(() {
     analyzer = _FakeMenuAnalyzer();
     session = _FakeSession();
     picker = _FakePicker();
+    docPicker = _FakeDocumentPicker();
+    pdfExtractor = _FakePdfPageExtractor();
   });
 
   List<Override> overrides({bool ocrAvailable = true}) => [
@@ -146,6 +216,8 @@ void main() {
     textRecognitionServiceProvider.overrideWithValue(
       _FakeRecognizer(isAvailable: ocrAvailable),
     ),
+    documentPickerProvider.overrideWithValue(docPicker),
+    pdfPageExtractorProvider.overrideWithValue(pdfExtractor),
   ];
 
   Future<void> pumpScreen(
@@ -179,6 +251,22 @@ void main() {
       await tester.tap(find.byKey(const Key('menu_capture_button')));
       await tester.pumpAndSettle();
     }
+  }
+
+  /// Switches to `קובץ PDF`.
+  Future<void> openPdfTab(WidgetTester tester) async {
+    await tester.tap(find.text(MenuCopy.pdfFileTab));
+    await tester.pumpAndSettle();
+  }
+
+  /// Picks [path] through [docPicker] and taps `נתחו` on an already-open PDF
+  /// tab.
+  Future<void> pickPdfAndAnalyse(WidgetTester tester, String path) async {
+    docPicker.path = path;
+    await tester.tap(find.byKey(const Key('menu_pdf_pick_button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('menu_analyse_pdf_button')));
+    await tester.pumpAndSettle();
   }
 
   group('input', () {
@@ -407,6 +495,251 @@ void main() {
 
       expect(find.text(MenuCopy.galleryError), findsOneWidget);
       expect(find.byKey(const Key('menu_page_thumb_0')), findsOneWidget);
+    });
+  });
+
+  group('pdf mode (#408)', () {
+    testWidgets('the mode is reachable — three segments, each selectable, each '
+        'rendering its own body', (tester) async {
+      await pumpScreen(tester);
+
+      expect(find.text(MenuCopy.pasteTextTab), findsOneWidget);
+      expect(find.text(MenuCopy.photoPagesTab), findsOneWidget);
+      expect(find.text(MenuCopy.pdfFileTab), findsOneWidget);
+
+      // Default: the text tab's own body.
+      expect(find.byKey(const Key('menu_text_field')), findsOneWidget);
+
+      await openPhotoTab(tester);
+      expect(find.byKey(const Key('fake_preview')), findsOneWidget);
+      expect(find.byKey(const Key('menu_text_field')), findsNothing);
+      expect(find.byKey(const Key('menu_pdf_pick_button')), findsNothing);
+
+      await openPdfTab(tester);
+      expect(find.byKey(const Key('menu_pdf_pick_button')), findsOneWidget);
+      expect(find.byKey(const Key('fake_preview')), findsNothing);
+      expect(find.byKey(const Key('menu_text_field')), findsNothing);
+
+      await tester.tap(find.text(MenuCopy.pasteTextTab));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('menu_text_field')), findsOneWidget);
+    });
+
+    testWidgets(
+      'a text-layer PDF is analysed without the rasteriser being called '
+      'at all',
+      (tester) async {
+        pdfExtractor.extractResult = const PdfPagesText(
+          pages: {1: 'המבורגר בית ₪58', 2: 'סלט קיסר ₪42'},
+          pageCount: 2,
+        );
+        await pumpScreen(tester);
+        await openPdfTab(tester);
+
+        await pickPdfAndAnalyse(tester, '/tmp/menu.pdf');
+
+        expect(pdfExtractor.extractedPath, '/tmp/menu.pdf');
+        expect(
+          pdfExtractor.renderedCall,
+          isNull,
+          reason: 'a text-layer-only PDF must never reach the rasteriser',
+        );
+        expect(analyzer.capturedText, contains('המבורגר בית ₪58'));
+        expect(analyzer.capturedText, contains('סלט קיסר ₪42'));
+        expect(analyzer.capturedImagePaths, isEmpty);
+        expect(find.byKey(const Key('menu_legend')), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      "a scanned PDF's rendered pages reach the analyser as imagePaths",
+      (tester) async {
+        pdfExtractor.extractResult = const PdfPagesText(
+          pages: {},
+          pageCount: 1,
+          pagesWithoutTextLayer: [1],
+        );
+        pdfExtractor.renderResult = ['/tmp/pdf-page-1.png'];
+        await pumpScreen(tester);
+        await openPdfTab(tester);
+
+        await pickPdfAndAnalyse(tester, '/tmp/scanned.pdf');
+
+        expect(pdfExtractor.renderedCall?.path, '/tmp/scanned.pdf');
+        expect(pdfExtractor.renderedCall?.pages, [1]);
+        expect(analyzer.capturedImagePaths, ['/tmp/pdf-page-1.png']);
+        expect(analyzer.capturedText, isNull);
+      },
+    );
+
+    testWidgets('a mixed PDF sends text and images in one analyse call', (
+      tester,
+    ) async {
+      pdfExtractor.extractResult = const PdfPagesText(
+        pages: {1: 'עמוד עם טקסט'},
+        pageCount: 2,
+        pagesWithoutTextLayer: [2],
+      );
+      pdfExtractor.renderResult = ['/tmp/pdf-page-2.png'];
+      await pumpScreen(tester);
+      await openPdfTab(tester);
+
+      await pickPdfAndAnalyse(tester, '/tmp/mixed.pdf');
+
+      expect(pdfExtractor.renderedCall?.pages, [2]);
+      expect(analyzer.capturedText, contains('עמוד עם טקסט'));
+      expect(analyzer.capturedImagePaths, ['/tmp/pdf-page-2.png']);
+      expect(analyzer.calls, 1);
+    });
+
+    testWidgets(
+      'a text-layer PDF works when TextRecognitionService.isAvailable is '
+      'false — the mode is not behind the OCR gate',
+      (tester) async {
+        pdfExtractor.extractResult = const PdfPagesText(
+          pages: {1: 'פסטה ברוטב עגבניות ₪52'},
+          pageCount: 1,
+        );
+        await pumpScreen(tester, ocrAvailable: false);
+        await openPdfTab(tester);
+
+        await pickPdfAndAnalyse(tester, '/tmp/menu.pdf');
+
+        expect(pdfExtractor.renderedCall, isNull);
+        expect(find.byKey(const Key('menu_legend')), findsOneWidget);
+        expect(find.byKey(const Key('menu_failure')), findsNothing);
+      },
+    );
+
+    testWidgets('a cancelled pick leaves the tab unchanged and shows no '
+        'error', (tester) async {
+      docPicker.path = null;
+      await pumpScreen(tester);
+      await openPdfTab(tester);
+
+      await tester.tap(find.byKey(const Key('menu_pdf_pick_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('menu_pdf_filename')), findsNothing);
+      expect(find.byKey(const Key('menu_failure')), findsNothing);
+      expect(pdfExtractor.extractedPath, isNull);
+    });
+
+    testWidgets('a corrupt or encrypted PDF renders pdfUnreadable', (
+      tester,
+    ) async {
+      pdfExtractor.extractError = const PdfUnreadableException('bad pdf');
+      await pumpScreen(tester);
+      await openPdfTab(tester);
+
+      await pickPdfAndAnalyse(tester, '/tmp/broken.pdf');
+
+      expect(find.text(MenuCopy.failedPdfUnreadableHeadline), findsOneWidget);
+      expect(find.text(MenuCopy.advicePdfUnreadable), findsOneWidget);
+      expect(find.byKey(const Key('menu_retry_button')), findsNothing);
+    });
+
+    testWidgets(
+      'a scanned PDF on a build with no OCR renders pdfNeedsOcr, pointing '
+      'at the pasted-text mode',
+      (tester) async {
+        pdfExtractor.extractResult = const PdfPagesText(
+          pages: {},
+          pageCount: 1,
+          pagesWithoutTextLayer: [1],
+        );
+        await pumpScreen(tester, ocrAvailable: false);
+        await openPdfTab(tester);
+
+        await pickPdfAndAnalyse(tester, '/tmp/scanned.pdf');
+
+        expect(find.text(MenuCopy.failedPdfNeedsOcrHeadline), findsOneWidget);
+        expect(find.text(MenuCopy.advicePdfNeedsOcr), findsOneWidget);
+        expect(find.byKey(const Key('menu_retry_button')), findsNothing);
+        expect(
+          pdfExtractor.renderedCall,
+          isNull,
+          reason: 'no OCR to read a render into, so no point rendering one',
+        );
+      },
+    );
+
+    testWidgets('a PDF over maxPages shows the page-cap notice and still '
+        'analyses', (tester) async {
+      final pages = {
+        for (var i = 1; i <= MenuVerdictRules.maxPages + 2; i++) i: 'מנה $i',
+      };
+      pdfExtractor.extractResult = PdfPagesText(
+        pages: pages,
+        pageCount: pages.length,
+      );
+      await pumpScreen(tester);
+      await openPdfTab(tester);
+
+      await pickPdfAndAnalyse(tester, '/tmp/long-menu.pdf');
+
+      expect(find.byKey(const Key('menu_pdf_page_cap_notice')), findsOneWidget);
+      expect(
+        find.text(MenuCopy.pageCapNotice(MenuVerdictRules.maxPages)),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('menu_legend')), findsOneWidget);
+      expect(
+        analyzer.capturedText,
+        isNot(contains('מנה ${MenuVerdictRules.maxPages + 1}')),
+        reason: 'a page past the cap must not reach the analyser at all',
+      );
+    });
+
+    testWidgets(
+      'extracted text over maxMenuChars shows the truncation notice and '
+      'still analyses',
+      (tester) async {
+        pdfExtractor.extractResult = PdfPagesText(
+          pages: {1: 'א' * (MenuVerdictRules.maxMenuChars + 500)},
+          pageCount: 1,
+        );
+        await pumpScreen(tester);
+        await openPdfTab(tester);
+
+        await pickPdfAndAnalyse(tester, '/tmp/huge-menu.pdf');
+
+        expect(
+          find.byKey(const Key('menu_pdf_char_cap_notice')),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            MenuCopy.textTruncatedNotice(MenuVerdictRules.maxMenuChars),
+          ),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('menu_legend')), findsOneWidget);
+      },
+    );
+
+    testWidgets('a retryable failure resends the same PDF path', (
+      tester,
+    ) async {
+      pdfExtractor.extractResult = const PdfPagesText(
+        pages: {1: 'תפריט'},
+        pageCount: 1,
+      );
+      analyzer.result = MenuAnalysisFixture.failed(
+        reason: MenuAnalysisFailureReason.offline,
+      );
+      await pumpScreen(tester);
+      await openPdfTab(tester);
+      await pickPdfAndAnalyse(tester, '/tmp/retry.pdf');
+
+      expect(find.byKey(const Key('menu_retry_button')), findsOneWidget);
+
+      analyzer.result = MenuAnalysisFixture.clean();
+      await tester.tap(find.byKey(const Key('menu_retry_button')));
+      await tester.pumpAndSettle();
+
+      expect(pdfExtractor.extractedPath, '/tmp/retry.pdf');
+      expect(find.byKey(const Key('menu_legend')), findsOneWidget);
     });
   });
 

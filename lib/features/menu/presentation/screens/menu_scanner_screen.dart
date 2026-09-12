@@ -1,17 +1,37 @@
 import 'package:fantastic/core/constants/add_meal_copy.dart';
 import 'package:fantastic/core/constants/menu_copy.dart';
+import 'package:fantastic/core/constants/menu_verdict_rules.dart';
 import 'package:fantastic/core/router/app_router.dart';
+import 'package:fantastic/features/keto_lens/data/providers.dart';
 import 'package:fantastic/features/menu/data/providers.dart';
 import 'package:fantastic/features/menu/domain/models/menu_analysis.dart';
 import 'package:fantastic/features/menu/domain/models/menu_analysis_failure_reason.dart';
+import 'package:fantastic/features/menu/domain/models/pdf_pages_text.dart';
+import 'package:fantastic/features/menu/domain/services/pdf_page_extractor.dart';
 import 'package:fantastic/features/menu/presentation/widgets/menu_pages_tab.dart';
+import 'package:fantastic/features/menu/presentation/widgets/menu_pdf_tab.dart';
 import 'package:fantastic/features/menu/presentation/widgets/menu_result_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// The lens tab's `תפריט` chip lands here: paste a menu's text and get a
-/// verdict per dish, or photograph its pages and get the same.
+/// The screen's three input modes.
+///
+/// A bare enum in the screen's own library — it is UI state, not domain, and
+/// nothing outside this screen and its three tab widgets needs to name it.
+enum MenuInputMode {
+  /// `הדביקו טקסט` — the default.
+  pasteText,
+
+  /// `צלמו עמודים`.
+  photoPages,
+
+  /// `קובץ PDF` (#408).
+  pdfFile,
+}
+
+/// The lens tab's `תפריט` chip lands here: paste a menu's text, photograph
+/// its pages, or pick a PDF of it, and get a verdict per dish either way.
 ///
 /// ## The states, in the order they are checked
 ///
@@ -40,7 +60,11 @@ import 'package:go_router/go_router.dart';
 /// 4. **Input**, `הדביקו טקסט` selected by default: a multi-line field and
 ///    `נתחו`, disabled on blank text or mid-analysis. `צלמו עמודים`
 ///    ([MenuPagesTab], #365) captures or imports pages instead and enables
-///    `נתחו` at one page — feeding the identical analyser call.
+///    `נתחו` at one page — feeding the identical analyser call. `קובץ PDF`
+///    ([MenuPdfTab], #408) picks a file instead and feeds the same call
+///    with the PDF's own text, its rendered pages, or both — never behind
+///    the OCR-availability gate the photo mode checks, because a
+///    text-layer PDF needs no OCR at all.
 class MenuScannerScreen extends ConsumerStatefulWidget {
   const MenuScannerScreen({super.key});
 
@@ -66,6 +90,9 @@ class MenuScannerScreen extends ConsumerStatefulWidget {
     MenuAnalysisFailureReason.badResponse => MenuCopy.failedBadResponseHeadline,
     MenuAnalysisFailureReason.noDishesFound =>
       MenuCopy.failedNoDishesFoundHeadline,
+    MenuAnalysisFailureReason.pdfUnreadable =>
+      MenuCopy.failedPdfUnreadableHeadline,
+    MenuAnalysisFailureReason.pdfNeedsOcr => MenuCopy.failedPdfNeedsOcrHeadline,
   };
 
   /// The way out named beneath [headlineFor]'s headline.
@@ -84,6 +111,8 @@ class MenuScannerScreen extends ConsumerStatefulWidget {
     MenuAnalysisFailureReason.unauthorised => MenuCopy.adviceUnauthorised,
     MenuAnalysisFailureReason.badResponse => MenuCopy.adviceBadResponse,
     MenuAnalysisFailureReason.noDishesFound => MenuCopy.adviceNoDishesFound,
+    MenuAnalysisFailureReason.pdfUnreadable => MenuCopy.advicePdfUnreadable,
+    MenuAnalysisFailureReason.pdfNeedsOcr => MenuCopy.advicePdfNeedsOcr,
   };
 
   @override
@@ -93,8 +122,8 @@ class MenuScannerScreen extends ConsumerStatefulWidget {
 class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
   final TextEditingController _text = TextEditingController();
 
-  /// Which input tab is selected. `false` (text) is the default.
-  bool _photoTab = false;
+  /// Which input tab is selected. [MenuInputMode.pasteText] is the default.
+  MenuInputMode _mode = MenuInputMode.pasteText;
   bool _analysing = false;
   MenuAnalysis? _result;
 
@@ -103,12 +132,28 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
   /// [MenuPagesTab] itself having to expose its internal list.
   List<String> _lastPages = const [];
 
+  /// The path [MenuPdfTab] last submitted — the PDF-mode equivalent of
+  /// [_lastPages], for the same reason: a retry on a retryable PDF-mode
+  /// failure resends the identical file.
+  String? _lastPdfPath;
+
   /// The page [MenuPageReader] is reading and the total, from the
   /// analyser's `onPage` callback — null before the first page and once
   /// analysis finishes. Drives the `קורא עמוד N מתוך M…` row; a text-only
-  /// analysis never calls `onPage`, so this stays null throughout it.
+  /// analysis never calls `onPage`, so this stays null throughout it. Also
+  /// used by the PDF mode while its rendered pages are OCR'd.
   int? _readingPage;
   int? _readingOf;
+
+  /// Set by [_analysePdf] when the chosen PDF had more pages than
+  /// [MenuVerdictRules.maxPages] — the pages past the cap were simply not
+  /// sent. Cleared at the start of every PDF analysis.
+  String? _pdfPageCapNotice;
+
+  /// Set by [_analysePdf] when the PDF's extracted text was longer than
+  /// [MenuVerdictRules.maxMenuChars] and `MenuAnalysisPrompt.user` silently
+  /// truncated it. Cleared at the start of every PDF analysis.
+  String? _pdfCharCapNotice;
 
   @override
   void initState() {
@@ -139,8 +184,33 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
 
   Widget _buildBody(BuildContext context) {
     final result = _result;
+    // The two PDF-only truncation notices stay visible over a result too —
+    // "the analysis still ran" (the issue's own words) means a user who got
+    // a verdict must still learn that two pages or the tail of the menu were
+    // dropped, not just a user still looking at the input form. Gated on
+    // [_mode] so a stale notice from an earlier PDF run cannot bleed into an
+    // unrelated later mode.
+    final pdfNotices = _mode == MenuInputMode.pdfFile
+        ? _buildPdfNotices(context)
+        : const <Widget>[];
+
     if (result is MenuAnalysed) {
-      return _ResultView(analysis: result, onAnalyseAnother: _backToInput);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (pdfNotices.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Column(children: pdfNotices),
+            ),
+          Expanded(
+            child: _ResultView(
+              analysis: result,
+              onAnalyseAnother: _backToInput,
+            ),
+          ),
+        ],
+      );
     }
 
     final failure = result is MenuAnalysisFailed ? result.reason : null;
@@ -151,17 +221,45 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _ModeTabs(
-            photoSelected: _photoTab,
-            onSelect: (photo) => setState(() => _photoTab = photo),
+            mode: _mode,
+            onSelect: (mode) => setState(() => _mode = mode),
           ),
           const SizedBox(height: 16),
-          if (_photoTab)
-            ..._buildPhotoTab(failure)
-          else
-            ..._buildTextTab(failure),
+          ...pdfNotices,
+          if (pdfNotices.isNotEmpty) const SizedBox(height: 8),
+          // Exhaustive, no `default` — a fourth mode added later fails to
+          // compile here rather than rendering a blank tab.
+          ...switch (_mode) {
+            MenuInputMode.pasteText => _buildTextTab(failure),
+            MenuInputMode.photoPages => _buildPhotoTab(failure),
+            MenuInputMode.pdfFile => _buildPdfTab(failure),
+          },
         ],
       ),
     );
+  }
+
+  /// The page-cap and character-cap notices #408 makes visible — both
+  /// silent truncations before this issue. Neither is an error: the
+  /// analysis still ran, just on less than the whole file.
+  List<Widget> _buildPdfNotices(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall;
+    return [
+      if (_pdfPageCapNotice != null)
+        Text(
+          _pdfPageCapNotice!,
+          key: const Key('menu_pdf_page_cap_notice'),
+          textAlign: TextAlign.center,
+          style: style,
+        ),
+      if (_pdfCharCapNotice != null)
+        Text(
+          _pdfCharCapNotice!,
+          key: const Key('menu_pdf_char_cap_notice'),
+          textAlign: TextAlign.center,
+          style: style,
+        ),
+    ];
   }
 
   List<Widget> _buildPhotoTab(MenuAnalysisFailureReason? failure) => [
@@ -172,7 +270,7 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
     // true without lifting the page list up into this screen.
     MenuPagesTab(
       onAnalyse: _analysePages,
-      onSwitchToTextMode: () => setState(() => _photoTab = false),
+      onSwitchToTextMode: () => setState(() => _mode = MenuInputMode.pasteText),
       analysing: _analysing,
     ),
     if (_analysing) ...[
@@ -212,6 +310,24 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
     if (failure != null) ...[
       const SizedBox(height: 16),
       _FailureView(reason: failure, onRetry: _analyse, onProfile: _openProfile),
+    ],
+  ];
+
+  List<Widget> _buildPdfTab(MenuAnalysisFailureReason? failure) => [
+    MenuPdfTab(onAnalyse: _analysePdf, analysing: _analysing),
+    if (_analysing) ...[
+      const SizedBox(height: 16),
+      _readingPage != null && _readingOf != null && _readingPage! < _readingOf!
+          ? _ReadingPageIndicator(page: _readingPage!, of: _readingOf!)
+          : const _AnalysingIndicator(),
+    ],
+    if (failure != null) ...[
+      const SizedBox(height: 16),
+      _FailureView(
+        reason: failure,
+        onRetry: () => _analysePdf(_lastPdfPath!),
+        onProfile: _openProfile,
+      ),
     ],
   ];
 
@@ -288,6 +404,149 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
     });
   }
 
+  /// Reads [path] as a PDF, renders whichever pages need it, and runs the
+  /// identical analyser call the other two modes use — the plan in #408's
+  /// Implementation Plan, step 3.
+  Future<void> _analysePdf(String path) async {
+    _lastPdfPath = path;
+    setState(() {
+      _analysing = true;
+      _result = null;
+      _readingPage = null;
+      _readingOf = null;
+      _pdfPageCapNotice = null;
+      _pdfCharCapNotice = null;
+    });
+
+    MenuAnalysis outcome;
+    try {
+      outcome = await _runPdfAnalysis(path);
+    } on Object catch (_) {
+      // `PdfPageExtractor` and `MenuAnalyzer` both promise never to throw
+      // beyond `PdfUnreadableException` (already handled inside
+      // `_runPdfAnalysis`). The same guard `_analyse` and `_analysePages`
+      // keep around that promise.
+      outcome = const MenuAnalysisFailed(
+        reason: MenuAnalysisFailureReason.badResponse,
+      );
+    }
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _analysing = false;
+      _result = outcome;
+      _readingPage = null;
+      _readingOf = null;
+    });
+  }
+
+  /// The PDF pipeline itself, split out of [_analysePdf] so every exit is a
+  /// plain `return` rather than a flag threaded through nested `try` blocks.
+  ///
+  /// In order:
+  /// 1. [PdfPageExtractor.extract] the text layer. A [PdfUnreadableException]
+  ///    here — not a PDF, corrupt, or password-protected — is not worth
+  ///    retrying with the same file.
+  /// 2. Cap the pages at [MenuVerdictRules.maxPages], noting whether that cut
+  ///    anything — [_pdfPageCapNotice] is set from the result once this
+  ///    method has one to give it.
+  /// 3. Pages with no usable text layer are rendered to images **only when
+  ///    OCR is available** — this method never checks OCR availability for a
+  ///    PDF that has no such page, which is what keeps a text-layer PDF
+  ///    working on a build with no engine at all.
+  /// 4. With no OCR and no extracted text at all, fail with `pdfNeedsOcr`
+  ///    rather than reaching the analyser with nothing to give it.
+  /// 5. One [MenuAnalyzer.analyse] call carrying both the extracted text and
+  ///    the rendered image paths — never two requests for one PDF.
+  Future<MenuAnalysis> _runPdfAnalysis(String path) async {
+    final extractor = ref.read(pdfPageExtractorProvider);
+
+    final PdfPagesText pagesText;
+    try {
+      pagesText = await extractor.extract(path);
+    } on PdfUnreadableException {
+      return const MenuAnalysisFailed(
+        reason: MenuAnalysisFailureReason.pdfUnreadable,
+      );
+    }
+
+    final pageCapped = pagesText.pageCount > MenuVerdictRules.maxPages;
+    final cappedPageCount = pageCapped
+        ? MenuVerdictRules.maxPages
+        : pagesText.pageCount;
+
+    final cappedPages = <int, String>{
+      for (final entry in pagesText.pages.entries)
+        if (entry.key <= cappedPageCount) entry.key: entry.value,
+    };
+    final cappedMissing = pagesText.pagesWithoutTextLayer
+        .where((page) => page <= cappedPageCount)
+        .toList();
+    final cappedText = PdfPagesText(
+      pages: cappedPages,
+      pageCount: cappedPageCount,
+      pagesWithoutTextLayer: cappedMissing,
+    ).joined;
+
+    var renderedPaths = const <String>[];
+    if (cappedMissing.isNotEmpty) {
+      // Read only when there is a page that actually needs it — a
+      // text-layer-only PDF (`cappedMissing` empty) never touches this
+      // provider at all, which is what "not behind the OCR gate" means in
+      // practice, not just in the happy-path test.
+      final ocrAvailable = ref.read(textRecognitionServiceProvider).isAvailable;
+      if (ocrAvailable) {
+        try {
+          renderedPaths = await extractor.renderPages(path, cappedMissing);
+        } on PdfUnreadableException {
+          return const MenuAnalysisFailed(
+            reason: MenuAnalysisFailureReason.pdfUnreadable,
+          );
+        }
+      } else if (cappedText.trim().isEmpty) {
+        // No text anywhere, and no engine to read the rest as images.
+        // `RemoteMenuAnalyzer` would otherwise report this as the generic
+        // `ocrUnavailable`, whose advice says nothing about a PDF; failing
+        // here gives the PDF-specific reason and advice instead.
+        return const MenuAnalysisFailed(
+          reason: MenuAnalysisFailureReason.pdfNeedsOcr,
+        );
+      }
+      // Else: OCR is unavailable but some pages did have text — proceed
+      // with that text alone, silently dropping the pages nothing can read,
+      // exactly as `MenuPageReader` already does per-page for a photographed
+      // menu.
+    }
+
+    if (mounted) {
+      setState(() {
+        _pdfPageCapNotice = pageCapped
+            ? MenuCopy.pageCapNotice(MenuVerdictRules.maxPages)
+            : null;
+        _pdfCharCapNotice = cappedText.length > MenuVerdictRules.maxMenuChars
+            ? MenuCopy.textTruncatedNotice(MenuVerdictRules.maxMenuChars)
+            : null;
+      });
+    }
+
+    return ref
+        .read(menuAnalyzerProvider)
+        .analyse(
+          text: cappedText.isEmpty ? null : cappedText,
+          imagePaths: renderedPaths,
+          onPage: (page, of) {
+            if (mounted) {
+              setState(() {
+                _readingPage = page;
+                _readingOf = of;
+              });
+            }
+          },
+        );
+  }
+
   /// Leaves a result and returns to input. Deliberately does not touch
   /// [_text] — the pasted text is kept, per the issue's happy path.
   void _backToInput() => setState(() => _result = null);
@@ -299,29 +558,54 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
   }
 }
 
-/// The `הדביקו טקסט` / `צלמו עמודים` mode selector.
+/// The `הדביקו טקסט` / `צלמו עמודים` / `קובץ PDF` mode selector.
+///
+/// Below [labelBreakpoint] the three Hebrew labels do not fit next to their
+/// icons, so the segments drop to icon-only with a tooltip instead of
+/// overflowing — the issue's own instruction for the ~400px case.
 class _ModeTabs extends StatelessWidget {
-  const _ModeTabs({required this.photoSelected, required this.onSelect});
+  const _ModeTabs({required this.mode, required this.onSelect});
 
-  final bool photoSelected;
-  final ValueChanged<bool> onSelect;
+  final MenuInputMode mode;
+  final ValueChanged<MenuInputMode> onSelect;
+
+  static const Map<MenuInputMode, String> _labels = {
+    MenuInputMode.pasteText: MenuCopy.pasteTextTab,
+    MenuInputMode.photoPages: MenuCopy.photoPagesTab,
+    MenuInputMode.pdfFile: MenuCopy.pdfFileTab,
+  };
+
+  static const Map<MenuInputMode, IconData> _icons = {
+    MenuInputMode.pasteText: Icons.text_snippet_outlined,
+    MenuInputMode.photoPages: Icons.camera_alt_outlined,
+    MenuInputMode.pdfFile: Icons.picture_as_pdf_outlined,
+  };
+
+  /// Below this width, three labelled segments do not fit — icon-only with
+  /// a tooltip instead. `@visibleForTesting` so the ~400px edge case can be
+  /// asserted against the same constant this widget actually uses, rather
+  /// than a duplicated guess at it.
+  @visibleForTesting
+  static const double labelBreakpoint = 440;
 
   @override
-  Widget build(BuildContext context) => SegmentedButton<bool>(
-    segments: const [
-      ButtonSegment(
-        value: false,
-        label: Text(MenuCopy.pasteTextTab),
-        icon: Icon(Icons.text_snippet_outlined),
-      ),
-      ButtonSegment(
-        value: true,
-        label: Text(MenuCopy.photoPagesTab),
-        icon: Icon(Icons.camera_alt_outlined),
-      ),
-    ],
-    selected: {photoSelected},
-    onSelectionChanged: (selection) => onSelect(selection.first),
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final showLabels = constraints.maxWidth >= labelBreakpoint;
+      return SegmentedButton<MenuInputMode>(
+        segments: [
+          for (final value in MenuInputMode.values)
+            ButtonSegment(
+              value: value,
+              icon: Icon(_icons[value]),
+              label: showLabels ? Text(_labels[value]!) : null,
+              tooltip: showLabels ? null : _labels[value],
+            ),
+        ],
+        selected: {mode},
+        onSelectionChanged: (selection) => onSelect(selection.first),
+      );
+    },
   );
 }
 
