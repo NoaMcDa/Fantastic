@@ -51,7 +51,25 @@ LlmCredentials estimationCredentials(Ref ref) =>
 ///
 /// `ref.onDispose` closes the socket, so a test that overrides this with a
 /// `MockClient` leaks nothing and a disposed container holds no connection.
-@riverpod
+///
+/// **`keepAlive`, and it is load-bearing rather than an optimisation (#419).**
+/// Every screen that estimates — `AddMealDescriptionSheet`, `AddMealPhotoSheet`,
+/// `MenuScannerScreen` — reaches its engine with a bare `ref.read` inside a
+/// button handler and holds no listener, because the result is awaited once
+/// rather than watched. An autoDispose client is therefore disposed one frame
+/// into the request, `ref.onDispose` closes the `http.Client` under it, and
+/// **closing a client cancels what it is carrying**: `BrowserClient.close`
+/// aborts every open `fetch` and `IOClient.close` force-closes the socket.
+/// `OpenRouterClient` sees the resulting `ClientException` and reports
+/// [ChatFailureReason.offline], which the sheets word as "אין חיבור
+/// לאינטרנט" — instantly, on a working connection. That was the user-visible
+/// bug #411 and #414 each mistook for a retired model id and a slow one.
+///
+/// One `http.Client` for the app's lifetime is what `package:http` recommends
+/// anyway. `onDispose` still runs when the container itself goes, so nothing
+/// leaks. Do not "tidy" this back to `@riverpod`: the regression test is
+/// `test/features/diary/data/estimation/llm_chat_client_lifecycle_test.dart`.
+@Riverpod(keepAlive: true)
 LlmChatClient llmChatClient(Ref ref) {
   final client = http.Client();
   ref.onDispose(client.close);
