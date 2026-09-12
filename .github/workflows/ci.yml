@@ -80,6 +80,34 @@ jobs:
             echo "::notice::Code changed — running the full gate."
           fi
 
+      - name: No unresolved conflict markers
+        # Deliberately in THIS job rather than in `verify`, because this is
+        # the only job that runs on a documentation-only diff.
+        #
+        # #418 committed three unresolved conflict blocks into CLAUDE.md and
+        # CI passed. It was right to pass by its own rules — the diff touched
+        # only `*.md`, so `tool/docs_only.sh` classified it as docs and the
+        # three real jobs skipped, which reports as success. The skip is
+        # correct and stays; the gap was that nothing looked at the Markdown
+        # the skip was protecting. Half of CLAUDE.md then sat inside a
+        # conflict block on `main` — a file every agent session reads first —
+        # until #421 was filed.
+        #
+        # The equivalent in a .dart file would have failed `analyze` in
+        # seconds. This is that check, for the file types that have no
+        # compiler.
+        #
+        # The trailing `( |$)` keeps a Markdown rule of seven or more `=`
+        # characters under a heading from reading as a conflict marker.
+        run: |
+          if grep -rnE '^(<{7}|={7}|>{7})( |$)' \
+               --include='*.md' --include='*.dart' \
+               --include='*.yaml' --include='*.yml' .; then
+            echo "::error::unresolved merge-conflict markers are committed — see the paths above"
+            exit 1
+          fi
+          echo "No conflict markers."
+
   verify:
     name: analyze · format · test · coverage
     needs: changes
