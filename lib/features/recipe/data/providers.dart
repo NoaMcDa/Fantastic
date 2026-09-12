@@ -29,7 +29,7 @@ SavedRecipeRepository savedRecipeRepository(Ref ref) =>
 /// here rather than being avoided: `llmChatClientProvider` is the diary
 /// feature's composition root for `LlmChatClient` (`OpenRouterClient` behind
 /// `EstimationSettings.isEnabled`), and reusing it is exactly what M15's
-/// promotion of the interface to `lib/core/llm/` was for — a second consumer
+/// promotion of the interface to `lib/core/services/llm/` was for — a second consumer
 /// without a second gate, a second key, or a second settings screen. The same
 /// pattern `add_meal_photo_sheet.dart` uses to reach `ScanOrchestrator`.
 ///

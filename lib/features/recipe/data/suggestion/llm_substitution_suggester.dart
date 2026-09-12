@@ -1,4 +1,4 @@
-import 'package:fantastic/core/llm/llm_chat_client.dart';
+import 'package:fantastic/core/services/llm/llm_chat_client.dart';
 import 'package:fantastic/features/recipe/data/suggestion/substitution_prompt.dart';
 import 'package:fantastic/features/recipe/data/suggestion/suggestion_response_parser.dart';
 import 'package:fantastic/features/recipe/domain/models/parsed_ingredient.dart';

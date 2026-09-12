@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:fantastic/core/llm/llm_chat_client.dart';
+import 'package:fantastic/core/services/llm/llm_chat_client.dart';
 import 'package:fantastic/features/recipe/data/suggestion/llm_substitution_suggester.dart';
 import 'package:fantastic/features/recipe/data/suggestion/substitution_prompt.dart';
 import 'package:fantastic/features/recipe/domain/models/parsed_ingredient.dart';
@@ -30,6 +30,8 @@ class _FakeLlmChatClient implements LlmChatClient {
     required String userPrompt,
     String? imageBase64,
     String? imageMediaType,
+    int? maxOutputTokens,
+    Map<String, Object?>? responseSchema,
   }) async {
     callCount++;
     capturedSystemPrompt = systemPrompt;
@@ -151,6 +153,8 @@ class _ThrowingLlmChatClient implements LlmChatClient {
     required String userPrompt,
     String? imageBase64,
     String? imageMediaType,
+    int? maxOutputTokens,
+    Map<String, Object?>? responseSchema,
   }) async {
     throw StateError('a promise is not an enforcement');
   }

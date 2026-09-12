@@ -55,12 +55,24 @@ class SymptomCheckInStrip extends ConsumerWidget {
                   Text('תסמינים היום', style: theme.textTheme.titleSmall),
                   const Spacer(),
                   if (failed)
-                    // Says the read failed rather than passing an unlogged
-                    // day off as fact — they mean opposite things.
-                    Text(
-                      'לא ניתן לטעון',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.error,
+                    // Flexible, not a bare Text: composed inside
+                    // `DashboardScreen`'s padded card, the title and this
+                    // message together do not fit the row at a 320px
+                    // viewport (measured 82px over — see #409). `Flexible`
+                    // with an ellipsis lets the message concede width to the
+                    // title instead of overflowing; the strip's own
+                    // isolated 320px test never caught this because it gives
+                    // the Row the full viewport width, with none of the
+                    // dashboard's `EdgeInsets.all(16)` or the card's own
+                    // padding subtracted.
+                    Flexible(
+                      child: Text(
+                        'לא ניתן לטעון',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.error,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                 ],

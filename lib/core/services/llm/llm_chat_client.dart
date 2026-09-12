@@ -22,12 +22,21 @@ abstract interface class LlmChatClient {
   /// **Takes no auth argument, deliberately.** A caller does not pass a key
   /// because a caller must not know there is one — that is what makes the
   /// backend swap invisible above this line. The implementation asks its own
-  /// EstimationCredentials.
+  /// [LlmCredentials].
   Future<ChatResult> complete({
     required String systemPrompt,
     required String userPrompt,
     String? imageBase64,
     String? imageMediaType,
+
+    /// Upper bound on the reply. Null lets the provider choose — right for a
+    /// short meal estimate, wrong for a 60-dish menu.
+    int? maxOutputTokens,
+
+    /// A JSON Schema the reply should conform to. Sent as a structured-output
+    /// request where the provider supports it and as a hint elsewhere; a
+    /// caller must parse defensively regardless.
+    Map<String, Object?>? responseSchema,
   });
 }
 

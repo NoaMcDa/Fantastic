@@ -516,7 +516,7 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] #397 Per-serving macros via `MacroEstimator`; log a serving through `AddMealBottomSheet` as `estimatedFromText`
 - [ ] #398 `recipe_converter_flow.dart` (zero-request assertion included), the navigation smoke, the fixture, docs closeout
 
-### M12 — Menu Analyzer (#267) — *ready: M6 shipped, issues re-spec'd against Tesseract*
+### M12 — Menu Analyzer (#267) — *superseded by M16 (#351); closure is the owner's call — do not pick up*
 - [ ] Implement `MenuAnalyzerService` — OCR → dish extraction → keto suitability per dish, reusing M6's `TextRecognitionService` (Tesseract) and `IngredientVerdict`
 - [ ] Build `MenuAnalyzerScreen` — camera input → dish list with badges and modification tips
 
@@ -549,6 +549,22 @@ item before it is saved, and what the review shows is what gets logged. A
 meal carries where its macros came from, and can be corrected after saving —
 which re-sources it to `manual`, because a badge that keeps calling a
 human-corrected figure a guess is a badge people learn to ignore.
+
+### M16 — AI Menu Scanner (#351) — *shipped; see `design/m16_menu_scanner_research.md`*
+- [x] #352 Assemble a Hebrew menu corpus — ≥ 5 real transcripts and one verbatim Tesseract transcript of a photographed menu, as fixtures
+- [x] #353 Add the menu domain — `DishVerdict`, `AnalysedDish`, sealed `MenuAnalysis`, `MenuAnalysisFailureReason`, `MenuPagesText`, the `MenuAnalyzer` interface
+- [x] #354 Add `PhotoPicker.pickMultiple()` — the only change inside `keto_lens/` besides one chip row
+- [x] #355 Lift the LLM transport seam to `lib/core/services/llm/`; add `maxOutputTokens` and `responseSchema` — *after #318*
+- [x] #356 Add `MenuVerdictRules` (the three-state definitions the prompt and the legend share) and `MenuAnalysisPrompt`
+- [x] #357 Implement `MenuResponseParser` — a yellow without an instruction and a dish the text does not contain both go to *unclassified*
+- [x] #358 Implement `MenuPageReader` — sequential on-device OCR per page, unread pages reported
+- [x] #359 Build `DishCard` — expandable; why; modification with a copy button
+- [x] #360 Extend the estimation disclosure to name menu text — *after #321*
+- [x] #361 Implement `RemoteMenuAnalyzer` — one request per menu, **never an image part**
+- [x] #362 Build `MenuResultView` — green, yellow, a collapsed red group with a count, unclassified, unread pages
+- [x] #364 Build `MenuScannerScreen` with the pasted-text mode, `/lens/menu` and the `תפריט` chip on the lens tab
+- [x] #365 Build the photo pages mode — capture or import up to 8 pages, per-page progress
+- [x] #366 Add two e2e flows and close out the docs (`technology.md` §6, `ui_ux_design.md` §7, `architecture.md`, `CLAUDE.md`) — a real photographed-menu OCR transcript (#372/#373) is the one honest gap left; see `design/m16_menu_scanner_research.md` §10
 
 ### Release v1.0 — App Store Launch (#270) — *ships the MVP; runs before M9*
 - [ ] Add Hebrew `App Store Connect` metadata (description, keywords, screenshots)

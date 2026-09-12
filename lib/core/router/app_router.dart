@@ -4,6 +4,7 @@ import 'package:fantastic/features/dashboard/presentation/screens/dashboard_scre
 import 'package:fantastic/features/diary/presentation/screens/diary_screen.dart';
 import 'package:fantastic/features/directory/presentation/directory_placeholder.dart';
 import 'package:fantastic/features/keto_lens/presentation/screens/camera_screen.dart';
+import 'package:fantastic/features/menu/presentation/screens/menu_scanner_screen.dart';
 import 'package:fantastic/features/onboarding/presentation/onboarding_placeholder.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen1.dart';
 import 'package:fantastic/features/onboarding/application/providers/onboarding_gate.dart';
@@ -44,6 +45,17 @@ const List<String> kTabPaths = [
 /// `kTabPaths` is a positional list rather than something to index by hand.
 const String kProfilePath = '/profile';
 
+/// The pasted-text / photo-pages menu scanner, pushed from the lens tab's
+/// `תפריט` chip (#364).
+///
+/// A child path of `/lens` rather than a sibling `GoRoute`, so
+/// `AppShell.activeIndexForLocation`'s prefix match — which already keys off
+/// `kTabPaths`' `/lens` entry — keeps the lens tab lit with no change to the
+/// shell. `design/m3_preflight.md` records two routes that were referenced
+/// but never registered; this constant is the one and only place this path
+/// is spelled out.
+const String kMenuScannerPath = '/lens/menu';
+
 /// The Recipe Converter tab's path (#119). Named for the same reason as
 /// [kProfilePath] — nothing outside this file should spell `/recipe` by
 /// hand.
@@ -82,7 +94,13 @@ GoRouter appRouter(Ref ref) => GoRouter(
       builder: (context, state, child) => AppShell(child: child),
       routes: [
         GoRoute(path: '/', builder: (_, _) => const DashboardScreen()),
-        GoRoute(path: '/lens', builder: (_, _) => const CameraScreen()),
+        GoRoute(
+          path: '/lens',
+          builder: (_, _) => const CameraScreen(),
+          routes: [
+            GoRoute(path: 'menu', builder: (_, _) => const MenuScannerScreen()),
+          ],
+        ),
         GoRoute(path: '/diary', builder: (_, _) => const DiaryScreen()),
         GoRoute(
           path: '/adaptation',

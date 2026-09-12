@@ -1,9 +1,10 @@
 import 'package:fantastic/core/database/database_provider.dart';
-import 'package:fantastic/core/llm/llm_chat_client.dart';
-import 'package:fantastic/features/diary/data/estimation/estimation_credentials.dart';
-import 'package:fantastic/features/diary/data/estimation/open_router_client.dart';
+import 'package:fantastic/core/services/llm/llm_chat_client.dart';
+import 'package:fantastic/core/services/llm/llm_credentials.dart';
+import 'package:fantastic/core/services/llm/open_router_client.dart';
 import 'package:fantastic/features/diary/data/estimation/photo_bytes_reader.dart';
 import 'package:fantastic/features/diary/data/estimation/remote_macro_estimator.dart';
+import 'package:fantastic/features/diary/data/estimation/user_api_key_credentials.dart';
 import 'package:fantastic/features/diary/data/repositories/sembast_estimation_settings_repository.dart';
 import 'package:fantastic/features/diary/data/repositories/sembast_meal_repository.dart';
 import 'package:fantastic/features/diary/data/repositories/sembast_symptom_log_repository.dart';
@@ -38,7 +39,7 @@ EstimationSettingsRepository estimationSettingsRepository(Ref ref) =>
     SembastEstimationSettingsRepository(ref.watch(databaseProvider));
 
 @riverpod
-EstimationCredentials estimationCredentials(Ref ref) =>
+LlmCredentials estimationCredentials(Ref ref) =>
     UserApiKeyCredentials(ref.watch(estimationSettingsRepositoryProvider));
 
 /// The composition root for the estimator's transport, and **the only place
