@@ -1,5 +1,8 @@
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
 import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
+import 'package:fantastic/features/menu/data/analysis/menu_response_parser.dart';
+import 'package:fantastic/features/menu/domain/models/dish_verdict.dart';
+import 'package:fantastic/features/menu/domain/models/menu_analysis.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'fixtures.dart';
@@ -51,6 +54,20 @@ void main() {
         expect(analysis.unreadPages, isEmpty);
       },
     );
+
+    test('MenuReplyFixture.grill is accepted by the real parser and carries '
+        'all three verdicts', () {
+      final result = MenuResponseParser.parse(
+        MenuReplyFixture.grill,
+        sourceText: HebrewMenuFixture.grill,
+      ) as MenuAnalysed;
+
+      expect(
+        result.dishes.map((dish) => dish.verdict).toSet(),
+        DishVerdict.values.toSet(),
+      );
+      expect(result.unclassified, isNotEmpty);
+    });
   });
 
   group('fixtures apply every override', () {

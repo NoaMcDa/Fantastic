@@ -241,6 +241,7 @@ Shared code (constants, utilities, theming) lives in `lib/core/`.
 | Onboarding & user profile | `lib/features/onboarding/` |
 | Keto Lens (Hebrew OCR scanner) | `lib/features/keto_lens/` |
 | Diary (meals, symptoms, biomarkers) | `lib/features/diary/` |
+| Menu Scanner (pasted-text / photo-pages, M16) | `lib/features/menu/` |
 | Adaptation phase & streak | `lib/features/adaptation/` |
 | Restaurant directory | `lib/features/restaurant/` |
 | Recipe converter | `lib/features/recipe/` |
@@ -528,6 +529,15 @@ produced it". It does not close the gap to glare, curvature and shop lighting �
 there is still no camera here, no accuracy percentage is claimed, and issue #256
 and Epic #10 stay open. See `design/m6_platform_handoff.md`.
 
+**A menu analysis (M16, `lib/features/menu/`) is a different feature from a Keto Lens
+scan, and it does make one outbound call.** `MenuScannerScreen`'s photo mode reads each
+photographed page on the device with the same `TextRecognitionService` Keto Lens uses,
+then sends the recognised **text** — never the photograph — to a cloud model over M15's
+`LlmChatClient` seam. Pasted text skips OCR and goes straight to the same call. **A Keto
+Lens *scan* still sends nothing**: this does not relax Epic #10's no-network invariant,
+it adds a second, separate feature next to it — see `design/m16_menu_scanner_research.md`
+and its architectural-invariant note in the milestone table below.
+
 ## Keto Business Logic
 
 **Scanned values are per 100 g unless the label says otherwise** — see the OCR
@@ -699,7 +709,7 @@ repo-admin operation from a session.
 | M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |
 | M14 — Backup & Restore | `epic:m14-backup` | #123–#124 | 2 |
 | M15 — Meal Entry | `epic:m15-meal-entry` | #315–#326 | 12 |
-| M16 — AI Menu Scanner | `epic:m16-menu-scanner` | #352–#366 (not #363) | 14 |
+| M16 — AI Menu Scanner | `epic:m16-menu-scanner` | #352–#366 (not #363) | 14 — **shipped** |
 | Login — accounts & identity | `epic:login` | #206–#226 | 16 |
 
 **M9–M16 are numbered by recommended build order, not by dependency** — they are

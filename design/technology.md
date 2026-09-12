@@ -163,20 +163,42 @@ Curate and serve a directory of keto-friendly Israeli restaurants with map integ
 ## 6. Restaurant Menu Analyzer
 
 ### Problem
-Point the camera at a physical restaurant menu and get per-dish keto suitability estimates.
+Paste a menu's text, or photograph its pages, and get a Green / Modifiable /
+Red verdict per dish, with a *why* and — for a modifiable dish — a
+modification instruction the user can say to a waiter.
 
-### Candidates
+**Superseded.** The candidates and recommendation below are the pre-M16
+evaluation and no longer describe what shipped — `MLKit OCR + rule-based
+matching` was never viable for this problem: `IngredientRules` has no word
+for bread, rice, pasta, potato, flour or sugar, so a pizza classified as
+"unknown" rather than red, and rule matching cannot produce a per-dish *why*
+or a modification instruction in the user's own words. M16
+(`design/m16_menu_scanner_research.md`) replaced this evaluation with what
+actually shipped:
 
-| Option | Pros | Cons |
-|---|---|---|
-| MLKit OCR → rule-based dish matching | Fully offline | Accuracy limited without NLP context |
-| MLKit OCR → Claude API for analysis | High accuracy, understands Hebrew culinary terms | Network required, API cost |
-| Vision + Core ML custom model | Native, offline | Requires custom model training for Israeli dishes |
+**Shipped (M16):** on-device Tesseract OCR reads each photographed page —
+the same engine Keto Lens uses, reused rather than duplicated — and the
+recognised text (never the photograph) is sent to a cloud model over M15's
+`LlmChatClient` seam, through a menu-specific prompt and a parser that
+verifies every dish name actually occurs in the source text before trusting
+a verdict for it (`design/m16_menu_scanner_research.md` §3, §6.6). Pasted
+text skips OCR entirely and goes straight to the same call.
 
-**Recommended (v1):** MLKit OCR + rule-based matching using a curated dish database  
-**Recommended (v2):** Optional Claude API analysis for ambiguous dishes when network is available
+**Why a rule-based vocabulary could not do this (the vocabulary argument,
+`design/m16_menu_scanner_research.md` §1.2):** the milestone's verdict needs
+one Hebrew sentence explaining *why* a dish is what it is and, for a
+modifiable dish, one sentence a person can actually say to a waiter — both
+free text tied to whatever the menu happened to print. No curated dish
+database or keyword list produces that; a model reading the menu's own text
+does. The engine decision is a cloud model, not an on-device one, for the
+same reason M15 chose one: no small on-device model available to this
+project understands Hebrew culinary text well enough to both classify a
+dish and word a modification instruction in it.
 
-**Rationale:** Most restaurant menus have recognisable dish patterns (שיפודים, חומוס, סלט, etc.). Rule-based matching covers 70–80% of cases offline. Claude API as an opt-in enhancement for v2 keeps the app functional without network.
+**The no-network invariant is unchanged.** Nothing here relaxes Epic #10's
+"no network call during a scan" — a menu *analysis* is a different feature
+from a Keto Lens *scan*, and the photograph itself never leaves the device
+either way; only text recognised on the device is sent.
 
 ---
 
