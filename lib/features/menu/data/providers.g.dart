@@ -66,6 +66,69 @@ final class MenuPageReaderProvider
 
 String _$menuPageReaderHash() => r'430ac442fe9681d19ba5689a8f4092475b30770b';
 
+/// Reads a PDF menu's text layer. `keepAlive`, matching the Keto Lens OCR
+/// wiring this sits beside: `PdfrxPageExtractor` is stateless (a `const`
+/// constructor) and cheap to keep, and there is no per-scan state worth
+/// discarding between listeners the way there would be for a stateful
+/// engine.
+
+@ProviderFor(pdfPageExtractor)
+const pdfPageExtractorProvider = PdfPageExtractorProvider._();
+
+/// Reads a PDF menu's text layer. `keepAlive`, matching the Keto Lens OCR
+/// wiring this sits beside: `PdfrxPageExtractor` is stateless (a `const`
+/// constructor) and cheap to keep, and there is no per-scan state worth
+/// discarding between listeners the way there would be for a stateful
+/// engine.
+
+final class PdfPageExtractorProvider
+    extends
+        $FunctionalProvider<
+          PdfPageExtractor,
+          PdfPageExtractor,
+          PdfPageExtractor
+        >
+    with $Provider<PdfPageExtractor> {
+  /// Reads a PDF menu's text layer. `keepAlive`, matching the Keto Lens OCR
+  /// wiring this sits beside: `PdfrxPageExtractor` is stateless (a `const`
+  /// constructor) and cheap to keep, and there is no per-scan state worth
+  /// discarding between listeners the way there would be for a stateful
+  /// engine.
+  const PdfPageExtractorProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'pdfPageExtractorProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$pdfPageExtractorHash();
+
+  @$internal
+  @override
+  $ProviderElement<PdfPageExtractor> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  PdfPageExtractor create(Ref ref) {
+    return pdfPageExtractor(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(PdfPageExtractor value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<PdfPageExtractor>(value),
+    );
+  }
+}
+
+String _$pdfPageExtractorHash() => r'4e3163c04ab22e33f79b672c479508e9a26cc0de';
+
 /// The composition root for the menu engine, and the **only** file that
 /// names a concrete [MenuAnalyzer]. A vision-direct analyser is a second
 /// class and a branch here — never an edit above this line.

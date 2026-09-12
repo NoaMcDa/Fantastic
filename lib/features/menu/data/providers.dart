@@ -12,7 +12,9 @@ import 'package:fantastic/features/diary/data/providers.dart';
 import 'package:fantastic/features/keto_lens/data/providers.dart';
 import 'package:fantastic/features/menu/application/menu_page_reader.dart';
 import 'package:fantastic/features/menu/application/remote_menu_analyzer.dart';
+import 'package:fantastic/features/menu/data/adapters/pdf_page_extractor_impl.dart';
 import 'package:fantastic/features/menu/domain/services/menu_analyzer.dart';
+import 'package:fantastic/features/menu/domain/services/pdf_page_extractor.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'providers.g.dart';
@@ -25,6 +27,14 @@ part 'providers.g.dart';
 @riverpod
 MenuPageReader menuPageReader(Ref ref) =>
     MenuPageReader(recognizer: ref.watch(textRecognitionServiceProvider));
+
+/// Reads a PDF menu's text layer. `keepAlive`, matching the Keto Lens OCR
+/// wiring this sits beside: `PdfrxPageExtractor` is stateless (a `const`
+/// constructor) and cheap to keep, and there is no per-scan state worth
+/// discarding between listeners the way there would be for a stateful
+/// engine.
+@Riverpod(keepAlive: true)
+PdfPageExtractor pdfPageExtractor(Ref ref) => const PdfrxPageExtractor();
 
 /// The composition root for the menu engine, and the **only** file that
 /// names a concrete [MenuAnalyzer]. A vision-direct analyser is a second

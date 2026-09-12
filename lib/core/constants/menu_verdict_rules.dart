@@ -114,4 +114,25 @@ abstract final class MenuVerdictRules {
   /// one- or two-letter fragment (a stray preposition, a corrupted number)
   /// cannot itself count as proof.
   static const int provenanceMinWordChars = 3;
+
+  /// The share of letter characters on an extracted PDF page that must be
+  /// Hebrew for its text layer to be trusted.
+  ///
+  /// `PdfrxPageExtractor`'s legibility guard, and the reason this issue
+  /// exists: Israeli menu PDFs are frequently produced by design tools that
+  /// embed subset fonts with no usable `ToUnicode` map, and extraction from
+  /// those yields mojibake — plausible-looking character soup, not Hebrew.
+  /// Mojibake is worse than no text at all: unchecked, it would reach the
+  /// model, spend one of the 50 daily free requests, and come back as
+  /// invented dishes the provenance rule silently discards. A genuinely
+  /// bilingual menu page still clears this comfortably; a Latin-only menu is
+  /// out of scope for a Hebrew keto app and degrades to the OCR path, which
+  /// is the safe direction.
+  static const double minHebrewLetterRatio = 0.5;
+
+  /// Below this many letters on an extracted PDF page, the ratio above is
+  /// not meaningful and the page is treated as having no usable text layer.
+  ///
+  /// A page with only a logo and a page number is not a menu page.
+  static const int minExtractedLetters = 20;
 }

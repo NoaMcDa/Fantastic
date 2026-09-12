@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
 import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
 import 'package:fantastic/features/menu/data/analysis/menu_response_parser.dart';
@@ -323,6 +325,36 @@ void main() {
       }
       expect(HebrewMenuFixture.notAMenu, isNot(contains(' - ')));
     });
+  });
+
+  group('PDF fixtures (#405) exist and are non-empty', () {
+    // Not hand-written expected-output fixtures — real files, per the same
+    // rule that governs `real_ocr_fixture.dart`: if the engine (or, for
+    // `hebrew_menu_mojibake.pdf`, pikepdf) produced it, capture it; if a
+    // human imagined it, it proves nothing. This test only pins that each
+    // file exists and has bytes — `pdf_page_extractor_impl_test.dart` is
+    // where their content is actually exercised.
+    for (final name in [
+      'hebrew_menu_textlayer.pdf',
+      'hebrew_menu_mojibake.pdf',
+      'hebrew_menu_scanned.pdf',
+      // The three below are additional, #405-scoped fixtures — also built
+      // with pikepdf, from the three above, to exercise the error and
+      // mixed-page paths `pdf_page_extractor_impl_test.dart` needs and that
+      // the issue's own two named fixtures cannot: an encrypted document, a
+      // zero-page document, and one PDF mixing a text-layer page with a
+      // scanned (image-only) one.
+      'hebrew_menu_encrypted.pdf',
+      'hebrew_menu_mixed.pdf',
+      'zero_page.pdf',
+    ]) {
+      test('$name exists and is non-empty', () {
+        final file = File('test/fixtures/$name');
+
+        expect(file.existsSync(), isTrue, reason: '${file.path} is missing');
+        expect(file.lengthSync(), greaterThan(0));
+      });
+    }
   });
 
   group('RenderedMenuOcrFixture is a genuine capture', () {
