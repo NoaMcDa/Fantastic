@@ -26,14 +26,30 @@
 
 ## App Structure
 
-Tab bar (bottom, 5 items):
+Tab bar (bottom, 6 items):
 
 ```
-[ מצלמה ]  [ יומן ]  [ בית ]  [ מסעדות ]  [ פרופיל ]
- Lens       Diary    Home    Directory   Profile
+index    0        1         2        3         4          5
+       [ בית ]  [ מצלמה ]  [ יומן ]  [ התאמה ]  [ מתכונים ]  [ פרופיל ]
+        Home     Lens      Diary    Adaptation  Recipes     Profile
 ```
 
-Home is the default tab.
+Home is index 0 and the default tab. Listed in `kTabPaths` index order, which
+is what `AppShell` renders and what every `Key('tab_*')` finder addresses — the
+bar itself is RTL, so index 0 paints **rightmost** on screen.
+
+**This diagram was wrong in two independent ways until M10 corrected it**, and
+both were the same mistake: it drew the plan rather than the app.
+
+- It listed `מסעדות` (Directory), which has never been built — M11 is still
+  open. A designer reading it would have laid out a tab that does not exist.
+- It omitted `התאמה` (Adaptation), which shipped in M3 and has been a tab ever
+  since.
+
+Neither error was catchable by a test, because no test reads this file. The
+authority on what tabs exist is `kTabPaths` in `lib/core/router/app_router.dart`
+and `AppShell._labels` beside it; when they and this diagram disagree, they are
+right. `מתכונים` (#119) is the sixth and the first post-MVP tab.
 
 ---
 
