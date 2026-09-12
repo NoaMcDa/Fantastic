@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:fantastic/core/constants/recipe_copy.dart';
 import 'package:fantastic/core/error/repository_exception.dart';
 import 'package:fantastic/core/router/app_router.dart';
+import 'package:fantastic/core/time/today_tracker.dart';
 import 'package:fantastic/features/recipe/application/providers/recipe_providers.dart';
 import 'package:fantastic/features/recipe/data/providers.dart';
 import 'package:fantastic/features/recipe/domain/ingredient_line_parser.dart';
@@ -9,6 +12,7 @@ import 'package:fantastic/features/recipe/domain/models/saved_recipe.dart';
 import 'package:fantastic/features/recipe/domain/models/suggestion_result.dart';
 import 'package:fantastic/features/recipe/domain/substitution_engine.dart';
 import 'package:fantastic/features/recipe/presentation/widgets/ingredient_outcome_row.dart';
+import 'package:fantastic/features/recipe/presentation/widgets/recipe_macros_section.dart';
 import 'package:fantastic/features/recipe/presentation/widgets/save_recipe_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,7 +46,8 @@ class RecipeConverterScreen extends ConsumerStatefulWidget {
       _RecipeConverterScreenState();
 }
 
-class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen> {
+class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen>
+    with TodayTracker {
   final _pasteController = TextEditingController();
 
   /// Null before the first conversion; converting again replaces the whole
@@ -81,6 +86,26 @@ class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen> {
   /// new attempt and by every new conversion.
   SuggestionFailureReason? _suggestFailure;
 
+  /// The recipe's own stored servings count, or the last value the user
+  /// typed into `RecipeMacrosSection` and saved. Kept here only so a fresh
+  /// conversion can hand it back in as a convenience default — it plays no
+  /// part in what gets logged.
+  int? _servings;
+
+  /// The recipe's stored per-serving macros, or null before the first
+  /// estimate. Cleared on every new conversion (#397): the previous figures
+  /// described outcomes that are no longer on screen.
+  MacroTotals? _perServing;
+
+  /// Bumped on every conversion so `RecipeMacrosSection` is rebuilt with a
+  /// fresh `Key` rather than keeping stale estimate state for outcomes that
+  /// no longer exist.
+  int _macrosGeneration = 0;
+
+  /// True only immediately after a macros-save attempt that threw. Cleared
+  /// by the next successful save and by every new conversion.
+  bool _macrosSaveFailed = false;
+
   @override
   void initState() {
     super.initState();
@@ -90,6 +115,8 @@ class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen> {
       _results = initial.outcomes;
       _savedId = initial.id;
       _lastTitle = initial.title;
+      _servings = initial.servings;
+      _perServing = initial.perServing;
     }
   }
 
@@ -114,6 +141,12 @@ class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen> {
       // previous one — the unrecognised lines themselves may have changed.
       _noSuggestions = false;
       _suggestFailure = null;
+      // And invalidates any macro estimate too: it described outcomes that
+      // are no longer on screen. The servings count is kept as a convenience
+      // default — it is not derived from the outcomes.
+      _perServing = null;
+      _macrosSaveFailed = false;
+      _macrosGeneration++;
     });
   }
 
@@ -179,6 +212,57 @@ class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen> {
           _suggestFailure = reason;
       }
     });
+  }
+
+  /// `RecipeMacrosSection.onSaved` — a sync callback, so the actual write
+  /// runs fire-and-forget, the same pattern `RecipeLibraryScreen._delete`
+  /// uses for its own dismiss-then-write gap.
+  void _onMacrosSaved(({int servings, MacroTotals perServing}) result) {
+    unawaited(_persistMacros(result));
+  }
+
+  Future<void> _persistMacros(
+    ({int servings, MacroTotals perServing}) result,
+  ) async {
+    final id = _savedId;
+    final results = _results;
+    // Unreachable in practice — `RecipeMacrosSection` only renders once the
+    // recipe is saved — and guarded anyway rather than assuming an id.
+    if (id == null || results == null) {
+      return;
+    }
+
+    final recipe = SavedRecipe(
+      id: id,
+      title: _lastTitle ?? '',
+      originalText: _pasteController.text,
+      outcomes: results,
+      savedAt: DateTime.now(),
+      servings: result.servings,
+      perServing: result.perServing,
+    );
+
+    try {
+      final saved = await ref.read(savedRecipeRepositoryProvider).save(recipe);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _savedId = saved.id;
+        _servings = saved.servings;
+        _perServing = saved.perServing;
+        _macrosSaveFailed = false;
+      });
+      ref.invalidate(savedRecipesProvider);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text(RecipeCopy.macrosSaved)));
+    } on PersistenceException catch (_) {
+      // The estimate stays exactly as it was — a failed save must never look
+      // like a silent loss of the user's work.
+      if (mounted) {
+        setState(() => _macrosSaveFailed = true);
+      }
+    }
   }
 
   void _openProfileForEstimation() {
@@ -362,7 +446,44 @@ class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen> {
               ],
             ],
             const SizedBox(height: 16),
-            Expanded(flex: 3, child: _resultsList()),
+            // **#397's overflow fix.** This region used to be
+            // `Expanded(flex: 3, child: _resultsList())` — a bare `ListView`
+            // that scrolls on its own but leaves nothing above it able to
+            // give way. Appending a variable-height `RecipeMacrosSection`
+            // below a full review list (servings field, several review rows,
+            // the per-serving row, two buttons) overflowed at 320×568 (#409
+            // was exactly this class of bug). The fix keeps the bounded
+            // `Expanded` — the paste field above still gets its fixed
+            // share — but makes *this* region scroll as a whole: the results
+            // list is embedded with `shrinkWrap` and no physics of its own,
+            // so the outer `SingleChildScrollView` is the only scrollable
+            // here, and whatever does not fit the available height scrolls
+            // instead of overflowing.
+            //
+            // `primary: false` on both scroll views: neither sets a
+            // `controller`, so each would otherwise default to attaching to
+            // the ambient `PrimaryScrollController` — which an inner
+            // `NeverScrollableScrollPhysics` list and an outer view that is
+            // the only one meant to scroll never needed either.
+            Expanded(
+              flex: 3,
+              child: SingleChildScrollView(
+                primary: false,
+                // Clears a `SnackBar` — see
+                // `RecipeMacrosSection.snackBarClearance`. Saving the recipe
+                // both shows `RecipeCopy.saved` and mounts the macros
+                // section, so without this the control the user reaches for
+                // next sits under the confirmation for the tap that revealed
+                // it.
+                padding: const EdgeInsets.only(
+                  bottom: RecipeMacrosSection.snackBarClearance,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [_resultsList(), _macrosSection()],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -379,11 +500,75 @@ class _RecipeConverterScreenState extends ConsumerState<RecipeConverterScreen> {
     }
     return ListView.separated(
       key: const Key('recipe_results_list'),
+      // Embedded in the outer `SingleChildScrollView` above rather than
+      // scrolling itself: `shrinkWrap` sizes it to its content instead of
+      // demanding the unbounded height a plain `ListView` cannot get inside
+      // an unbounded scroll parent, and `NeverScrollableScrollPhysics`
+      // leaves the *outer* view as the only place a drag scrolls.
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      // See the outer `SingleChildScrollView`'s comment: this view cannot
+      // scroll on its own regardless, and must not attach to the ambient
+      // `PrimaryScrollController` either.
+      primary: false,
       itemCount: results.length,
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) => IngredientOutcomeRow(
         key: _keyFor(results[index], index),
         outcome: results[index],
+      ),
+    );
+  }
+
+  /// What renders below the results: nothing before a conversion exists, a
+  /// save-first hint once one does but is not yet saved, and
+  /// `RecipeMacrosSection` once it is — an id is what the section writes its
+  /// answer onto.
+  Widget _macrosSection() {
+    final results = _results;
+    if (results == null || results.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final savedId = _savedId;
+    if (savedId == null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 16),
+        child: Text(
+          RecipeCopy.saveToSeeMacrosHint,
+          key: const Key('recipe_macros_save_hint'),
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RecipeMacrosSection(
+            // Reset whenever the recipe changes identity (a different saved
+            // row) or the outcomes are recomputed by a fresh conversion —
+            // either makes the previous internal estimate stale.
+            key: ValueKey('recipe_macros_$savedId-$_macrosGeneration'),
+            outcomes: results,
+            recipeTitle: _lastTitle ?? '',
+            date: today,
+            onSaved: _onMacrosSaved,
+            initialServings: _servings,
+            initialPerServing: _perServing,
+          ),
+          if (_macrosSaveFailed) ...[
+            const SizedBox(height: 4),
+            const Text(
+              RecipeCopy.macrosSaveFailed,
+              key: Key('recipe_macros_save_failed'),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
       ),
     );
   }

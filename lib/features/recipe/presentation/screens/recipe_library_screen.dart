@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fantastic/core/constants/recipe_copy.dart';
 import 'package:fantastic/core/error/repository_exception.dart';
+import 'package:fantastic/core/router/app_router.dart';
 import 'package:fantastic/core/widgets/empty_state_widget.dart';
 import 'package:fantastic/core/widgets/skeleton_box.dart';
 import 'package:fantastic/features/recipe/application/providers/recipe_providers.dart';
@@ -148,7 +149,10 @@ class _RecipeLibraryScreenState extends ConsumerState<RecipeLibraryScreen> {
       child: _RecipeCard(
         key: Key('saved_recipe_$id'),
         recipe: recipe,
-        onTap: () => context.push('/recipe/saved/$id'),
+        // Built from `kRecipePath` rather than spelled out — the converter
+        // screen's own library button was already fixed this way, and
+        // nothing outside `app_router.dart` should spell `/recipe` again.
+        onTap: () => context.push('$kRecipePath/saved/$id'),
       ),
     );
   }
@@ -195,12 +199,32 @@ class _RecipeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final substitutedCount = recipe.outcomes.whereType<Substituted>().length;
+    final perServing = recipe.perServing;
 
     return Card(
       child: ListTile(
         onTap: onTap,
         title: Text(recipe.title),
-        subtitle: Text(_formatDate(recipe.savedAt)),
+        // Not a placeholder when [perServing] is null — an absent estimate
+        // is not zero, so nothing renders in its place rather than a "0 g"
+        // line nobody computed.
+        subtitle: perServing == null
+            ? Text(_formatDate(recipe.savedAt))
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_formatDate(recipe.savedAt)),
+                  Text(
+                    RecipeCopy.perServingSummary(
+                      perServing.fatG,
+                      perServing.netCarbsG,
+                      perServing.proteinG,
+                    ),
+                    key: const Key('saved_recipe_per_serving'),
+                    textDirection: TextDirection.ltr,
+                  ),
+                ],
+              ),
         // A digit run inside this RTL layout needs `TextDirection.ltr` —
         // the same guard `ProfileScreen._ValueRow` carries — or the count
         // and the middot reorder.

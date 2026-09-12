@@ -109,7 +109,7 @@ bucket — see `design/v1_1_split.md` and `milestone_conventions.md` §1.2.
 | Feature | Milestone | Reason deferred |
 |---|---|---|
 | Biomarker logging (ketones, glucose, weight) | M9 | Valuable but not day-1 critical |
-| Recipe converter | M10 | Nice-to-have; adds complexity without proving core loop |
+| Recipe converter | M10 | Nice-to-have; adds complexity without proving core loop — a serving of a converted recipe can be logged as a meal (M10), which is the tie to the core loop |
 | Restaurant directory | M11 | Requires manual content curation of Israeli venues |
 | Menu analyzer | ~~M12~~ M16 | M12's `IngredientRules`-based design could not deliver a Green/Modifiable/Red verdict per dish; M16 (`design/m16_menu_scanner_research.md`) replaced it with local OCR + a cloud model over recognised text — shipped |
 | Apple Health integration | M13 | Requires HealthKit entitlement review |
