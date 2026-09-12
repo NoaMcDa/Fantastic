@@ -1,3 +1,4 @@
+import 'package:fantastic/core/widgets/app_illustration.dart';
 import 'package:fantastic/features/diary/presentation/widgets/empty_meals_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,10 +18,13 @@ void main() {
     expect(find.text('הקש על + כדי להוסיף ארוחה'), findsOneWidget);
   });
 
-  testWidgets('shows an icon', (tester) async {
+  // The drawing replaces the icon rather than joining it; the icon stays on
+  // the call as the fallback `EmptyStateWidget` renders without one.
+  testWidgets('draws the empty plate in place of an icon', (tester) async {
     await pumpApp(tester, const EmptyMealsState());
 
-    expect(find.byIcon(Icons.restaurant_menu_outlined), findsOneWidget);
+    expect(find.byType(EmptyPlateIllustration), findsOneWidget);
+    expect(find.byIcon(Icons.restaurant_menu_outlined), findsNothing);
   });
 
   // The parent screen's FAB is the action. A button here would compete with it.
@@ -39,10 +43,10 @@ void main() {
     final context = tester.element(find.byType(EmptyMealsState));
     final expected = Theme.of(context).colorScheme.onSurfaceVariant;
 
-    final icon = tester.widget<Icon>(
-      find.byIcon(Icons.restaurant_menu_outlined),
+    final illustration = tester.widget<EmptyPlateIllustration>(
+      find.byType(EmptyPlateIllustration),
     );
-    expect(icon.color, expected);
+    expect(illustration.color, expected);
 
     final subtitle = tester.widget<Text>(
       find.text('הקש על + כדי להוסיף ארוחה'),

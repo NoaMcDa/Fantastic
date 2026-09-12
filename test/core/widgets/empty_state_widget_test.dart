@@ -68,6 +68,38 @@ void main() {
     expect(find.byType(FloatingActionButton), findsNothing);
   });
 
+  // An empty state with a drawing of its own passes one; the icon stays on
+  // the call as the fallback, and is not rendered as well.
+  testWidgets('draws the illustration in place of the icon', (tester) async {
+    await pumpApp(
+      tester,
+      const EmptyStateWidget(
+        icon: Icons.inbox_outlined,
+        headline: 'אין נתונים',
+        illustration: SizedBox(key: Key('illustration'), width: 40, height: 40),
+      ),
+    );
+
+    expect(find.byKey(const Key('illustration')), findsOneWidget);
+    expect(find.byIcon(Icons.inbox_outlined), findsNothing);
+  });
+
+  // The profile screen still passes no illustration, so the icon path has to
+  // keep working.
+  testWidgets('falls back to the icon when no illustration is given', (
+    tester,
+  ) async {
+    await pumpApp(
+      tester,
+      const EmptyStateWidget(
+        icon: Icons.inbox_outlined,
+        headline: 'אין נתונים',
+      ),
+    );
+
+    expect(find.byIcon(Icons.inbox_outlined), findsOneWidget);
+  });
+
   // The text beside it already carries the meaning; announcing the icon too
   // would say it twice.
   testWidgets('the icon is excluded from semantics', (tester) async {
