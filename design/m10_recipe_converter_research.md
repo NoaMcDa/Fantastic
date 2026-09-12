@@ -512,34 +512,69 @@ imports `application/`, `domain/`, `lib/core/`, and the two diary widgets issue
 
 ### 6.1 Routes
 
+> **Decision taken: a sixth bottom tab.** All three routes therefore move
+> **inside** the `ShellRoute`, and §6.2 records what that costs.
+
 ```
-/recipe                 RecipeConverterScreen        (exists as a placeholder; outside the ShellRoute)
-/recipe/library         RecipeLibraryScreen          (new)
-/recipe/saved/:id       RecipeConverterScreen seeded from savedRecipeProvider(id)   (new)
+/recipe                 RecipeConverterScreen        (tab root, inside the ShellRoute)
+  /recipe/library       RecipeLibraryScreen          (child — pushed, keeps the tab bar)
+  /recipe/saved/:id     RecipeConverterScreen seeded from savedRecipeProvider(id)
 ```
 
-All three stay **outside the `ShellRoute`**, as `/recipe` already is: they are
-pushed screens with an `AppBar` back affordance, not tabs. The saved-recipe
-route carries an `id`, not an `extra`, so a browser reload reopens the same
-recipe rather than an empty converter — the onboarding flow's `extra` loss
-(`app_router.dart` line 112) is the precedent for why. A missing `id` renders
-the converter empty with a one-line notice, never a crash.
+The two children are child `GoRoute`s of the `/recipe` route, mirroring
+`/adaptation/phase`. That is what keeps the tab bar on screen while the library
+is open and keeps `AppShell.activeIndexForLocation` resolving all three to the
+recipe tab — it matches on `startsWith('/recipe')`, so a child path lights the
+parent's tab for free. A child pushed inside a `ShellRoute` gets its own back
+affordance; the tab root does not, and should not.
 
-### 6.2 The entry point
+The saved-recipe route carries an `id`, not an `extra`, so a browser reload
+reopens the same recipe rather than an empty converter — the onboarding flow's
+`extra` loss (`app_router.dart` line 112) is the precedent. A missing or
+non-numeric `id` renders the converter empty with a one-line notice, never a
+crash.
 
-**Recommendation: an action in the dashboard's `SliverAppBar`** —
-`IconButton(Icons.menu_book_outlined)`, tooltip `המרת מתכון`,
-`Key('open_recipe_converter')`, `context.push('/recipe')`. Home is the default
-tab, the app bar is empty on the trailing side, and it costs no layout on a
-320 px screen.
+### 6.2 The entry point — a sixth tab, and the six assertions it moves
 
-**The alternative is a sixth tab.** `kTabPaths` is documented as *"the 5 MVP
-tab routes"*, `AppShell` has five labels, and `design/ui_ux_design.md` §App
-Structure draws five (with a *Directory* tab that has not been built). A sixth
-`NavigationDestination` fits at 360 px and is cramped at 320; it also promotes
-a "nice-to-have" to the same rank as the diary. That is a product call (§11),
-and the router change is small either way. The e2e navigation smoke goes
-through whichever is chosen.
+**Decision: `/recipe` becomes a bottom tab, inserted before Profile**, so
+`kTabPaths` reads `['/', '/lens', '/diary', '/adaptation', '/recipe',
+kProfilePath]`. Profile stays last, which is the platform convention, and
+**Profile's tab index therefore moves from 4 to 5** — the single most
+missable consequence of this decision, because three existing assertions
+hard-code it.
+
+`kTabPaths`, `AppShell._labels`, `_keys` and `_icons` are four parallel arrays
+indexed by position; all four gain an entry at index 4, plus the doc comments
+on both files that say *"the 5 MVP tabs"*. The label is `מתכונים` and the key
+is `Key('tab_recipe')`.
+
+Six existing assertions move with it, and a PR that misses any of them is red:
+
+| File | What changes |
+|---|---|
+| `test/core/router/app_shell_test.dart` | `'matches each of the 5 tab paths exactly'` — name, plus `/recipe` → 4 and **`/profile` → 5** |
+| same | `'renders a NavigationBar with 5 destinations'` — name, and `hasLength(5)` → `6` |
+| `test/widget_test.dart` | `'every one of the 5 tab routes navigates without error'` — name, and `/recipe: 'מתכונים'` inserted into `routesAndLabels` before `/profile` |
+| same | `'the 3 deferred-feature routes (outside the tab shell) render their placeholders'` — **`/recipe` leaves this group**; it becomes the 2 deferred routes, and `RecipePlaceholder` is deleted |
+| `integration_test/flows/navigation_smoke_flow.dart` | a `goToTab(tester, 'tab_recipe')` hop |
+| `design/ui_ux_design.md` §App Structure | its diagram draws five tabs and is **already wrong** — it shows `מסעדות`, which was never built, and omits `התאמה`, which was. Reconciled to the shipped six in #398 |
+
+**Two hazards this decision creates**, neither fatal and both cheap to hold:
+
+- **A spinner on a tab screen hangs `pumpAndSettle`.** `test/widget_test.dart`
+  visits every tab knowing nothing about what is on it, and
+  `design/m6_handoff.md` records the two router tests this cost in M6. The
+  converter's *opening* state is a static `TextField` and a disabled button, so
+  it is safe — but #396 adds an in-flight spinner to that same screen, and it
+  must stay behind a tap. A spinner that can render before any interaction is a
+  hung suite.
+- **Six destinations at 320 px** is ~53 px each, and `מתכונים` is seven
+  characters. Material ellipsises rather than overflowing, so this is a
+  legibility check at the narrow end, not a layout failure. Verify at 320 px
+  before merging #119.
+
+The dashboard app-bar action that was recommended here is **not** built —
+one entry point, not two.
 
 ### 6.3 The converter screen
 
@@ -660,15 +695,16 @@ Lens would flag.
 9. A serving logged as a meal is divided by a servings count the user typed,
    passes through `AddMealBottomSheet`, and carries
    `MacroSource.estimatedFromText`.
-10. The screen is reachable from the tab shell, and the e2e navigation smoke
-    proves it.
+10. The converter is a **bottom tab** (inserted before Profile, so Profile's
+    index moves to 5), its two child routes live inside the same `ShellRoute`,
+    and the e2e navigation smoke proves the tab is reachable.
 11. No test, unit or e2e, makes a network call.
 
 ### Definition of Done
 
 `milestone_conventions.md` §3's list, plus:
 
-- [ ] `/recipe` reachable from Home in the e2e navigation smoke
+- [ ] `/recipe` is a bottom tab and the e2e navigation smoke visits it
 - [ ] `recipe_converter_flow.dart` green in the `e2e flows` job, including the
       zero-request assertion
 - [ ] The §5.3 consistency suite green over the shipped table
@@ -688,7 +724,7 @@ Issues 1–3 are the offline converter; 4–5 the library; 6–7 the model pass;
 |---|---|---|---|
 | 1 | **#393** Promote `HebrewTextNormaliser` to `lib/core/utils/` — file move, import updates, doc comment un-ML-Kit'd, zero behaviour change | refactor · core | — |
 | 2 | **#118** (rewritten) Substitution engine — parser, `foldFinals`, four-variant sealed outcome, `OutcomeSource`, the two tables, the consistency suite | feat · domain | 1 |
-| 3 | **#119** (rewritten) `RecipeConverterScreen` — paste, stacked per-line output, ratio applied, **entry point on Home**, route | feat · presentation | 2 |
+| 3 | **#119** (rewritten) `RecipeConverterScreen` — paste, stacked per-line output, ratio applied, **the sixth tab** and the six assertions it moves | feat · presentation | 2 |
 | 4 | **#395** `SavedRecipe`, `SavedRecipeRepository`, mapper, `saved_recipes` store, contract suite, `store_names_test` | feat · data | 2 |
 | 5 | **#120** (rewritten) `RecipeLibraryScreen` — list, reopen by id, delete; save affordance on the converter | feat · presentation | 3, 4 |
 | 6 | **#394** Promote `LlmChatClient` to `lib/core/llm/` — interface only; the OpenRouter stack stays | refactor · core | — |
@@ -736,16 +772,19 @@ rationale, #119's "side-by-side" and #120's "grid" layouts, #120's
 
 ## 11. Open decisions for the product owner
 
-1. **Entry point: dashboard action or sixth tab?** §6.2. *Recommendation: the
-   app-bar action. Promote it to a tab if usage says so.*
+1. ~~**Entry point: dashboard action or sixth tab?**~~ **Decided: a sixth tab**,
+   inserted before Profile. §6.2 has the six assertions that move with it and
+   the two hazards it creates. The recommendation here had been the app-bar
+   action; the owner's call is the tab, which makes the converter a
+   first-class destination rather than something reached from Home.
 2. **Are onion and tomato staples?** They carry 8–9 g and 3–4 g of net carbs
    per 100 g, and every second keto recipe uses them. *Recommendation: staples.
    A converter that flags בצל is a converter nobody trusts; the day's total is
    the diary's job.*
-3. **Is issue 8 (per-serving macros, log a serving) in M10 or its own
-   follow-up?** It is the one issue that ties the converter to the core loop,
-   and the one that widens `SavedRecipe`. *Recommendation: in, last. It is the
-   answer to `mvp.md`'s "does not prove the core loop".*
+3. ~~**Is issue 8 (per-serving macros, log a serving) in M10 or its own
+   follow-up?**~~ **Decided: in M10, last** (#397). It is the one issue that
+   ties the converter to the core loop and the answer to `mvp.md`'s "does not
+   prove the core loop". The milestone is nine issues and six merge waves.
 4. **Should the model pass run automatically on convert when estimation is
    on?** *Recommendation: no — a tap, and only when unknown lines exist. A
    recipe with no unknown lines costs nothing, and a user should not spend a
