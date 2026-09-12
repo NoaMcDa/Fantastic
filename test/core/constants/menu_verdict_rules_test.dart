@@ -106,6 +106,8 @@ void main() {
       expect(MenuVerdictRules.maxModificationChars, greaterThan(0));
       expect(MenuVerdictRules.maxOutputTokens, greaterThan(0));
       expect(MenuVerdictRules.provenanceMinWordChars, greaterThan(0));
+      expect(MenuVerdictRules.minExtractedLetters, greaterThan(0));
+      expect(MenuVerdictRules.minHebrewLetterRatio, greaterThan(0));
     });
 
     test(
@@ -128,5 +130,9 @@ void main() {
         expect(MenuVerdictRules.provenanceMinWordChars, lessThanOrEqualTo(3));
       },
     );
+
+    test('minHebrewLetterRatio is a fraction, not a percentage', () {
+      expect(MenuVerdictRules.minHebrewLetterRatio, lessThanOrEqualTo(1));
+    });
   });
 }

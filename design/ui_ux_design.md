@@ -322,15 +322,26 @@ top of every Keto Lens camera state (`/lens/menu`) — the smallest entry point
 per decision 5, and the tab bar stays on the lens tab since it is a child
 route of `/lens`.
 
-#### Input — two modes, `הדביקו טקסט` selected by default
+#### Input — three modes, `הדביקו טקסט` selected by default
 - **`הדביקו טקסט`** — a multi-line field for pasted menu text, and `נתחו`.
 - **`צלמו עמודים`** — the same camera UX as Keto Lens (viewfinder, torch,
   gallery import), collecting up to 8 pages with a thumbnail strip and a page
   counter, before the identical `נתחו` call. OCR runs on the device first —
   the photograph itself is never sent, only the recognised text.
+- **`קובץ PDF`** (M16, #405–#408) — a single `בחרו קובץ PDF` button; the
+  chosen file's name is shown with a `הסירו קובץ` clear control. Each page's
+  text layer is extracted on the device; a page with no usable Hebrew text
+  (mojibake or a scan) is rasterised and read through the same OCR path as
+  `צלמו עמודים`, invisibly to the user — one `נתחו` call either way. A pick
+  that fails (bad file, password-protected, or — the web case — a platform
+  path that never arrives) shows `לא ניתן היה לפתוח את הקובץ שנבחר`, not a
+  silent no-op. A PDF with no OCR-capable build and no readable text layer on
+  any page shows `לא ניתן לקרוא את התפריט הסרוק`, pointing at `הדביקו טקסט`.
+  The page cap (8) and a menu long enough to be silently truncated both now
+  surface as one-line notices, shared with the photo tab.
 
-Both modes feed the same analyser call; a screen with no working OCR engine
-still offers the pasted-text path via a `הדביקו את הטקסט במקום` link.
+All three modes feed the same analyser call; a screen with no working OCR
+engine still offers the pasted-text path via a `הדביקו את הטקסט במקום` link.
 
 #### Result — grouped, not a flat list
 - A legend naming what each of the three badges means.

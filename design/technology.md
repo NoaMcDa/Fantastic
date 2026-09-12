@@ -163,9 +163,9 @@ Curate and serve a directory of keto-friendly Israeli restaurants with map integ
 ## 6. Restaurant Menu Analyzer
 
 ### Problem
-Paste a menu's text, or photograph its pages, and get a Green / Modifiable /
-Red verdict per dish, with a *why* and — for a modifiable dish — a
-modification instruction the user can say to a waiter.
+Paste a menu's text, photograph its pages, or hand it a PDF, and get a Green /
+Modifiable / Red verdict per dish, with a *why* and — for a modifiable dish —
+a modification instruction the user can say to a waiter.
 
 **Superseded.** The candidates and recommendation below are the pre-M16
 evaluation and no longer describe what shipped — `MLKit OCR + rule-based
@@ -199,6 +199,23 @@ dish and word a modification instruction in it.
 "no network call during a scan" — a menu *analysis* is a different feature
 from a Keto Lens *scan*, and the photograph itself never leaves the device
 either way; only text recognised on the device is sent.
+
+**PDF input (#405–#408, shipped) — `pdfrx ^2.6.1` (MIT) + `file_selector ^1.0.3`
+(BSD-3-Clause).** `pdfrx` is the only maintained package that both extracts a
+PDF's text layer and rasterises pages across all six targets, so one
+dependency serves a text-layer PDF (no OCR needed at all) and a scanned one
+(rasterised, then read by the same Tesseract pipeline). `syncfusion_flutter_pdf`
+was rejected: pure Dart with no rasterising means a second engine would still
+be needed, and its Community License lapses past $1M revenue or five
+developers. Resolving `pdfrx` pulled 19 packages, more than anticipated —
+`pdfrx_engine`, `pdfium_flutter`, `rxdart`, and the seven `url_launcher`
+platform packages `pdfrx`'s own dependency chain uses as a native plugin.
+PDFium itself arrives as a Dart native asset, fetched and bundled at build
+time (`design/m16_menu_scanner_research.md` §12) — verified green on web and
+Linux (with `tool/linux_smoke_test.sh` passing); Android, iOS, macOS and
+Windows are unbuilt in this environment and remain to be watched on CI. No
+third conditional-export firewall was needed — `flutter build web` succeeds
+with the adapter (`PdfrxPageExtractor`) in the tree.
 
 ---
 

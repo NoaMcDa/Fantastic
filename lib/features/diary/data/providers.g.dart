@@ -226,6 +226,31 @@ String _$estimationCredentialsHash() =>
 ///
 /// `ref.onDispose` closes the socket, so a test that overrides this with a
 /// `MockClient` leaks nothing and a disposed container holds no connection.
+///
+/// **`keepAlive`, and it is load-bearing rather than an optimisation (#419).**
+/// Every screen that estimates — `AddMealDescriptionSheet`, `AddMealPhotoSheet`,
+/// `MenuScannerScreen`, and `RecipeConverterScreen`'s #396 suggestion pass —
+/// reaches its engine with a bare `ref.read` inside a button handler and holds
+/// no listener, because the result is awaited once rather than watched. An autoDispose client is therefore disposed one frame
+/// into the request, `ref.onDispose` closes the `http.Client` under it, and
+/// **closing a client cancels what it is carrying**: `BrowserClient.close`
+/// aborts every open `fetch` and `IOClient.close` force-closes the socket.
+/// `OpenRouterClient` sees the resulting `ClientException` and reports
+/// [ChatFailureReason.offline], which the sheets word as "אין חיבור
+/// לאינטרנט" — instantly, on a working connection. That was the user-visible
+/// bug #411 and #414 each mistook for a retired model id and a slow one.
+///
+/// One `http.Client` for the app's lifetime is what `package:http` recommends
+/// anyway. `onDispose` still runs when the container itself goes, so nothing
+/// leaks. Do not "tidy" this back to `@riverpod`: the regression test is
+/// `test/features/diary/data/estimation/llm_chat_client_lifecycle_test.dart`.
+///
+/// That test guards the mechanism for **every** consumer, which is why
+/// `substitutionSuggesterProvider` (M10) needs no twin of it: the suggester is
+/// autoDispose and *is* disposed a frame into its request, but it owns no
+/// `onDispose` and merely holds the client this provider keeps open. The
+/// dependents list above is the thing to keep current — a consumer missing
+/// from it is a consumer whose breakage nobody will predict.
 
 @ProviderFor(llmChatClient)
 const llmChatClientProvider = LlmChatClientProvider._();
@@ -239,6 +264,31 @@ const llmChatClientProvider = LlmChatClientProvider._();
 ///
 /// `ref.onDispose` closes the socket, so a test that overrides this with a
 /// `MockClient` leaks nothing and a disposed container holds no connection.
+///
+/// **`keepAlive`, and it is load-bearing rather than an optimisation (#419).**
+/// Every screen that estimates — `AddMealDescriptionSheet`, `AddMealPhotoSheet`,
+/// `MenuScannerScreen`, and `RecipeConverterScreen`'s #396 suggestion pass —
+/// reaches its engine with a bare `ref.read` inside a button handler and holds
+/// no listener, because the result is awaited once rather than watched. An autoDispose client is therefore disposed one frame
+/// into the request, `ref.onDispose` closes the `http.Client` under it, and
+/// **closing a client cancels what it is carrying**: `BrowserClient.close`
+/// aborts every open `fetch` and `IOClient.close` force-closes the socket.
+/// `OpenRouterClient` sees the resulting `ClientException` and reports
+/// [ChatFailureReason.offline], which the sheets word as "אין חיבור
+/// לאינטרנט" — instantly, on a working connection. That was the user-visible
+/// bug #411 and #414 each mistook for a retired model id and a slow one.
+///
+/// One `http.Client` for the app's lifetime is what `package:http` recommends
+/// anyway. `onDispose` still runs when the container itself goes, so nothing
+/// leaks. Do not "tidy" this back to `@riverpod`: the regression test is
+/// `test/features/diary/data/estimation/llm_chat_client_lifecycle_test.dart`.
+///
+/// That test guards the mechanism for **every** consumer, which is why
+/// `substitutionSuggesterProvider` (M10) needs no twin of it: the suggester is
+/// autoDispose and *is* disposed a frame into its request, but it owns no
+/// `onDispose` and merely holds the client this provider keeps open. The
+/// dependents list above is the thing to keep current — a consumer missing
+/// from it is a consumer whose breakage nobody will predict.
 
 final class LlmChatClientProvider
     extends $FunctionalProvider<LlmChatClient, LlmChatClient, LlmChatClient>
@@ -252,13 +302,38 @@ final class LlmChatClientProvider
   ///
   /// `ref.onDispose` closes the socket, so a test that overrides this with a
   /// `MockClient` leaks nothing and a disposed container holds no connection.
+  ///
+  /// **`keepAlive`, and it is load-bearing rather than an optimisation (#419).**
+  /// Every screen that estimates — `AddMealDescriptionSheet`, `AddMealPhotoSheet`,
+  /// `MenuScannerScreen`, and `RecipeConverterScreen`'s #396 suggestion pass —
+  /// reaches its engine with a bare `ref.read` inside a button handler and holds
+  /// no listener, because the result is awaited once rather than watched. An autoDispose client is therefore disposed one frame
+  /// into the request, `ref.onDispose` closes the `http.Client` under it, and
+  /// **closing a client cancels what it is carrying**: `BrowserClient.close`
+  /// aborts every open `fetch` and `IOClient.close` force-closes the socket.
+  /// `OpenRouterClient` sees the resulting `ClientException` and reports
+  /// [ChatFailureReason.offline], which the sheets word as "אין חיבור
+  /// לאינטרנט" — instantly, on a working connection. That was the user-visible
+  /// bug #411 and #414 each mistook for a retired model id and a slow one.
+  ///
+  /// One `http.Client` for the app's lifetime is what `package:http` recommends
+  /// anyway. `onDispose` still runs when the container itself goes, so nothing
+  /// leaks. Do not "tidy" this back to `@riverpod`: the regression test is
+  /// `test/features/diary/data/estimation/llm_chat_client_lifecycle_test.dart`.
+  ///
+  /// That test guards the mechanism for **every** consumer, which is why
+  /// `substitutionSuggesterProvider` (M10) needs no twin of it: the suggester is
+  /// autoDispose and *is* disposed a frame into its request, but it owns no
+  /// `onDispose` and merely holds the client this provider keeps open. The
+  /// dependents list above is the thing to keep current — a consumer missing
+  /// from it is a consumer whose breakage nobody will predict.
   const LlmChatClientProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
         name: r'llmChatClientProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -285,7 +360,7 @@ final class LlmChatClientProvider
   }
 }
 
-String _$llmChatClientHash() => r'21a8e5e47514333775d167fc8858870586260f42';
+String _$llmChatClientHash() => r'5afa2ca57c4390ae41edef1c2f9f97e57ffe5913';
 
 /// The composition root for estimation, and the only place a concrete
 /// estimator is named.

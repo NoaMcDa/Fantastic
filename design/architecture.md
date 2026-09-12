@@ -93,13 +93,17 @@ lib/
 │   │   │   └── repositories/   # DirectoryReader (interface)
 │   │   └── data/           # StaticJsonDirectorySource
 │   │
-│   ├── menu/                # M16 — pasted-text / photographed-page menu scanner
-│   │   ├── presentation/   # MenuScannerScreen, MenuPagesTab, MenuResultView, DishCard
+│   ├── menu/                # M16 — pasted-text / photographed-page / PDF menu scanner
+│   │   ├── presentation/   # MenuScannerScreen, MenuPagesTab, MenuPdfTab, MenuResultView, DishCard
 │   │   ├── application/    # MenuPageReader, RemoteMenuAnalyzer
 │   │   ├── domain/
-│   │   │   ├── models/         # MenuAnalysis, AnalysedDish, DishVerdict, MenuPagesText
-│   │   │   └── services/       # MenuAnalyzer (interface)
-│   │   └── data/           # MenuAnalysisPrompt, MenuResponseParser, provider wiring
+│   │   │   ├── models/         # MenuAnalysis, AnalysedDish, DishVerdict, MenuPagesText, PdfPagesText
+│   │   │   └── services/       # MenuAnalyzer, PdfPageExtractor (interfaces)
+│   │   └── data/
+│   │       ├── adapters/       # PdfrxPageExtractor — the only lib/ file importing pdfrx
+│   │       └── analysis/       # MenuAnalysisPrompt, MenuResponseParser, provider wiring
+│   │       # PDF/photo picking (DocumentPicker, FileSelectorDocumentPicker) lives with
+│   │       # PhotoPicker under keto_lens/presentation/camera/ — shared, not duplicated per feature
 │   │
 │   ├── recipe/            # M10 — shipped
 │   │   ├── presentation/   # RecipeConverterScreen, RecipeLibraryScreen,

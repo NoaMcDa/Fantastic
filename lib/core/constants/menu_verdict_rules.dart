@@ -1,3 +1,4 @@
+import 'package:fantastic/features/keto_lens/data/adapters/ocr_image_prep.dart';
 import 'package:fantastic/features/menu/domain/models/dish_verdict.dart';
 
 /// What the three dish verdicts mean, and the caps the menu-scanner request
@@ -114,4 +115,35 @@ abstract final class MenuVerdictRules {
   /// one- or two-letter fragment (a stray preposition, a corrupted number)
   /// cannot itself count as proof.
   static const int provenanceMinWordChars = 3;
+
+  /// The share of letter characters on an extracted PDF page that must be
+  /// Hebrew for its text layer to be trusted.
+  ///
+  /// `PdfrxPageExtractor`'s legibility guard, and the reason this issue
+  /// exists: Israeli menu PDFs are frequently produced by design tools that
+  /// embed subset fonts with no usable `ToUnicode` map, and extraction from
+  /// those yields mojibake — plausible-looking character soup, not Hebrew.
+  /// Mojibake is worse than no text at all: unchecked, it would reach the
+  /// model, spend one of the 50 daily free requests, and come back as
+  /// invented dishes the provenance rule silently discards. A genuinely
+  /// bilingual menu page still clears this comfortably; a Latin-only menu is
+  /// out of scope for a Hebrew keto app and degrades to the OCR path, which
+  /// is the safe direction.
+  static const double minHebrewLetterRatio = 0.5;
+
+  /// Below this many letters on an extracted PDF page, the ratio above is
+  /// not meaningful and the page is treated as having no usable text layer.
+  ///
+  /// A page with only a logo and a page number is not a menu page.
+  static const int minExtractedLetters = 20;
+
+  /// The width, in pixels, a PDF page is rendered at before OCR.
+  ///
+  /// Chosen to land inside the envelope `OcrImagePrep` already defines —
+  /// above `minWidth` so `ScalingTextRecognizer` does not upscale a page it
+  /// could have had sharp, and far below `maxEdge`/`maxPixels` so no page
+  /// size can provoke an unbounded allocation. `design/m6_platform_handoff.md`
+  /// records that this plateau is narrow and that adjacent settings return
+  /// plausible *wrong* numbers, so this is not a knob to turn casually.
+  static const int pdfRenderWidthPx = OcrImagePrep.targetWidth;
 }

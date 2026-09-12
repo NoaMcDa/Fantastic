@@ -565,6 +565,10 @@ human-corrected figure a guess is a badge people learn to ignore.
 - [x] #364 Build `MenuScannerScreen` with the pasted-text mode, `/lens/menu` and the `תפריט` chip on the lens tab
 - [x] #365 Build the photo pages mode — capture or import up to 8 pages, per-page progress
 - [x] #366 Add two e2e flows and close out the docs (`technology.md` §6, `ui_ux_design.md` §7, `architecture.md`, `CLAUDE.md`) — a real photographed-menu OCR transcript (#372/#373) is the one honest gap left; see `design/m16_menu_scanner_research.md` §10
+- [x] #405 Add `PdfPageExtractor`/`PdfPagesText` domain + `PdfrxPageExtractor` adapter, with the Hebrew legibility guard (trim-empty → `minExtractedLetters` → `minHebrewLetterRatio`) that routes an unreadable page to `pagesWithoutTextLayer` rather than keeping partial text
+- [x] #406 Add `renderPages` — rasterise pages with no usable text layer to PNG at `MenuVerdictRules.pdfRenderWidthPx` (derived from `OcrImagePrep.targetWidth`), sequential, aspect-ratio preserved
+- [x] #407 Add `DocumentPicker`/`FileSelectorDocumentPicker` over `file_selector`, alongside `photoPickerProvider`
+- [x] #408 Add `MenuInputMode` (pasteText / photoPages / pdfFile), `MenuPdfTab`, the extract-then-rasterise-then-analyse path, `pdfUnreadable`/`pdfNeedsOcr` failure reasons, and `menu_pdf_flow.dart` — **code-complete; #373's two remaining real menus and a real Hebrew menu PDF are still open, and only web + Linux are platform-verified for the new `pdfrx`/`file_selector` dependencies** (`design/m16_menu_scanner_research.md` §12)
 
 ### Release v1.0 — App Store Launch (#270) — *ships the MVP; runs before M9*
 - [ ] Add Hebrew `App Store Connect` metadata (description, keywords, screenshots)

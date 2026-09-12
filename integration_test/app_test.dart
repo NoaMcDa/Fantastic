@@ -8,6 +8,7 @@ import 'flows/edit_meal_flow.dart' as edit_meal;
 import 'flows/grace_period_flow.dart' as grace_period;
 import 'flows/keto_lens_flow.dart' as keto_lens;
 import 'flows/meal_logging_flow.dart' as meal_logging;
+import 'flows/menu_pdf_flow.dart' as menu_pdf;
 import 'flows/menu_photo_flow.dart' as menu_photo;
 import 'flows/menu_text_flow.dart' as menu_text;
 import 'flows/navigation_smoke_flow.dart' as navigation_smoke;
@@ -57,6 +58,7 @@ void main() {
   group('menu text', menu_text.main);
   group('menu photo', menu_photo.main);
   group('recipe converter', recipe_converter.main);
+  group('menu pdf', menu_pdf.main);
   // Position matters here. This flow leaves the app over a permanently
   // retrying broken store with no settle (`design/m8_preflight.md`), and
   // riverpod 3's exponential backoff keeps scheduling frames — and logging
