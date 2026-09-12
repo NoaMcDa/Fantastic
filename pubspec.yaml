@@ -181,6 +181,49 @@ dependencies:
   # measurements behind it.
   image: ^4.3.0
 
+  # M16 PDF input (#405, #406, #407). Both are added here, in one change,
+  # rather than one per issue as those two issues each describe: they are
+  # the only two things in the milestone that touch this file, a
+  # `pubspec.lock` written twice in parallel is a merge conflict for no
+  # gain, and every edit here re-triggers all six platform build
+  # workflows - so one edit costs one matrix run instead of two.
+
+  # PDF reading, for a menu that arrives as a file rather than a
+  # photograph. MIT. Serves BOTH halves of the problem: `PdfPage.loadText()`
+  # extracts a designed export's real text layer (no OCR, no recognition
+  # error, and it works on a build with no OCR engine at all), and
+  # `PdfPage.render()` rasterises a scanned one into the Tesseract pipeline
+  # that already exists. That is why it beat `syncfusion_flutter_pdf`,
+  # which is pure Dart and carries no platform risk but cannot rasterise
+  # and is proprietary above $1M revenue - one MIT dependency beats two
+  # engines and a licence that lapses as the product grows.
+  #
+  # It carries the milestone's largest unknown, recorded here because it is
+  # a build-time property and not a code one: pdfrx -> pdfrx_engine ->
+  # pdfium_dart downloads and bundles PDFium AT BUILD TIME through Dart
+  # native assets (`hooks`, `code_assets`). That is a network fetch plus a
+  # young Dart feature landing on six pinned CI runners, and
+  # design/m6_platform_handoff.md records that every one of those runners
+  # has previously caught a defect that compiled cleanly on all the others.
+  # If the six builds cannot be made green, M16 stops at PDF input rather
+  # than working around it.
+  pdfrx: ^2.6.1
+
+  # Choosing that PDF from the device. BSD-3-Clause, published by
+  # flutter.dev, all six platforms. Nearly free here:
+  # file_selector_linux/macos/windows and the platform interface were
+  # already in pubspec.lock as transitive dependencies of image_picker,
+  # which uses file_selector as its desktop backend - so this adds the
+  # Android, iOS and web halves and nothing else.
+  #
+  # `file_picker` was rejected: third-party, heavier, and no first-party
+  # maintenance guarantee for a package touching five native platforms.
+  #
+  # It gets its own adapter rather than a method on PhotoPicker, because
+  # this codebase keeps one adapter per plugin - image_picker has exactly
+  # one importer and so does this.
+  file_selector: ^1.0.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

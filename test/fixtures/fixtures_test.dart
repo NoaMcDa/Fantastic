@@ -1,13 +1,42 @@
+import 'dart:io';
+
 import 'package:fantastic/features/adaptation/domain/models/adaptation_phase.dart';
 import 'package:fantastic/features/diary/domain/models/physical_symptom.dart';
+import 'package:fantastic/features/menu/data/adapters/pdf_page_extractor_impl.dart';
 import 'package:fantastic/features/menu/data/analysis/menu_response_parser.dart';
 import 'package:fantastic/features/menu/domain/models/dish_verdict.dart';
 import 'package:fantastic/features/menu/domain/models/menu_analysis.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 import 'fixtures.dart';
 
-void main() {
+/// Mirrors `pdf_page_extractor_impl_test.dart`'s own probe: a genuinely
+/// valid, empty PDF, so any failure to open it is the environment gap (no
+/// PDFium native module), never a bug in the fixture or the adapter.
+Future<bool> _probePdfiumLoads() async {
+  try {
+    await const PdfrxPageExtractor().extract('test/fixtures/zero_page.pdf');
+    return true;
+  } on Object {
+    return false;
+  }
+}
+
+Future<void> main() async {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  // Required once before the first `extract()` call — see
+  // `pdf_page_extractor_impl_test.dart` for why: `pdfrx` otherwise asks
+  // `path_provider` for a cache directory, and no platform channel answers
+  // that under `flutter test`.
+  Pdfrx.cacheDirectoryPath = Directory.systemTemp.path;
+
+  final pdfiumAvailable = await _probePdfiumLoads();
+  final String? pdfiumSkipReason = pdfiumAvailable
+      ? null
+      : 'PDFium native module could not be loaded in this environment';
+
   group('fixture defaults are keto-valid', () {
     test('MealEntryFixture defaults to a ratio of 1.0', () {
       expect(MealEntryFixture.fixture().ketoRatio, closeTo(1.0, 0.0001));
@@ -323,6 +352,59 @@ void main() {
       }
       expect(HebrewMenuFixture.notAMenu, isNot(contains(' - ')));
     });
+  });
+
+  group('PDF fixtures (#405) exist and are non-empty', () {
+    // Not hand-written expected-output fixtures — real files, per the same
+    // rule that governs `real_ocr_fixture.dart`: if the engine (or, for
+    // `hebrew_menu_mojibake.pdf`, pikepdf) produced it, capture it; if a
+    // human imagined it, it proves nothing. This test only pins that each
+    // file exists and has bytes — `pdf_page_extractor_impl_test.dart` is
+    // where their content is actually exercised.
+    for (final name in [
+      'hebrew_menu_textlayer.pdf',
+      'hebrew_menu_mojibake.pdf',
+      'hebrew_menu_scanned.pdf',
+      // The three below are additional, #405-scoped fixtures — also built
+      // with pikepdf, from the three above, to exercise the error and
+      // mixed-page paths `pdf_page_extractor_impl_test.dart` needs and that
+      // the issue's own two named fixtures cannot: an encrypted document, a
+      // zero-page document, and one PDF mixing a text-layer page with a
+      // scanned (image-only) one.
+      'hebrew_menu_encrypted.pdf',
+      'hebrew_menu_mixed.pdf',
+      'zero_page.pdf',
+    ]) {
+      test('$name exists and is non-empty', () {
+        final file = File('test/fixtures/$name');
+
+        expect(file.existsSync(), isTrue, reason: '${file.path} is missing');
+        expect(file.lengthSync(), greaterThan(0));
+      });
+    }
+
+    // The scanned fixture's whole reason for existing (#406): it has no
+    // characters at all, so every one of its pages must come back in
+    // `pagesWithoutTextLayer` — the tightest possible check that #405's
+    // guard and #406's rasteriser consumer agree on what "no usable text
+    // layer" means.
+    test(
+      'hebrew_menu_scanned.pdf reports every page in pagesWithoutTextLayer',
+      () async {
+        const extractor = PdfrxPageExtractor();
+        final result = await extractor.extract(
+          'test/fixtures/hebrew_menu_scanned.pdf',
+        );
+
+        expect(result.pagesWithoutTextLayer, hasLength(result.pageCount));
+        expect(
+          result.pagesWithoutTextLayer,
+          List.generate(result.pageCount, (i) => i + 1),
+        );
+        expect(result.pages, isEmpty);
+      },
+      skip: pdfiumSkipReason,
+    );
   });
 
   group('RenderedMenuOcrFixture is a genuine capture', () {

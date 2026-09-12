@@ -123,6 +123,34 @@ jobs:
             exit 1
           fi
 
+      - name: M16 PDF suite, against real PDFium
+        # The same problem as the FFI step above, one milestone later, and
+        # for a different reason worth stating: `pdfrx` reaches PDFium as a
+        # Dart **native asset**, which `flutter build` resolves and
+        # `flutter test` does not. So in the `verify` job — which runs
+        # `pub get` then `flutter test` — every test that opens a real PDF
+        # skips itself, and the suite still reports "All tests passed!".
+        #
+        # That is why this runs here rather than there: this job has just
+        # built Linux, so the pdfium_dart build hook has run and the library
+        # exists. The script points a native-assets manifest at it, and the
+        # grep below fails the job if the suite skipped anyway.
+        #
+        # Without this, M16's PDF input would be gated by a green check that
+        # executed none of it — the shape of failure
+        # design/user_bugs_handoff.md exists to record.
+        run: |
+          set -o pipefail
+          tool/pdfium_test_assets.sh
+          flutter test --no-pub --reporter expanded \
+            test/features/menu/data/adapters/pdf_page_extractor_impl_test.dart \
+            test/fixtures/fixtures_test.dart \
+            2>&1 | tee "$RUNNER_TEMP/pdf-test.log"
+          if grep -q 'PDFium native module could not be loaded' "$RUNNER_TEMP/pdf-test.log"; then
+            echo "::error::the PDF suite skipped itself — PDFium did not load on this runner, so no real PDF was ever opened"
+            exit 1
+          fi
+
       - name: Upload the smoke-test log
         # Always, because the run that matters is the one that failed.
         if: always()

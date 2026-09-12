@@ -56,26 +56,23 @@ Feature-first layered: each `lib/features/<name>/` has `presentation/`, `applica
 - Storage errors wrapped in `guardPersistence` — only `PersistenceException` escapes `data/`
 - Native code behind firewall: `lib/core/database/database_factory.dart`, `lib/features/keto_lens/data/adapters/text_recognizer_factory.dart`
 
-**Features:** Dashboard · Onboarding · Keto Lens (Hebrew OCR) · Diary (meals/symptoms) · Adaptation & streak · Restaurant · Recipe · Directory
-
-**AddMealFab** (`lib/features/diary/presentation/widgets/`) — unified entry point, three modes: manual, description (text), photo (label OCR first). One validator in the app. Edit mode passes `existing` meal.
-
-<<<<<<< HEAD
-## MVP & State
-=======
 ### Features
+
 | Feature | Directory |
 |---|---|
 | Dashboard & macro tracking | `lib/features/dashboard/` |
 | Onboarding & user profile | `lib/features/onboarding/` |
 | Keto Lens (Hebrew OCR scanner) | `lib/features/keto_lens/` |
 | Diary (meals, symptoms, biomarkers) | `lib/features/diary/` |
-| Menu Scanner (pasted-text / photo-pages, M16) | `lib/features/menu/` |
+| Menu Scanner (pasted text / photo pages / PDF, M16) | `lib/features/menu/` |
 | Adaptation phase & streak | `lib/features/adaptation/` |
 | Restaurant directory | `lib/features/restaurant/` |
 | Recipe converter | `lib/features/recipe/` |
 | Israeli keto directory | `lib/features/directory/` |
->>>>>>> origin/main
+
+**AddMealFab** (`lib/features/diary/presentation/widgets/`) — unified entry point, three modes: manual, description (text), photo (label OCR first). One validator in the app. Edit mode passes `existing` meal.
+
+## MVP & State
 
 **MVP shipped (M0–M6).** M7: 14 open polish issues. M8: 1 blocker (#98). See `design/mvp_handoff.md`.
 
@@ -129,13 +126,15 @@ Store names in `data/mappers/XxxMapper`. Every mapper has `toRecord(domain)`, `f
 **Fixtures:** `real_ocr_fixture.dart` auto-generated (never hand-edit); `test/fixtures/real_ocr_fixture.dart`. Regenerate with `tool/capture_ocr_fixtures.sh`. **No camera ever used, no accuracy claim.**
 
 **A menu analysis (M16, `lib/features/menu/`) is a different feature from a Keto Lens
-scan, and it does make one outbound call.** `MenuScannerScreen`'s photo mode reads each
-photographed page on the device with the same `TextRecognitionService` Keto Lens uses,
-then sends the recognised **text** — never the photograph — to a cloud model over M15's
-`LlmChatClient` seam. Pasted text skips OCR and goes straight to the same call. **A Keto
-Lens *scan* still sends nothing**: this does not relax Epic #10's no-network invariant,
-it adds a second, separate feature next to it — see `design/m16_menu_scanner_research.md`
-and its architectural-invariant note in the milestone table below.
+scan, and it does make one outbound call.** Three `MenuInputMode`s all end up as text
+sent over M15's `LlmChatClient` seam: pasted text skips OCR entirely; photographed pages
+read each page on the device with the same `TextRecognitionService` Keto Lens uses; a
+PDF is read by `PdfPageExtractor` (`PdfrxPageExtractor`, the only file importing `pdfrx`)
+— its text layer if present, else rasterised per page and OCR'd through the same
+pipeline. Only recognised/extracted **text** ever leaves the device, never an image or
+the PDF itself. **A Keto Lens *scan* still sends nothing**: this does not relax Epic
+#10's no-network invariant, it adds a second, separate feature next to it — see
+`design/m16_menu_scanner_research.md`.
 
 ## Keto Business Logic
 
@@ -175,31 +174,20 @@ Per `design/tests.md`:
 
 **Repo:** `NoaMcDa/Fantastic` · **Board:** #2. Epic tracking #4–#12 (M0–M8) · #264–#270 (M9–M15 + release).
 
-<<<<<<< HEAD
-**Milestones:** M0–M8 sequential (MVP), M9–M15 parallel peers. Each has issue range + epic label. **Labels:** 3 per issue — `type:*` (feat/fix/test/refactor/chore/docs/perf) · `layer:*` (core/domain/data/application/presentation/infra/test) · `epic:*` (m0–m8, m9–m15, release-v1, login).
+**Milestones:** M0–M8 sequential (MVP), M9–M16 parallel peers. Each has issue range + epic label. **Labels:** 3 per issue — `type:*` (feat/fix/test/refactor/chore/docs/perf) · `layer:*` (core/domain/data/application/presentation/infra/test) · `epic:*` (m0–m8, m9–m16, release-v1, login).
+
+**Epics pin the milestones:** #4–#12 (MVP), #264–#270 (post-MVP + v1.0 release), **#312** (M15 Meal Entry) and **#351** (M16 AI Menu Scanner) — the two opened from a user's own request. #13 (v1.1 Post-MVP) is closed, split into seven milestones, recorded in `design/v1_1_split.md`.
+
+**GitHub milestones #11–#19 cover M9–M16 and the release.** Filtering by milestone and filtering by `epic:*` label give the same view, so either is accurate; the Epics additionally report per-child progress through the sub-issue hierarchy.
 
 **CI:** `.github/workflows/ci.yml` (flutter 3.47.3, Dart ^3.13.2). Docs-only skip via `tool/docs_only.sh`. Three parallel jobs: `verify` (format, lint, test, coverage 80%), `build web`, `e2e flows`.
-=======
-All atomic issues are created, labelled and added to project board #2. Epic tracking
-issues #4–#12 pin the MVP milestones; #264–#270 pin the post-MVP milestones and the
-v1.0 release; **#312 pins M15 Meal Entry**, the first milestone opened from a user's own
-request; **#351 pins M16 AI Menu Scanner**, the second, which supersedes M12. #13 (v1.1 Post-MVP) is closed — it was split into seven milestones,
-recorded in `design/v1_1_split.md`.
-
-**GitHub milestones #11–#19 cover M9–M16 and the release**, and all 33 v1.1-split issues — the 26
-work issues plus the seven Epics — are assigned to them. `v1.1 — Post-MVP Backlog`
-(milestone #8) is retired. **Filtering by milestone and filtering by `epic:*` label give
-the same view**, so either is accurate; the Epics additionally report per-child progress
-through the GitHub sub-issue hierarchy.
->>>>>>> origin/main
 
 **E2E:** `flutter test -d flutter-tester integration_test/app_test.dart --no-pub` (headless, ~2min). Flows in `*_flow.dart` files, harness at `integration_test/helpers/app_harness.dart` — never bare `pumpAndSettle()`.
 
 **Platform workflows:** Android (release-only), Linux (smoke test), Windows/iOS/macOS (paths-filtered). All five found defects: `jcenter()` deprecation, missing iOS model, wrong library names. **Only web and Linux ever launched.**
 
-<<<<<<< HEAD
 **Commit & codegen:** `.g.dart` files and `pubspec.lock` must be committed (CI checks freshness).
-=======
+
 | Milestone | Label | Issues | Count |
 |---|---|---|---|
 | M0 — Foundation | `epic:m0-foundation` | #14–#24 | 11 |
@@ -219,7 +207,7 @@ through the GitHub sub-issue hierarchy.
 | M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |
 | M14 — Backup & Restore | `epic:m14-backup` | #123–#124 | 2 |
 | M15 — Meal Entry | `epic:m15-meal-entry` | #315–#328 | 14 — **complete** |
-| M16 — AI Menu Scanner | `epic:m16-menu-scanner` | #352–#366 (not #363), #372, #373, #405–#408 | 20 — **text and photo modes shipped; 5 open (#373, #405–#408 PDF input)** |
+| M16 — AI Menu Scanner | `epic:m16-menu-scanner` | #352–#366 (not #363), #372, #373, #405–#408, #421 | 21 — **all three input modes shipped** (text, photo pages, PDF) |
 | Login — accounts & identity | `epic:login` | #206–#226 | 16 |
 
 **M9–M16 are numbered by recommended build order, not by dependency** — they are
@@ -236,8 +224,11 @@ relax the OCR no-network invariant**; see `design/m15_meal_entry_research.md` §
 `design/m16_menu_scanner_research.md`. It **supersedes M12 Menu Analyzer** (#267, #121,
 #122), whose closure is decision 1 on the Epic and is the owner's call; until it is taken,
 #121 and #122 are not to be picked up. It reuses M15's `LlmChatClient` seam and key, sends
-only locally-recognised **text** — the menu photograph never leaves the device — and, like
-M15, **does not relax the OCR no-network invariant**.
+only locally-recognised or locally-extracted **text** — neither the menu photograph nor the
+PDF ever leaves the device — and, like M15, **does not relax the OCR no-network
+invariant**. PDF input (#405–#408) reads a text layer directly where one is legible and
+rasterises the pages where it is not; `design/m16_menu_scanner_research.md` §12 records
+what that verified and what it did not.
 
 ### Epic tracking issues
 
@@ -428,4 +419,3 @@ needs `main` to *log* a startup failure, because all three Linux startup bugs
 were caught by `main`'s own `try/catch` and rendered as `StartupFailureApp` —
 the process stays alive and quiet, so a naive liveness check calls a dead app
 healthy.
->>>>>>> origin/main

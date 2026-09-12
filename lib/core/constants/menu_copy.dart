@@ -91,10 +91,12 @@ abstract final class MenuCopy {
   /// The screen's app-bar title.
   static const String scannerTitle = 'ניתוח תפריט';
 
-  /// The two input-mode tab labels. `photoPagesTab` names the mode #365
-  /// wires up; until then it renders [photoTabComingSoon].
+  /// The three input-mode tab labels. `photoPagesTab` names the mode #365
+  /// wires up; until then it renders [photoTabComingSoon]. `pdfFileTab`
+  /// names the third mode #408 adds.
   static const String pasteTextTab = 'הדביקו טקסט';
   static const String photoPagesTab = 'צלמו עמודים';
+  static const String pdfFileTab = 'קובץ PDF';
 
   /// The photo tab's whole body until #365 replaces it — the reason this
   /// issue can ship the text mode on its own.
@@ -126,6 +128,13 @@ abstract final class MenuCopy {
   static const String failedBadResponseHeadline = 'הניתוח נכשל';
   static const String failedNoDishesFoundHeadline = 'לא זוהו מנות בתפריט';
 
+  /// #408's two PDF-only failure reasons — added to the same headline set,
+  /// so `MenuScannerScreen.headlineFor`'s exhaustive switch fails to compile
+  /// if either is left out.
+  static const String failedPdfUnreadableHeadline = 'לא ניתן לפתוח את הקובץ';
+  static const String failedPdfNeedsOcrHeadline =
+      'לא ניתן לקרוא את התפריט הסרוק';
+
   /// The "way out" beneath each headline above, in the same order.
   static const String adviceEmptyInput = 'יש להדביק טקסט לפני הניתוח.';
   static const String adviceOcrUnavailable =
@@ -139,6 +148,18 @@ abstract final class MenuCopy {
   static const String adviceUnauthorised = 'בדקו את המפתח שהוזן בפרופיל.';
   static const String adviceBadResponse = 'נסו שוב.';
   static const String adviceNoDishesFound = 'ערכו את הטקסט ונסו שוב.';
+
+  /// The PDF is not a PDF at all, is corrupt, or is password-protected — not
+  /// worth retrying with the same file, so this names no retry action.
+  static const String advicePdfUnreadable =
+      'בחרו קובץ PDF אחר, או ודאו שהקובץ אינו מוגן בסיסמה.';
+
+  /// No page of the PDF had a usable text layer, and this build has no OCR
+  /// engine to read it as a scanned image — points at the pasted-text mode,
+  /// which needs neither OCR nor a readable text layer, per the issue.
+  static const String advicePdfNeedsOcr =
+      'המכשיר הזה אינו יכול לקרוא תפריט סרוק. הדביקו את טקסט התפריט בלשונית '
+      '"הדביקו טקסט" במקום.';
 
   // --- MenuPagesTab (#365) ---
 
@@ -186,4 +207,36 @@ abstract final class MenuCopy {
 
   /// Tooltip on the per-thumbnail remove control.
   static const String removePageTooltip = 'הסירו עמוד';
+
+  // --- MenuPdfTab (#408) ---
+
+  /// The empty state's pick button.
+  static const String pickPdfButton = 'בחרו קובץ PDF';
+
+  /// Shown under [pickPdfButton] — the mode this isn't is still one tap
+  /// away, per the issue's own instruction to name the alternative.
+  static const String pdfAlternativeHint =
+      'אפשר גם לצלם את עמודי התפריט בלשונית "צלמו עמודים".';
+
+  /// Tooltip on the chosen-file state's clear control.
+  static const String removePdfTooltip = 'הסירו קובץ';
+
+  /// A [DocumentPickerException] — the platform picker itself failing, or
+  /// (`design/user_bugs_handoff.md`'s exact shape of bug) handing back a
+  /// file with no filesystem path, which the adapter now reports as this
+  /// same exception rather than silently returning null. A cancelled pick
+  /// is not an error and shows nothing.
+  static const String pdfPickError =
+      'לא ניתן היה לפתוח את הקובץ שנבחר. נסו שוב.';
+
+  /// A PDF's page count over [MenuVerdictRules.maxPages] reuses
+  /// [pageCapNotice] verbatim — the same cap, the same wording, regardless
+  /// of whether the pages arrived by camera or inside a PDF.
+  ///
+  /// Shown when the PDF's extracted text is longer than
+  /// [MenuVerdictRules.maxMenuChars] and `MenuAnalysisPrompt.user` silently
+  /// truncated it before sending — an inline notice, not an error: the
+  /// analysis still ran, just on the first [maxChars] characters.
+  static String textTruncatedNotice(int maxChars) =>
+      'התפריט ארוך מ-$maxChars תווים, ולכן רק תחילתו נותחה.';
 }

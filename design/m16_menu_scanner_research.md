@@ -3,12 +3,17 @@
 **Source:** the product owner's M16 request, quoted verbatim in §1 → rewritten as the
 **M16 Epic, #351** (milestone #19, label `epic:m16-menu-scanner`, issues #352–#366,
 #372, #373, #405–#408)
-**Status:** the pasted-text and photographed-page modes are shipped — all fourteen
-original issues (#352–#366, not #363) plus #372 are code-complete, and **#373 has captured
-its first real photographed menu** (PR #410). **The milestone stays open for PDF input**
-(#405–#408): a restaurant menu is very often a PDF, and a PDF is two problems wearing one
-extension — a text-layer PDF needs no OCR at all, a scanned one must be rasterised into
-the pipeline that already exists. See §12.
+**Status:** all three input modes — pasted text, photographed pages, and now PDF
+(#405–#408) — are implemented and merged onto the working branch, completing the
+milestone's code. #405 added the extraction seam and Hebrew legibility guard, #406 the
+rasteriser for pages with no usable text layer, #407 the file picker, #408 the third
+`MenuInputMode` and its e2e flow. Two platforms (web, Linux) are build-and-smoke-test
+verified for the new `pdfrx`/`file_selector` dependencies; Android, iOS, macOS and
+Windows are unbuilt in this environment and remain to be watched on the real CI run.
+**#373 was closed as completed by the owner** after PR #410, on one photographed menu
+rather than the three it asked for — so the corpus gap it names is real but is no longer
+tracked by an open issue, and no real Hebrew menu **PDF** has been obtained at all. The
+milestone's product-owner decisions (§11) remain open. See §12.
 
 The honest verified/not-verified line: the pasted-text and photo-page paths have both been
 driven end to end in the headless e2e suite (#366's `menu_text_flow.dart` and
@@ -17,8 +22,9 @@ on the photo side. **One real restaurant menu has now been photographed and read
 produced the finding that should govern the rest of the milestone: **the dish names survive
 and the prices do not**, 9 of 23 names character-perfect against 2 of 23 prices, the rest
 losing their leading digit (`28` → `8`). Hence the hard rule in §10: **M16 must never
-present a scanned price as fact.** #373 asked for three deliberately differing menus and has
-one, so it **stays open**. §5 and §10 have the full picture.
+present a scanned price as fact.** #373 asked for three deliberately differing menus and was
+closed on one, so the remaining two are an unclosed gap without an issue behind them.
+§5 and §10 have the full picture.
 **Read before:** picking up any M16 issue, and before touching M12 (#267, #121, #122),
 which this milestone supersedes — see §1.1 and §11.
 
@@ -830,7 +836,9 @@ any kind in this repository.
 **It is one menu, and #373 asks for three deliberately differing ones** — a
 multi-column layout, a laminated sheet with glare, and a bilingual
 Hebrew/English card. This is none of those three on purpose; it is simply the
-menu somebody had. **#373 stays open.**
+menu somebody had. **#373 was nevertheless closed as completed by the owner**
+after PR #410, so the other two menus are a gap in the corpus with no open
+issue tracking them.
 
 The photograph arrived at **480×640, 40 KB** — a phone photo after a messaging
 app had had it. Nothing here downscaled it further. That is not a defect of the
@@ -920,6 +928,16 @@ holding on an input class it was never tested against, and it is now a test.
 - **No laminated menu, no glare, no bilingual card.** The three shapes #373
   names as the point of the exercise are all still missing.
 - **`psm 6` is a measurement, not a decision** (§5.3).
+- **No real Hebrew menu PDF has been obtained or opened.** #405–#408 (§12) shipped
+  against fixtures built with `reportlab`, `pikepdf` and `img2pdf`, not against the real
+  menu attached to #373 (undownloadable from this environment — proxy 403 on GitHub
+  user-attachments). #408's DoD calls for a real Hebrew menu PDF of each kind — text-layer,
+  scanned, mixed — opened by hand in `flutter run -d chrome`; that has not been done, and
+  cannot be done headlessly since no picker dialog can be driven without a human.
+- **Android, iOS, macOS and Windows have never built the PDF adapter.** §12 records web
+  and Linux as build-and-smoke-test green; the other four platforms could not be built at
+  all in this environment (no SDK, no Apple or Windows hardware) and are unproven until
+  watched on the real CI run.
 
 ---
 
@@ -967,7 +985,7 @@ rather than one: #405 the seam and the text layer, #406 the rasteriser, #407 the
 
 ### The engine decision
 
-**`pdfrx` ^2.6 (MIT)** for reading, **`file_selector` ^1.0 (BSD-3-Clause, flutter.dev)** for
+**`pdfrx` ^2.6.1 (MIT)** for reading, **`file_selector` ^1.0.3 (BSD-3-Clause, flutter.dev)** for
 picking. `pdfrx` is the only maintained package that does *both* extraction and rasterising
 across all six targets, so one dependency serves both halves. `file_selector` is close to free:
 three of its five platform implementations were already in `pubspec.lock` as transitive
@@ -979,15 +997,35 @@ could not serve a scanned menu without a second engine beside it, and it is prop
 Syncfusion Community License requires gross revenue under $1M *and* fewer than five developers.
 MIT with one dependency beats a licence that lapses as the product grows.
 
-### The risk this carries, stated before it bites
+**Both packages were added in one commit, not one per issue** — so the lockfile is written
+once rather than rewritten in parallel across #405–#408, and the six platform workflows are
+triggered once instead of four times. Resolution pulled **19 packages**, more than this
+section originally anticipated: `pdfrx` brings `pdfrx_engine`, `pdfium_flutter` and `rxdart`
+along with it, and — unpredicted here — the seven `url_launcher` platform packages, because
+`pdfrx`'s own dependency chain uses `url_launcher` as a native plugin on all six targets.
+
+### The risk this carried, and how far it resolved
 
 `pdfrx` → `pdfrx_engine` → `pdfium_dart`, whose README says PDFium is *"downloaded and bundled
 at build time"* through **Dart native assets** (`hooks`, `code_assets`). That is a build-time
 network fetch plus a young Dart feature, landing on six pinned CI runners.
 `design/m6_platform_handoff.md` records that **every one of those runners has previously caught
-a defect that compiled cleanly on all the others**. #405 is deliberately first and deliberately
-small so this is discovered cheaply; if the six builds cannot be made green, the milestone
-stops there rather than working around it.
+a defect that compiled cleanly on all the others**. #405 was deliberately first and deliberately
+small so this would be discovered cheaply.
+
+**Resolved on two of six platforms, unproven on the other four:**
+
+- **Web:** `flutter build web --release --no-web-resources-cdn` is green with the pdfrx
+  adapter in the tree.
+- **Linux:** `flutter build linux` is green; the pdfium build hook fetches `libpdfium.so`
+  and bundles it into the app directory; `tool/linux_smoke_test.sh` **passes** — the built
+  binary launches under Xvfb, creates its database file, and logs no fatal line.
+- **Android, iOS, macOS, Windows: not verified.** This environment has no Android SDK, no
+  Apple hardware and no Windows machine, so none of the four could be built here at all —
+  not "built and untested", genuinely never compiled. They must be watched on the real CI
+  run before the milestone can be called platform-proven; §12's original stopping condition
+  ("if the six builds cannot be made green, the milestone stops there") is not yet fully
+  discharged, only two-sixths of it.
 
 ### The Hebrew trap, and the guard for it
 
@@ -997,10 +1035,29 @@ soup, not Hebrew — and mojibake is *worse* than no text at all: it reaches the
 of the 50 daily free requests, and returns invented dishes that `MenuResponseParser`'s
 provenance rule then silently discards, leaving the user with an empty result and no reason.
 
-So #405 carries a **legibility guard**: a page whose extracted text does not clear a
-Hebrew-letter-ratio threshold is treated as *having no usable text layer* and routed to the OCR
-path instead. Failing safe into the slower, proven pipeline is the right direction; sending
-garbage to a paid model is not.
+So #405 carries a **legibility guard**, applied per page in this order: trim-empty first,
+then fewer than `MenuVerdictRules.minExtractedLetters` (20) letters, then a Hebrew-letter
+share below `MenuVerdictRules.minHebrewLetterRatio` (0.5) — any one of the three routes the
+page to `pagesWithoutTextLayer` with **no partial text kept**. Failing safe into the
+slower, proven pipeline is the right direction; sending garbage to a paid model is not.
+#406's rasteriser then renders exactly those pages, sequentially, to PNG in a temporary
+directory, at `MenuVerdictRules.pdfRenderWidthPx` — which is *derived from*
+`OcrImagePrep.targetWidth` rather than restating the 1600px figure a second time, so the
+two pipelines cannot drift apart. Aspect ratio is preserved; a page that fails to render is
+omitted rather than failing the whole batch. Nothing under `lib/features/keto_lens/` was
+touched and no OCR setting changed.
+
+**Every PDF fixture behind this guard is constructed, not a real-world artefact, and must
+stay labelled that way.** The real Israeli menu PDF the owner attached to issue #373 could
+not be downloaded into this environment — the proxy is scoped to repository APIs and
+returns 403 for GitHub user-attachments. The fixtures used instead:
+`hebrew_menu_textlayer.pdf` (built with `reportlab`, real embedded Hebrew, letter/Hebrew
+ratios 1.00/1.00/0.83 across its pages), `hebrew_menu_mojibake.pdf` (**constructed** with
+`pikepdf` by rewriting `/ToUnicode` `bfchar` entries — a real corruption mechanism, but not
+a real design-tool export), `hebrew_menu_scanned.pdf` (`img2pdf` over the existing
+`vivie_restaurant_menu.jpg`), plus `hebrew_menu_mixed.pdf`, `hebrew_menu_encrypted.pdf` and
+`zero_page.pdf`. The guard's thresholds are therefore validated against a simulated
+mojibake sample, not a menu a Tel Aviv print shop actually exported.
 
 ### What is unchanged
 
@@ -1013,7 +1070,46 @@ no-network invariant is untouched — a *scan* still makes no request.
 
 **Epic #351's "no new plugin, no new store, no change to either conditional-export firewall"
 invariant was amended, not waived**, to permit exactly these two packages and — only if
-`flutter build web` proves it necessary — a third firewall.
+`flutter build web` proved it necessary — a third firewall.
+
+**The firewall question is answered: no third firewall was needed.** `flutter build web
+--release --no-web-resources-cdn` succeeds with `PdfrxPageExtractor` — the one file in
+`lib/` that imports `pdfrx` — in the tree. CLAUDE.md's "there are two" firewall sentence
+stands unchanged.
+
+### Two real defects found during the work
+
+**A silent no-op on web, the shape of bug this project has shipped before.**
+`DocumentPicker.pickPdf()` originally returned `null` both when the user cancelled the
+picker and when the platform handed back a file with no filesystem path — the case on
+web, where a picked file is a blob rather than a path. That made a web user's PDF pick
+indistinguishable from backing out: nothing happened, and nothing said why. The no-path
+case now throws `DocumentPickerException`, which `MenuPdfTab` renders as a real message;
+cancellation still returns `null`. See `design/user_bugs_handoff.md` for the pattern this
+matches.
+
+**A gap in the test gate itself, not the app.** `pdfrx` reaches PDFium as a Dart *native
+asset*, and only `flutter build` writes the `.dart_tool/native_assets.yaml` manifest the
+VM needs to find it — not `flutter pub get`, not a prior build in the same checkout, and
+not `--enable-native-assets` on `flutter test`. Every test that opened a real PDF was
+therefore skipping itself (measured: 15 skips against the project's baseline of 5) while
+`flutter test` still printed "All tests passed!". The tests were right to skip loudly —
+the same precedent `tesseract_ffi_recognizer_test.dart` set for a missing native
+dependency — but nothing failed the *build* when they did, which is the actual gap.
+Fixed by `tool/pdfium_test_assets.sh`, which writes the manifest pointing at the library
+the Linux build hook already produced and exits 1 if that library is absent, plus a new
+step in `.github/workflows/build-linux.yml` that runs the PDF test suite after the Linux
+build and fails the job if the skip banner reappears. `verify` is deliberately left
+unchanged — running these tests there would mean building Linux inside it.
+
+### Final measured state of the merged branch
+
+`flutter analyze` clean, `dart format` clean, **2558 tests passing / 5 skipped** (5 is
+the project's long-standing baseline skip count, so nothing from #405–#408 is silently
+sitting out), the e2e suite at **40 flows green** (including the new
+`menu_pdf_flow.dart`), gated coverage **1022/1057 = 96.69%**, and the web release build
+green. This is the code-complete state described at the top of §12; the platform and
+real-fixture gaps above are what remain.
 
 ---
 
