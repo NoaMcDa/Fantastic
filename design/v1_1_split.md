@@ -292,7 +292,7 @@ board.
 | `M9 — Biomarker Logging` | #11 | #264 | #103–#107 | 6 |
 | `M10 — Recipe Converter` | #12 | #265 | #118–#120 | 4 |
 | `M11 — Restaurant Directory` | #13 | #266 | #111–#117 | 8 |
-| `M12 — Menu Analyzer` | #14 | #267 | #121–#122 | 3 |
+| `M12 — Menu Analyzer` † | #14 | #267 | #121–#122 | 3 |
 | `M13 — Apple Health Sync` | #15 | #268 | #108–#110 | 3 |
 | `M14 — Backup & Restore` | #16 | #269 | #123–#124 | 3 |
 | `Release v1.0 — App Store Launch` | #17 | #270 | #125–#128 | 5 |
@@ -300,6 +300,12 @@ board.
 33 issues in total: the 26 re-filed work issues plus the seven Epic tracking issues,
 which carry their own milestone so that a milestone page shows its Epic alongside its
 children.
+
+† **`M12 — Menu Analyzer` no longer exists.** The owner closed it on 2026-09-12 as
+superseded by M16 AI Menu Scanner: #267, #121 and #122 are closed as superseded and
+milestone #14 is retired, the same disposition Epic #13 received below. The table above
+is left as the historical record of what this split created, not as a description of the
+milestones today — see `design/m16_menu_scanner_research.md` §1.1 and §11 decision 1.
 
 **`v1.1 — Post-MVP Backlog` (milestone #8) is retired** — closed with zero open issues
 on it. The one issue it still holds is Epic #13, itself closed as superseded, which is

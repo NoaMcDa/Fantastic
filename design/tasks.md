@@ -516,9 +516,11 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] #397 Per-serving macros via `MacroEstimator`; log a serving through `AddMealBottomSheet` as `estimatedFromText`
 - [ ] #398 `recipe_converter_flow.dart` (zero-request assertion included), the navigation smoke, the fixture, docs closeout
 
-### M12 — Menu Analyzer (#267) — *superseded by M16 (#351); closure is the owner's call — do not pick up*
-- [ ] Implement `MenuAnalyzerService` — OCR → dish extraction → keto suitability per dish, reusing M6's `TextRecognitionService` (Tesseract) and `IngredientVerdict`
-- [ ] Build `MenuAnalyzerScreen` — camera input → dish list with badges and modification tips
+### ~~M12 — Menu Analyzer (#267)~~ — **closed 2026-09-12, superseded by M16 (#351)**
+Milestone #14 retired; #267, #121 and #122 closed as superseded. Neither task below was
+started, and neither is to be revived — M16 shipped the capability in `lib/features/menu/`.
+- [x] ~~Implement `MenuAnalyzerService`~~ — superseded. Its `IngredientClassifier`-over-dish-names design could not produce a red verdict for pizza or pasta (`design/m16_menu_scanner_research.md` §1.2)
+- [x] ~~Build `MenuAnalyzerScreen`~~ — superseded by `MenuScannerScreen`, which takes pasted text, photographed pages or a PDF rather than one camera frame
 
 ### M14 — Backup & Restore (#269) — *needs re-spec for sembast + web*
 - [ ] Implement versioned JSON backup export (destination decision: platform-neutral share/download vs iOS-only iCloud)

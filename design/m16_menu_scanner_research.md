@@ -25,8 +25,9 @@ losing their leading digit (`28` → `8`). Hence the hard rule in §10: **M16 mu
 present a scanned price as fact.** #373 asked for three deliberately differing menus and was
 closed on one, so the remaining two are an unclosed gap without an issue behind them.
 §5 and §10 have the full picture.
-**Read before:** picking up any M16 issue, and before touching M12 (#267, #121, #122),
-which this milestone supersedes — see §1.1 and §11.
+**Read before:** picking up any M16 issue. **M12 (#267, #121, #122) is closed as
+superseded** — the owner took that decision on 2026-09-12 and milestone #14 is retired,
+so there is nothing left there to pick up; §1.1 records why.
 
 ---
 
@@ -97,9 +98,12 @@ The right relationship is **supersession**: M16 replaces M12, and #267, #121 and
 should be closed as superseded the way Epic #13 was, with milestone #14 retired. M12 has
 no merged PR and no closed issue, so this is a scoping decision taken before the
 milestone started — the one point at which `milestone_conventions.md` §1.3 allows it
-(the same argument #312 made for widening M15 to "add and correct"). **That closure is
-the owner's call, not this document's** — §11, decision 1. Until it is taken, no one
-should pick up #121 or #122.
+(the same argument #312 made for widening M15 to "add and correct").
+
+**Decided: the owner closed M12 on 2026-09-12**, after M16 shipped in #423. #121, #122
+and Epic #267 are closed as superseded, GitHub milestone #14 is retired, and the
+`epic:m12-menu-analyzer` label is kept on all three as history. §11 decision 1 is
+therefore taken, not open.
 
 ### 1.2 M12's engine cannot produce the three states, and the reason is measurable
 
@@ -735,7 +739,8 @@ did not find or a yellow it cannot explain.
 - [ ] The disclosure names menu text; `design/technology.md` §6, `design/ui_ux_design.md`
       §7, `design/architecture.md`'s tree and route table, and `CLAUDE.md` describe what
       shipped
-- [ ] M12's Epic #267 carries a closure or supersession comment (§11, decision 1)
+- [x] M12's Epic #267 carries a closure or supersession comment (§11, decision 1) —
+      done 2026-09-12: #267, #121 and #122 closed as superseded, milestone #14 retired
 
 ---
 
@@ -779,7 +784,7 @@ being "a human imagined this OCR output".
 | **The free tier runs out** | 50 requests/day per key; one per menu. A user who re-analyses the same menu five times spends five. `rateLimited` copy names the quota |
 | **A free model is deprecated upstream** | #318's pin and fallback list; a dead model is `badResponse`, never a crash |
 | **The photo mode regresses Keto Lens** | `PhotoPicker` gains a method; nothing else in `keto_lens/` changes. Asserted by M6's and M15's suites passing unchanged |
-| **M12 is picked up in parallel** | Two features for one capability. §11 decision 1 closes it |
+| ~~**M12 is picked up in parallel**~~ | Retired. The owner closed #267, #121 and #122 as superseded on 2026-09-12 and milestone #14 with them, so there is no second feature to pick up |
 | **OpenRouter's own docs were unreachable from this session** | `openrouter.ai` is blocked by this environment's egress policy, as `data.gov.il` was for M15. The rate limits and the multi-image and structured-output facts above are from secondary sources that agree with one another and with `design/m15_meal_entry_research.md`; issue 4 should re-read the primary page before pinning the schema shape |
 
 **No accuracy number is claimed anywhere in this document for the classifier this
@@ -941,13 +946,14 @@ holding on an input class it was never tested against, and it is now a test.
 
 ---
 
-## 11. Open decisions for the product owner
+## 11. Decisions for the product owner
 
-1. **Close M12 as superseded?** Recommended: yes — close #121, #122 and Epic #267 as
-   superseded by M16 (the way Epic #13 was), retire milestone #14, and leave the
-   `epic:m12-menu-analyzer` label as history. The alternative — keeping M12 as a
-   deterministic, offline first cut — means writing the dish vocabulary §1.2 shows it
-   lacks, which is the offline food table M15 shelved. *Recommendation: close.*
+1. ~~**Close M12 as superseded?**~~ **DECIDED 2026-09-12 — closed.** The owner's words
+   were "Close M12, it's redundant". #121, #122 and Epic #267 are closed as superseded
+   by M16 (the way Epic #13 was), GitHub milestone #14 is retired, and the
+   `epic:m12-menu-analyzer` label stays on all three as history. The alternative —
+   keeping M12 as a deterministic, offline first cut — would have meant writing the dish
+   vocabulary §1.2 shows it lacks, which is the offline food table M15 shelved.
 2. **One consent switch, or two?** M16 reuses estimation's key and consent and adds a
    sentence to the disclosure. A user who wants menus but not meal estimates has no way
    to say so. *Recommendation: one switch now; split only if someone asks.*

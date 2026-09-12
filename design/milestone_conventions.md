@@ -26,9 +26,10 @@ post-MVP milestone begins when **its own entry conditions** — recorded in its 
 — are met.
 
 The MVP chain still gates everything: a post-MVP milestone may declare a blocking
-dependency on an MVP milestone (M12 Menu Analyzer is gated on M6 Keto Lens, whose
-OCR pipeline it extends), and §1.4's rule that a dependency may only point at an
-*earlier* milestone is unchanged.
+dependency on an MVP milestone (M16 AI Menu Scanner's photo mode is gated on M6 Keto
+Lens, whose OCR pipeline it reuses), and §1.4's rule that a dependency may only point at
+an *earlier* milestone is unchanged. That example used to name M12 Menu Analyzer, closed
+as superseded on 2026-09-12.
 
 | Milestone | Label | North Star |
 |---|---|---|
@@ -45,11 +46,11 @@ OCR pipeline it extends), and §1.4's rule that a dependency may only point at a
 | M9 | `epic:m9-biomarkers` | Ketone, glucose and weight logging with 30-day trends |
 | M10 | `epic:m10-recipe-converter` | Hebrew/English keto substitution engine, converter and saved-recipe library |
 | M11 | `epic:m11-directory` | Curated Israeli keto venue directory — search, filters, detail and map |
-| M12 | `epic:m12-menu-analyzer` | Menu OCR → per-dish keto verdicts and modification tips |
+| ~~M12~~ | `epic:m12-menu-analyzer` | ~~Menu OCR → per-dish keto verdicts and modification tips~~ — **closed 2026-09-12, superseded by M16**; milestone #14 retired |
 | M13 | `epic:m13-health-sync` | HealthKit body-weight read and macro write, iOS-only behind a platform seam |
 | M14 | `epic:m14-backup` | Portable JSON backup export and atomic restore |
 | M15 | `epic:m15-meal-entry` | Three ways to add a meal — typed, described, photographed — all landing in one editable form |
-| M16 | `epic:m16-menu-scanner` | A menu — pasted, or photographed page by page — comes back as green / modifiable-with-an-instruction / red per dish, with a *why*. **Supersedes M12** (`design/m16_menu_scanner_research.md` §1.1) |
+| M16 | `epic:m16-menu-scanner` | A menu — pasted, photographed page by page, or supplied as a PDF — comes back as green / modifiable-with-an-instruction / red per dish, with a *why*. **Superseded M12**, closed 2026-09-12 (`design/m16_menu_scanner_research.md` §1.1) |
 
 ### Scope Discipline
 
@@ -72,7 +73,7 @@ own milestone rather than a shared `epic:post-mvp` bucket — see §1.2 and
 | Biomarker logging (ketones, glucose, weight) | M9 | Not critical to first-week retention |
 | Recipe converter | M10 | Non-critical to core loop |
 | Restaurant directory | M11 | Requires manual content curation |
-| Menu analyzer (camera → dish extraction) | M12 | Extends M6's OCR pipeline; complexity deferred |
+| Menu analyzer (camera → dish extraction) | ~~M12~~ → M16 | Deferred out of the MVP as M12; M12 closed as superseded 2026-09-12 and M16 shipped the capability |
 | Apple Health / HealthKit integration | M13 | Requires entitlement review |
 | Backup & restore | M14 | Offline-first is sufficient for v1 |
 | App Store submission | `epic:release-v1` | **Ships the MVP** — see the note below |
@@ -120,7 +121,7 @@ One epic label per issue. These map directly to the milestone table above.
 | `epic:m9-biomarkers` | Biomarker model, store, entry sheet, trend chart, diary section |
 | `epic:m10-recipe-converter` | Substitution engine, converter screen, saved-recipe library |
 | `epic:m11-directory` | Directory data, reader, screen, detail sheet, map |
-| `epic:m12-menu-analyzer` | Menu dish extraction, per-dish verdicts, analyser screen |
+| `epic:m12-menu-analyzer` | ~~Menu dish extraction, per-dish verdicts, analyser screen~~ — **retired label, kept as history** on the three issues closed with M12 |
 | `epic:m13-health-sync` | HealthKit seam, body-weight read, macro write |
 | `epic:m14-backup` | Backup export, validated atomic restore |
 | `epic:m15-meal-entry` | Add-meal mode chooser, macro estimation, provenance |
