@@ -324,4 +324,20 @@ void main() {
       expect(HebrewMenuFixture.notAMenu, isNot(contains(' - ')));
     });
   });
+
+  group('RenderedMenuOcrFixture is a genuine capture', () {
+    final hebrewLetter = RegExp('[\u0590-\u05FF]');
+
+    // The whole value of this fixture is that an engine produced it, not a
+    // hand - this pins only that the capture is non-empty and Hebrew, never
+    // the exact corrupted text an engine version might read differently.
+    test('grill is non-empty and contains a Hebrew letter', () {
+      expect(RenderedMenuOcrFixture.grill.trim(), isNotEmpty);
+      expect(hebrewLetter.hasMatch(RenderedMenuOcrFixture.grill), isTrue);
+    });
+
+    test('grill is reachable through fixtures.dart alone', () {
+      expect(RenderedMenuOcrFixture.grill, isNotNull);
+    });
+  });
 }

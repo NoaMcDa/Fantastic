@@ -114,8 +114,8 @@ Salmon fillet grilled in butter and herbs, served with steamed vegetables
   /// A two-column menu typed column by column.
   ///
   /// This is the shape a real two-column layout has on the page — not what
-  /// OCR returns for it. `RealMenuOcrFixture` (#372) is where the flattened,
-  /// possibly-interleaved OCR shape belongs; this file never guesses at it.
+  /// OCR returns for it. `RenderedMenuOcrFixture` (#372) is where the
+  /// genuine engine-captured shape belongs; this file never guesses at it.
   static const String twoColumn = """
 ראשונות                          עיקריות
 סלט ירוק עם שמן זית ₪34           אנטריקוט צלוי ₪66

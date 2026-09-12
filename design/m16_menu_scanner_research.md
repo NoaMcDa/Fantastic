@@ -320,26 +320,51 @@ that curls. Three facts and one non-fact:
 
 - **The engine settings are pinned for a label.** `psm 4` ("a single column of text of
   variable sizes") was chosen because `psm 6` flattened a bordered table
-  (`design/m6_platform_handoff.md`). On a multi-column menu, `psm 4` reads across
-  columns and interleaves them; `psm 3` (automatic layout) is what Tesseract's own
-  documentation points at for columns. `TextRecognitionService.recognise` has no
-  segmentation parameter, and adding one touches all three adapters.
+  (`design/m6_platform_handoff.md`). `psm 3` (automatic layout) is what Tesseract's own
+  documentation points at for columns instead, but `TextRecognitionService.recognise` has
+  no segmentation parameter, and adding one touches all three adapters.
 - **The prompt is told the text may be interleaved.** A model that is told "this is OCR
   output of a possibly multi-column menu; lines from neighbouring columns may alternate;
   prices may be separated from their dish" recovers most of what `psm` would have kept.
   This is the cheap mitigation and it costs nothing to try first.
 - **`heb+eng` is already loaded**, which a bilingual Israeli menu needs and which M6 paid
   3.92 MB for.
-- **Nobody has measured any of this.** There is no menu in `test/fixtures/`, and no OCR
-  transcript of one. Issue 1 is where that changes, and it is the *first* issue in the
-  build order for the same reason `design/m6_platform_research.md` put the label corpus
-  first.
+- **It has now been measured once, and the interleaving guess above was wrong.**
+  Issue #372 rendered a two-section grill menu — each dish right-aligned, its price
+  left-aligned, on the same baseline, the shape a real Israeli menu prints — and ran it
+  through the app's exact `psm 4` / `heb+eng` / `user_defined_dpi=300` pipeline
+  (`test/fixtures/rendered_menu_ocr_fixture.dart`). **`psm 4` did not interleave the two
+  columns**: every price stayed on its own dish's output line, in the right reading
+  order, confirmed with `tesseract … tsv` word-box output. What it did instead is corrupt
+  the price digits themselves, on every row (`₪28`→`₪588`, `₪32`→`2`, `64 ש"ח`→`4 ש"ח`,
+  `58 ש"ח`→`8 ש"ח`) — not a new defect, but the already-known "the Hebrew model cannot
+  read an isolated column of Latin digits" (`design/m6_platform_handoff.md`) reappearing
+  on a menu's much wider price-margin gap.
 
-**If the corpus shows OCR is the bottleneck, the fix is the vision swap, not `psm`
-tuning.** A `VisionMenuAnalyzer` sends the page images through the `imageBase64` part
-`LlmChatClient` already has, needs no change to any adapter, and is selected in one
-provider — the OCP shape #312 made an invariant. It changes what leaves the device, so
-it changes the disclosure; §8's invariant says so.
+  **One dish name was corrupted too, and it is the more useful finding of the two.**
+  `סלט ירוק עם רוטב שמן זית ולימון` came back with `שמן` replaced by the Latin
+  token `Pow` — the `heb+eng` trade-off `CLAUDE.md` already documents, landing on a dish
+  name rather than on a macro row. The other four dish names and the wrapped description
+  came through unharmed. A corrupted price never reaches the parser's output at all
+  (`MenuResponseParser` has no price field), but a corrupted *word inside a dish name*
+  does — and this is the first evidence that the provenance rule survives one:
+  `nameOccursIn` needs a single qualifying word of the model's name to occur in the
+  source, and `סלט`, `ירוק`, `רוטב`, `זית` and `ולימון` all still do. #357
+  documented that rule as loose enough to survive one OCR-corrupted letter and could not
+  prove it; this capture proves it against a whole corrupted word. Because of that,
+  **this capture does not show OCR as the bottleneck for a dish/price row, and the
+  "columns may be interleaved" prompt mitigation is not shown insufficient by it** — it
+  stays in as a cheap safety net rather than becoming an urgent fix. It also does not clear the layout the mitigation's wording was actually written
+  for: a **side-by-side two-section menu** (two independent lists printed next to each
+  other, the shape `HebrewMenuFixture.twoColumn` types by hand), which #372 did not build
+  and which stays unmeasured.
+
+**If a corpus of that untested layout shows OCR is the bottleneck there, the fix is the
+vision swap, not `psm` tuning.** A `VisionMenuAnalyzer` sends the page images through the
+`imageBase64` part `LlmChatClient` already has, needs no change to any adapter, and is
+selected in one provider — the OCP shape #312 made an invariant. It changes what leaves
+the device, so it changes the disclosure; §8's invariant says so. **Nothing measured so
+far requires filing it.**
 
 ---
 

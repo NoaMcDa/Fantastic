@@ -16,6 +16,7 @@ export 'meal_estimate_fixture.dart';
 export 'menu_analysis_fixture.dart';
 export 'menu_reply_fixture.dart';
 export 'real_ocr_fixture.dart';
+export 'rendered_menu_ocr_fixture.dart';
 export 'streak_state_fixture.dart';
 export 'symptom_log_fixture.dart';
 export 'user_profile_fixture.dart';
