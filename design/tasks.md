@@ -526,21 +526,21 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] #325 Show provenance on a meal card so an estimate reads as an estimate
 - [ ] #326 Add three e2e flows and close out the docs (`mvp.md`'s offline claim, the privacy labels)
 
-### M16 — AI Menu Scanner (#351) — *ready: #352, #353 and #354 have no blocker; see `design/m16_menu_scanner_research.md`*
-- [ ] #352 Assemble a Hebrew menu corpus — ≥ 5 real transcripts and one verbatim Tesseract transcript of a photographed menu, as fixtures
-- [ ] #353 Add the menu domain — `DishVerdict`, `AnalysedDish`, sealed `MenuAnalysis`, `MenuAnalysisFailureReason`, `MenuPagesText`, the `MenuAnalyzer` interface
-- [ ] #354 Add `PhotoPicker.pickMultiple()` — the only change inside `keto_lens/` besides one chip row
-- [ ] #355 Lift the LLM transport seam to `lib/core/services/llm/`; add `maxOutputTokens` and `responseSchema` — *after #318*
-- [ ] #356 Add `MenuVerdictRules` (the three-state definitions the prompt and the legend share) and `MenuAnalysisPrompt`
-- [ ] #357 Implement `MenuResponseParser` — a yellow without an instruction and a dish the text does not contain both go to *unclassified*
-- [ ] #358 Implement `MenuPageReader` — sequential on-device OCR per page, unread pages reported
-- [ ] #359 Build `DishCard` — expandable; why; modification with a copy button
-- [ ] #360 Extend the estimation disclosure to name menu text — *after #321*
-- [ ] #361 Implement `RemoteMenuAnalyzer` — one request per menu, **never an image part**
-- [ ] #362 Build `MenuResultView` — green, yellow, a collapsed red group with a count, unclassified, unread pages
-- [ ] #364 Build `MenuScannerScreen` with the pasted-text mode, `/lens/menu` and the `תפריט` chip on the lens tab
-- [ ] #365 Build the photo pages mode — capture or import up to 8 pages, per-page progress
-- [ ] #366 Add two e2e flows and close out the docs (`technology.md` §6, `ui_ux_design.md` §7, `architecture.md`, `CLAUDE.md`)
+### M16 — AI Menu Scanner (#351) — *shipped; see `design/m16_menu_scanner_research.md`*
+- [x] #352 Assemble a Hebrew menu corpus — ≥ 5 real transcripts and one verbatim Tesseract transcript of a photographed menu, as fixtures
+- [x] #353 Add the menu domain — `DishVerdict`, `AnalysedDish`, sealed `MenuAnalysis`, `MenuAnalysisFailureReason`, `MenuPagesText`, the `MenuAnalyzer` interface
+- [x] #354 Add `PhotoPicker.pickMultiple()` — the only change inside `keto_lens/` besides one chip row
+- [x] #355 Lift the LLM transport seam to `lib/core/services/llm/`; add `maxOutputTokens` and `responseSchema` — *after #318*
+- [x] #356 Add `MenuVerdictRules` (the three-state definitions the prompt and the legend share) and `MenuAnalysisPrompt`
+- [x] #357 Implement `MenuResponseParser` — a yellow without an instruction and a dish the text does not contain both go to *unclassified*
+- [x] #358 Implement `MenuPageReader` — sequential on-device OCR per page, unread pages reported
+- [x] #359 Build `DishCard` — expandable; why; modification with a copy button
+- [x] #360 Extend the estimation disclosure to name menu text — *after #321*
+- [x] #361 Implement `RemoteMenuAnalyzer` — one request per menu, **never an image part**
+- [x] #362 Build `MenuResultView` — green, yellow, a collapsed red group with a count, unclassified, unread pages
+- [x] #364 Build `MenuScannerScreen` with the pasted-text mode, `/lens/menu` and the `תפריט` chip on the lens tab
+- [x] #365 Build the photo pages mode — capture or import up to 8 pages, per-page progress
+- [x] #366 Add two e2e flows and close out the docs (`technology.md` §6, `ui_ux_design.md` §7, `architecture.md`, `CLAUDE.md`) — a real photographed-menu OCR transcript (#372/#373) is the one honest gap left; see `design/m16_menu_scanner_research.md` §10
 
 ### Release v1.0 — App Store Launch (#270) — *ships the MVP; runs before M9*
 - [ ] Add Hebrew `App Store Connect` metadata (description, keywords, screenshots)

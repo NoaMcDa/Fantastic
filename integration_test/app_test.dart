@@ -4,6 +4,8 @@ import 'package:integration_test/integration_test.dart';
 import 'flows/grace_period_flow.dart' as grace_period;
 import 'flows/keto_lens_flow.dart' as keto_lens;
 import 'flows/meal_logging_flow.dart' as meal_logging;
+import 'flows/menu_photo_flow.dart' as menu_photo;
+import 'flows/menu_text_flow.dart' as menu_text;
 import 'flows/navigation_smoke_flow.dart' as navigation_smoke;
 import 'flows/onboarding_flow.dart' as onboarding;
 import 'flows/profile_flow.dart' as profile;
@@ -47,5 +49,15 @@ void main() {
   group('keto lens', keto_lens.main);
   group('grace period', grace_period.main);
   group('profile', profile.main);
+  group('menu text', menu_text.main);
+  group('menu photo', menu_photo.main);
+  // Last, deliberately: it leaves the app over a permanently-retrying
+  // broken store with no settle (`design/m8_preflight.md`), and riverpod 3's
+  // exponential backoff keeps scheduling frames after the test body itself
+  // returns. Every group before this one runs its own `bootApp` — a fresh
+  // container and a fresh widget tree — cleanly; a group placed *after* this
+  // one would start while that backoff was still firing into the outgoing
+  // tree, which is a `storage_failure_flow.dart` timing property, not
+  // something this issue's flows can fix from here.
   group('storage failure', storage_failure.main);
 }

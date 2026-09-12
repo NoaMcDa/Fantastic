@@ -2,7 +2,12 @@
 
 **Source:** the product owner's M16 request, quoted verbatim in §1 → rewritten as the
 **M16 Epic, #351** (milestone #19, label `epic:m16-menu-scanner`, issues #352–#366)
-**Status:** research complete, milestone filed. No code written.
+**Status:** shipped. All fourteen issues (#352–#366, not #363) are code-complete;
+`design/mvp_handoff.md`-style honest verified/not-verified line: **the pasted-text path
+and the photo-page path have both been driven end to end in the headless e2e suite
+(#366's `menu_text_flow.dart` and `menu_photo_flow.dart`), against a real `MenuAnalyzer`,
+`MenuPageReader`, prompt and parser on the photo side — but no real restaurant menu has
+ever been photographed or OCR'd.** §10 below has the full picture.
 **Read before:** picking up any M16 issue, and before touching M12 (#267, #121, #122),
 which this milestone supersedes — see §1.1 and §11.
 
@@ -665,6 +670,33 @@ being "a human imagined this OCR output".
 
 **No accuracy number is claimed anywhere in this document for the classifier this
 milestone builds.** None has been measured.
+
+### What #366 verified, and the one gap it did not close
+
+#366 closed the milestone with two end-to-end flows, driven headless through the real
+router, the real screens and — on the photo side — the real analyser:
+
+- **`menu_text_flow.dart`** drives the lens tab's `תפריט` chip → `/lens/menu` → paste →
+  analyse, against a fake `MenuAnalyzer`, and asserts the grouped result (green before
+  yellow, a collapsed red group with its count, an unclassified name reported) and every
+  reachable failure copy, including the offline retry and the notConfigured → Profile
+  path.
+- **`menu_photo_flow.dart`** is the stronger claim: `MenuAnalyzer` is **real**
+  (`RemoteMenuAnalyzer`), so the real `MenuPageReader`, the real `MenuAnalysisPrompt` and
+  the real `MenuResponseParser` all run. Only `PhotoPicker`, the camera (which fails on
+  its own, headless, the same way `keto_lens_flow.dart` relies on), `TextRecognitionService`
+  and `LlmChatClient` are faked. It asserts Epic #351's first invariant directly: the
+  recorded client call carries the page-1 recognised text, `imageBase64` is `null`, and
+  both `maxOutputTokens` and `responseSchema` are set.
+
+**What that does not close: no real restaurant menu has ever been photographed or
+OCR'd.** `HebrewMenuFixture.grill`, which the photo flow's fake `TextRecognitionService`
+returns for page 1, is a hand-typed transcript — the same distinction
+`design/m6_platform_handoff.md` draws for Keto Lens's own fixtures. #372 (a rendered-menu
+OCR capture, needing no camera) and #373 (a photographed real menu, needing a human with
+a phone) are the still-open work that would close it, and neither is built. Until one of
+them lands, "the photo path works" means "proven against fakes and a hand-typed
+transcript," not "proven against an engine reading a real, curled, glare-lit menu photo."
 
 ---
 
