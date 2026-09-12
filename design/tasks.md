@@ -499,10 +499,22 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] Build `RestaurantDetailSheet` — name, address, keto highlights, tips
 - [ ] Build `MapView` with keto pin markers and bottom card on tap
 
-### M10 — Recipe Converter (#265) — *ready now*
-- [ ] Define substitution rule engine with common Hebrew/English ingredient mappings
-- [ ] Build `RecipeConverterScreen` — paste input; side-by-side output. Scan input is now possible (M6 shipped) but stays out of M10's scope
-- [ ] Build `RecipeLibraryScreen` — saved converted recipes grid
+### M10 — Recipe Converter (#265) — *ready now; audited and re-planned in `design/m10_recipe_converter_research.md`*
+
+> The original three issues built a screen nothing could navigate to, from an engine whose
+> `AlreadyKeto` outcome had no table behind it. Rewritten in place and six issues added;
+> none closed. Issues 1–3 are the offline converter and the first shippable state; 6–7 the
+> opt-in model pass over M15's `LlmChatClient`; 8 is the one the owner may move out.
+
+- [ ] #393 Promote `HebrewTextNormaliser` to `lib/core/utils/` — zero behaviour change; **no final-form folding in the shared normaliser**
+- [ ] #118 Substitution engine — parser, four-variant sealed `IngredientOutcome`, substitution + staples tables in `lib/core/constants/`, consistency suite against `IngredientRules`
+- [ ] #119 `RecipeConverterScreen` — paste input, stacked per-line output, ratio applied to the quantity, **entry point on Home**
+- [ ] #395 `SavedRecipe`, `SavedRecipeRepository`, mapper, auto-increment `saved_recipes` store, contract suite
+- [ ] #120 `RecipeLibraryScreen` — list, reopen by `/recipe/saved/:id`, delete; save affordance on the converter
+- [ ] #394 Promote the `LlmChatClient` interface to `lib/core/llm/` — the OpenRouter stack stays in `diary/data/`
+- [ ] #396 `SubstitutionSuggester` — one request for the unrecognised lines only, on a tap, gated on `EstimationSettings.isEnabled`; every proposal checked against `IngredientRules`; `OutcomeSource.suggested` marker
+- [ ] #397 Per-serving macros via `MacroEstimator`; log a serving through `AddMealBottomSheet` as `estimatedFromText`
+- [ ] #398 `recipe_converter_flow.dart` (zero-request assertion included), the navigation smoke, the fixture, docs closeout
 
 ### M12 — Menu Analyzer (#267) — *ready: M6 shipped, issues re-spec'd against Tesseract*
 - [ ] Implement `MenuAnalyzerService` — OCR → dish extraction → keto suitability per dish, reusing M6's `TextRecognitionService` (Tesseract) and `IngredientVerdict`

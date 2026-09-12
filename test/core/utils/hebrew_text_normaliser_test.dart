@@ -1,4 +1,4 @@
-import 'package:fantastic/features/keto_lens/data/parsers/hebrew_text_normaliser.dart';
+import 'package:fantastic/core/utils/hebrew_text_normaliser.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

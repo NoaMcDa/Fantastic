@@ -12,7 +12,7 @@ import 'package:fantastic/features/onboarding/presentation/screens/onboarding_sc
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen3.dart';
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen4.dart';
 import 'package:fantastic/features/profile/presentation/screens/profile_screen.dart';
-import 'package:fantastic/features/recipe/presentation/recipe_placeholder.dart';
+import 'package:fantastic/features/recipe/presentation/screens/recipe_converter_screen.dart';
 import 'package:fantastic/features/restaurant/presentation/restaurant_placeholder.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -20,15 +20,18 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'app_router.g.dart';
 
-/// The 5 MVP tab routes, in tab-bar order.
+/// The 6 tab routes, in tab-bar order.
 ///
 /// Kept here (not duplicated elsewhere) so nothing outside this file
-/// hard-codes a route string, per the issue's Definition of Done.
+/// hard-codes a route string, per the issue's Definition of Done. Only the
+/// first 5 are MVP; `kRecipePath` (#119) is the first post-MVP tab,
+/// inserted before Profile — which stays last by platform convention.
 const List<String> kTabPaths = [
   '/',
   '/lens',
   '/diary',
   '/adaptation',
+  kRecipePath,
   kProfilePath,
 ];
 
@@ -38,6 +41,11 @@ const List<String> kTabPaths = [
 /// estimation failures that say "sort the key out" take the user there, and
 /// `kTabPaths` is a positional list rather than something to index by hand.
 const String kProfilePath = '/profile';
+
+/// The Recipe Converter tab's path (#119). Named for the same reason as
+/// [kProfilePath] — nothing outside this file should spell `/recipe` by
+/// hand.
+const String kRecipePath = '/recipe';
 
 /// Number of screens in the onboarding flow (#69–#72).
 const int kOnboardingStepCount = 4;
@@ -87,6 +95,13 @@ GoRouter appRouter(Ref ref) => GoRouter(
             GoRoute(path: 'phase', redirect: (_, _) => '/adaptation'),
           ],
         ),
+        // The sixth tab (#119) — moved inside the `ShellRoute` so it renders
+        // with the tab bar still on screen, unlike the deferred placeholders
+        // below. Inserted before `kProfilePath`, matching `kTabPaths`.
+        GoRoute(
+          path: kRecipePath,
+          builder: (_, _) => const RecipeConverterScreen(),
+        ),
         GoRoute(path: kProfilePath, builder: (_, _) => const ProfileScreen()),
       ],
     ),
@@ -97,7 +112,6 @@ GoRouter appRouter(Ref ref) => GoRouter(
       path: '/restaurants',
       builder: (_, _) => const RestaurantPlaceholder(),
     ),
-    GoRoute(path: '/recipe', builder: (_, _) => const RecipePlaceholder()),
     GoRoute(
       path: '/directory',
       builder: (_, _) => const DirectoryPlaceholder(),

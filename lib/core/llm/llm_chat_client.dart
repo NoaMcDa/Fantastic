@@ -22,7 +22,7 @@ abstract interface class LlmChatClient {
   /// **Takes no auth argument, deliberately.** A caller does not pass a key
   /// because a caller must not know there is one — that is what makes the
   /// backend swap invisible above this line. The implementation asks its own
-  /// [EstimationCredentials].
+  /// EstimationCredentials.
   Future<ChatResult> complete({
     required String systemPrompt,
     required String userPrompt,

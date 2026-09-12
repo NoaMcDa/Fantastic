@@ -69,7 +69,7 @@ void main() {
     expect(find.byType(DashboardScreen), findsOneWidget);
   });
 
-  testWidgets('every one of the 5 tab routes navigates without error', (
+  testWidgets('every one of the 6 tab routes navigates without error', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -87,6 +87,7 @@ void main() {
       '/lens': 'מצלמה',
       '/diary': 'יומן',
       '/adaptation': 'התאמה',
+      '/recipe': 'מתכונים',
       '/profile': 'פרופיל',
     };
 
@@ -122,7 +123,7 @@ void main() {
   });
 
   testWidgets(
-    'the 3 deferred-feature routes (outside the tab shell) render their '
+    'the 2 deferred-feature routes (outside the tab shell) render their '
     'placeholders',
     (tester) async {
       await tester.pumpWidget(
@@ -137,7 +138,6 @@ void main() {
 
       const routesAndLabels = {
         '/restaurants': 'מסעדות',
-        '/recipe': 'מתכונים',
         '/directory': 'ספרייה',
       };
 

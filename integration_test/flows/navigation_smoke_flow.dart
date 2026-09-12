@@ -10,7 +10,7 @@ import '../helpers/app_harness.dart';
 /// as an error state, so a screen can be thoroughly broken without anything
 /// being thrown. Each tab therefore asserts its own marker.
 void main() {
-  testWidgets('all five tabs open and render their own screen', (tester) async {
+  testWidgets('all six tabs open and render their own screen', (tester) async {
     await pumpApp(tester, await bootApp(onboarded: true));
 
     // Home is where the app starts.
@@ -33,6 +33,13 @@ void main() {
 
     await goToTab(tester, 'tab_adaptation');
     expect(find.widgetWithText(AppBar, 'מסע ההסתגלות'), findsOneWidget);
+
+    // #119's sixth tab. `goToTab` taps by `Key`, so a tab moving index is
+    // invisible to it — without an explicit hop here this flow would stay
+    // green while silently no longer covering a sixth of the tab bar
+    // (`design/user_bugs_handoff.md`).
+    await goToTab(tester, 'tab_recipe');
+    expect(find.byKey(const Key('recipe_paste_field')), findsOneWidget);
 
     await goToTab(tester, 'tab_profile');
     expect(find.text('פרופיל'), findsWidgets);
