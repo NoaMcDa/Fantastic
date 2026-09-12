@@ -105,13 +105,15 @@ Store names in `data/mappers/XxxMapper`. Every mapper has `toRecord(domain)`, `f
 **Fixtures:** `real_ocr_fixture.dart` auto-generated (never hand-edit); `test/fixtures/real_ocr_fixture.dart`. Regenerate with `tool/capture_ocr_fixtures.sh`. **No camera ever used, no accuracy claim.**
 
 **A menu analysis (M16, `lib/features/menu/`) is a different feature from a Keto Lens
-scan, and it does make one outbound call.** `MenuScannerScreen`'s photo mode reads each
-photographed page on the device with the same `TextRecognitionService` Keto Lens uses,
-then sends the recognised **text** — never the photograph — to a cloud model over M15's
-`LlmChatClient` seam. Pasted text skips OCR and goes straight to the same call. **A Keto
-Lens *scan* still sends nothing**: this does not relax Epic #10's no-network invariant,
-it adds a second, separate feature next to it — see `design/m16_menu_scanner_research.md`
-and its architectural-invariant note in the milestone table below.
+scan, and it does make one outbound call.** Three `MenuInputMode`s all end up as text
+sent over M15's `LlmChatClient` seam: pasted text skips OCR entirely; photographed pages
+read each page on the device with the same `TextRecognitionService` Keto Lens uses; a
+PDF is read by `PdfPageExtractor` (`PdfrxPageExtractor`, the only file importing `pdfrx`)
+— its text layer if present, else rasterised per page and OCR'd through the same
+pipeline. Only recognised/extracted **text** ever leaves the device, never an image or
+the PDF itself. **A Keto Lens *scan* still sends nothing**: this does not relax Epic
+#10's no-network invariant, it adds a second, separate feature next to it — see
+`design/m16_menu_scanner_research.md`.
 
 ## Keto Business Logic
 
