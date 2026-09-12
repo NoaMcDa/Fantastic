@@ -10,8 +10,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// **By id, never by `extra`.** A browser reload drops `extra` — it is not
 /// serialisable — which is exactly what `app_router.dart`'s onboarding route
 /// documents `extra` costing on a reload. Loading through
-/// [savedRecipeProvider] instead means `/recipe/saved/3` reopens the same
-/// recipe after a reload, not an empty converter.
+/// [savedRecipeProvider] instead means `/recipe/saved/3` opens the same
+/// recipe on a cold load, rather than an empty converter. **Verified in a
+/// browser** against a real IndexedDB store, not reasoned about.
+///
+/// One limit, measured rather than assumed: `context.push` does not write the
+/// address bar for a route pushed imperatively inside the `ShellRoute`, so
+/// after tapping through from the library the URL still reads `#/recipe` and a
+/// reload lands on the converter root. The deep link itself is sound — paste
+/// or share `#/recipe/saved/3` and it opens — but a reload is only
+/// recipe-preserving when the id reached the URL in the first place. Fixing
+/// that means `go` rather than `push`, which would cost the tab bar and the
+/// back affordance this route exists to keep.
 ///
 /// A missing, non-numeric or unknown id never crashes — it renders the same
 /// empty, usable converter a bad onboarding deep link gets, with a one-line

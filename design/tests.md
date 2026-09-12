@@ -222,7 +222,7 @@ void main() {
 }
 ```
 
-Apply the same pattern to: `DailyLogRepository`, `StreakRepository`, `SymptomLogRepository`, `BiomarkerLogRepository`, `RecipeRepository`.
+Apply the same pattern to: `DailyLogRepository`, `StreakRepository`, `SymptomLogRepository`, `BiomarkerLogRepository`, `SavedRecipeRepository`.
 
 ---
 

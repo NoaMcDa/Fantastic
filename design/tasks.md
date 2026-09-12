@@ -506,15 +506,15 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
 > none closed. Issues 1–3 are the offline converter and the first shippable state; 6–7 the
 > opt-in model pass over M15's `LlmChatClient`; 8 is the one the owner may move out.
 
-- [ ] #393 Promote `HebrewTextNormaliser` to `lib/core/utils/` — zero behaviour change; **no final-form folding in the shared normaliser**
-- [ ] #118 Substitution engine — parser, four-variant sealed `IngredientOutcome`, substitution + staples tables in `lib/core/constants/`, consistency suite against `IngredientRules`
-- [ ] #119 `RecipeConverterScreen` — paste input, stacked per-line output, ratio applied to the quantity, **entry point on Home**
-- [ ] #395 `SavedRecipe`, `SavedRecipeRepository`, mapper, auto-increment `saved_recipes` store, contract suite
-- [ ] #120 `RecipeLibraryScreen` — list, reopen by `/recipe/saved/:id`, delete; save affordance on the converter
-- [ ] #394 Promote the `LlmChatClient` interface to `lib/core/llm/` — the OpenRouter stack stays in `diary/data/`
-- [ ] #396 `SubstitutionSuggester` — one request for the unrecognised lines only, on a tap, gated on `EstimationSettings.isEnabled`; every proposal checked against `IngredientRules`; `OutcomeSource.suggested` marker
-- [ ] #397 Per-serving macros via `MacroEstimator`; log a serving through `AddMealBottomSheet` as `estimatedFromText`
-- [ ] #398 `recipe_converter_flow.dart` (zero-request assertion included), the navigation smoke, the fixture, docs closeout
+- [x] #393 Promote `HebrewTextNormaliser` to `lib/core/utils/` — zero behaviour change; **no final-form folding in the shared normaliser**
+- [x] #118 Substitution engine — parser, four-variant sealed `IngredientOutcome`, substitution + staples tables in `lib/core/constants/`, consistency suite against `IngredientRules`
+- [x] #119 `RecipeConverterScreen` — paste input, stacked per-line output, ratio applied to the quantity, **the sixth bottom tab** (the Home app-bar entry point once sketched here was rejected in favour of a tab; Profile moved to index 5)
+- [x] #395 `SavedRecipe`, `SavedRecipeRepository`, mapper, auto-increment `saved_recipes` store, contract suite
+- [x] #120 `RecipeLibraryScreen` — list, reopen by `/recipe/saved/:id`, delete; save affordance on the converter
+- [x] #394 Promote the `LlmChatClient` interface out of `diary/data/` — the OpenRouter stack stays behind. Landed in `lib/core/llm/`; M16 has since moved it to `lib/core/services/llm/`
+- [x] #396 `SubstitutionSuggester` — one request for the unrecognised lines only, on a tap, gated on `EstimationSettings.isEnabled`; every proposal checked against `IngredientRules`; `OutcomeSource.suggested` marker
+- [x] #397 Per-serving macros via `MacroEstimator`; log a serving through `AddMealBottomSheet` as `estimatedFromText`
+- [x] #398 `recipe_converter_flow.dart` (zero-request assertion included), the navigation smoke, the fixture, docs closeout
 
 ### M12 — Menu Analyzer (#267) — *superseded by M16 (#351); closure is the owner's call — do not pick up*
 - [ ] Implement `MenuAnalyzerService` — OCR → dish extraction → keto suitability per dish, reusing M6's `TextRecognitionService` (Tesseract) and `IngredientVerdict`

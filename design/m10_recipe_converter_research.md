@@ -2,9 +2,12 @@
 
 **Source:** Epic #265 and its three children #118, #119, #120, audited against
 the tree at `4225d30` (M15 closed).
-**Status:** research complete; issues rewritten and filed per §9.
-**Read before:** picking up any M10 issue, and before writing a substitution
-rule that nobody with a nutrition background has looked at.
+**Status:** **shipped.** All nine issues merged; Epic #265's DoD met. §12 records
+what shipped, what the audit's predictions got right and wrong, and what is
+still unverified.
+**Read before:** touching the converter, and before writing a substitution rule
+that nobody with a nutrition background has looked at — §10's warning has not
+expired, and the table shipped unreviewed.
 
 ---
 
@@ -789,6 +792,100 @@ rationale, #119's "side-by-side" and #120's "grid" layouts, #120's
    on?** *Recommendation: no — a tap, and only when unknown lines exist. A
    recipe with no unknown lines costs nothing, and a user should not spend a
    quota slot without meaning to.*
+
+---
+
+## 12. Closeout — what shipped, and what is still unverified
+
+M10 is complete: nine issues, six merge waves, Epic #265's DoD met.
+
+### What the audit got right
+
+Three of the seven predicted defects were real and would have shipped:
+
+1. **Nothing navigated to `/recipe`.** #119 was rewritten to make the converter
+   the sixth bottom tab; Profile moved from index 4 to 5. Without this the
+   milestone would have shipped a screen no user could reach — the failure
+   `design/user_bugs_handoff.md` recorded for the diary tab, repeated.
+2. **`AlreadyKeto` had no table to be drawn from.** A real Hebrew recipe came
+   back mostly `Unrecognised` until the 126-row staples table existed.
+3. **Final-form folding belongs inside the engine, not in
+   `HebrewTextNormaliser`.** Adding it to the shared normaliser would have
+   silently broken `IngredientClassifierImpl`'s `מלטודקסטרין` rule, which
+   matches `IngredientRules` on the *unfolded* form. Nothing would have failed
+   loudly.
+
+### What the audit did not see, and only building found
+
+- **Exact-match must be tried before whole-word match.** `קמח שקדים` (almond
+  flour, a staple) *begins with* `קמח` (a wheat-flour alias), so a
+  longest-whole-word-first matcher substitutes the replacement for itself.
+- **`MealListSection`'s `Dismissible` pattern does not restore a dismissed
+  row** — it never had a failing-delete case. `Dismissible` refuses a key it has
+  already dismissed, so a restore needs a per-id attempt counter in the key.
+- **The macros section mounts at the moment a `SnackBar` appears.** Saving the
+  recipe both shows `RecipeCopy.saved` and reveals `ערכים למנה`, so the control
+  a user reaches for next was 28 px inside the confirmation for the tap that
+  revealed it. `RecipeMacrosSection.snackBarClearance` fixes it, on the model of
+  `AddMealFab.bodyClearance`. Flutter's overflow diagnostic is assertion-based,
+  so only a debug widget test catches this class of defect — a release build in
+  a browser reports nothing.
+- **M16 landed mid-milestone and moved `LlmChatClient`** from `lib/core/llm/` to
+  `lib/core/services/llm/`, and widened `complete()` with `maxOutputTokens` and
+  `responseSchema`. Git auto-merged both files without complaint; `flutter
+  analyze` caught the widened signature as an `invalid_override` in #396's two
+  fake clients. A parallel milestone is a merge hazard the build order cannot
+  see.
+
+### Verified in a browser
+
+A release web build was driven through a genuine first launch (empty IndexedDB,
+all four onboarding screens) in headless Chromium, at 900x820:
+
+- The six-tab bar renders and `מתכונים` stays lit across `/recipe`,
+  `/recipe/library` and `/recipe/saved/:id` — the child-routes-inside-the-shell
+  guarantee, end to end.
+- All four outcome variants render **visually distinct**: a teal swap arrow, a
+  green tick, a red minus for `Flagged`, an amber question for `Unrecognised`.
+- **The ratio is applied**: `4 כוסות קמח תירס` becomes `0.5 כוסות קסנטן גאם`
+  (x0.125).
+- The results region scrolls, so rows below the fold are reachable.
+- `ערכים למנה` sits clear of the `המתכון נשמר` SnackBar.
+- **The estimation gate holds with the real credentials path**: no key seeded,
+  tapping estimate renders `הערכה אוטומטית לא מופעלת` plus the profile escape,
+  the conversion stays on screen, and **zero external requests** are made by the
+  page for the whole session.
+- **Persistence is real, checked by dumping IndexedDB directly** rather than by
+  trusting the UI: `saved_recipes` key 1 carries the full record immediately
+  after a save, and both the library and `#/recipe/saved/1` survive a cold load.
+- No console error on any screen.
+
+One process note worth more than the result: an intermediate run of this pass
+reported "the requested recipe was not found" on a deep link and an empty
+library after a reload, and both were **the test's fault, not the app's**. The
+save dialog's position depends on how many rows are on screen, so a coordinate
+tap calibrated on a five-line recipe misses the confirm button on a three-line
+one — nothing was ever saved, and the app was correctly reporting a missing id.
+*A coordinate-driven browser pass must screenshot-confirm the state it thinks it
+created before drawing a conclusion from what follows.*
+
+### What is NOT verified
+
+- **No nutrition professional has reviewed the substitution table.** It is an
+  unreviewed seed of 16 substitutions and 126 staples (§10), and §10's warning
+  has not expired. The consistency suite proves only that no replacement names
+  something `IngredientRules` forbids — not that any ratio is correct.
+- **No model has ever answered a suggestion request.** #396's path is covered by
+  unit, widget and e2e tests against fakes; no real key has been used, so the
+  prompt has never met a live model and the parser has never met a real reply.
+- **No real recipe from a real source has been pasted.** Every input tested was
+  written for the test, which is the same weakness `design/m6_handoff.md` warns
+  about for hand-written OCR fixtures.
+- **`context.push` does not write the address bar** for the two child routes, so
+  a reload after tapping through from the library lands on the converter root.
+  The deep link itself works. See `SavedRecipeLoader`'s doc comment.
+- Only **web** has been run. All six targets build on CI; nothing here has
+  executed on a phone or a desktop binary.
 
 ---
 

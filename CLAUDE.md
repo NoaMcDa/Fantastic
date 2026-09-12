@@ -246,11 +246,51 @@ Shared code (constants, utilities, theming) lives in `lib/core/`.
 | Menu Scanner (pasted-text / photo-pages, M16) | `lib/features/menu/` |
 | Adaptation phase & streak | `lib/features/adaptation/` |
 | Restaurant directory | `lib/features/restaurant/` |
-| Recipe converter | `lib/features/recipe/` |
+| Recipe converter (M10) | `lib/features/recipe/` |
 | Israeli keto directory | `lib/features/directory/` |
 
 The Profile tab has a screen (#310) and carries M15's estimation settings — the only
 place in the app that turns on sending anything anywhere.
+
+**The tab bar is six destinations, and `kTabPaths` is the only list of them**
+(`lib/core/router/app_router.dart`, with `AppShell._labels` beside it):
+`/` · `/lens` · `/diary` · `/adaptation` · `/recipe` · `/profile`. `מתכונים` (#119) is the
+sixth and the first post-MVP tab; the Profile tab moved from index 4 to 5 to make room.
+`design/ui_ux_design.md`'s diagram drew five and named one that was never built — when it
+and `kTabPaths` disagree, `kTabPaths` is right.
+
+**The recipe converter is deterministic first and a model second.** Paste a Hebrew
+ingredient list, tap `המירו לקטו`, and every non-blank line comes back as one of four
+outcomes from an offline rule table — `Substituted` (with the replacement's ratio applied
+to the quantity), `AlreadyKeto`, `Flagged` (remove it) or `Unrecognised`. Nothing is
+guessed and nothing is hidden: a line the table does not know says so rather than being
+dropped or waved through.
+
+| Pass | Where | What it does |
+|---|---|---|
+| The rule table | `SubstitutionRules` + `SubstitutionEngine` (`domain/`) | Offline, synchronous, no request. 16 substitutions and 126 staples |
+| The model (#396) | `LlmSubstitutionSuggester` behind `SubstitutionSuggester` | **Opt-in, behind a tap**, only `Unrecognised` lines, **names only** |
+
+Three rules the second pass is built around:
+
+- **Every model-proposed replacement is re-checked against `IngredientRules` at parse
+  time** and dropped if it names a forbidden seed oil or an insulin-spiking sweetener. A
+  converter that recommends what Keto Lens flags is the app contradicting itself.
+- **Every outcome it produces carries `OutcomeSource.suggested`** and renders a marker. A
+  clean claim from a model is not evidence either — the same reasoning as a scan's badge.
+- **It reuses M15's `EstimationSettings.isEnabled` gate**, so there is no second consent
+  surface, and `ProfileCopy.estimationDisclosure` names recipe lines: a user who consented
+  to sending meals did not consent to sending recipes.
+
+**Keto Lens's no-network invariant is untouched** — a scan still makes no request.
+
+**A recipe is a batch, not a meal** (#397). A saved recipe takes a servings count, and
+`RecipeMacrosSection` estimates the *converted* list once through `MacroEstimator`, divides
+by the servings, and hands **only the per-serving figures** to `AddMealBottomSheet` as
+`MacroSource.estimatedFromText`. The original recipe is never estimated — that would spend
+a request and a quota slot on a number nobody logs. `Flagged` and `Unrecognised` lines are
+excluded from the estimate and shown as unidentified, so their absence from the total is
+visible rather than silent.
 
 **A meal can be logged from the dashboard and from the diary, and both go through
 `AddMealFab`** (`lib/features/diary/presentation/widgets/add_meal_fab.dart`) — never a
@@ -337,6 +377,7 @@ in a named store, addressed by an `int` key.
 | `StreakState` — current/highest streak, phase, grace-period state | `streak_state` | `StreakStateMapper.singletonId` (0) |
 | `UserProfile` — sex, age, weight, height, goal, macro targets, keto start date | `user_profile` | `UserProfileMapper.singletonId` |
 | `EstimationSettings` — the user's own API key and the consent flag | `estimation_settings` | singleton |
+| `SavedRecipe` — title, original text, the converted outcomes, servings, per-serving macros | `saved_recipes` | sembast auto-increment |
 
 **Keying a one-record-per-day collection on its own date is what makes `save` an
 upsert.** Isar needed `@Index(unique: true)` plus the generated `putByDateIndex`
@@ -431,9 +472,11 @@ recognition via **Tesseract** — no network call is made during a scan, and Epi
 **M15's macro estimation is a different feature and does not relax that.** A
 scan still makes no request. Estimation is opt-in, needs the user's own key,
 and lives entirely behind `LlmChatClient`. The interface itself moved to
-`lib/core/llm/llm_chat_client.dart` (#394) once the recipe converter became
-its second consumer — a `lib/features/recipe/` file importing the diary
-feature's data layer would have been a cross-feature reach. The OpenRouter
+`lib/core/services/llm/llm_chat_client.dart` — out of the diary feature by
+#394, once the recipe converter became its second consumer (a
+`lib/features/recipe/` file importing the diary feature's data layer would
+have been a cross-feature reach), and into `services/` by M16, which made the
+menu analyzer its third. The OpenRouter
 implementation and its provider deliberately stay behind in
 `lib/features/diary/data/`, because they depend on the estimation-settings
 sembast store that belongs to the diary feature. See
@@ -760,7 +803,7 @@ repo-admin operation from a session.
 | M8 — CI & Integration | `epic:m8-ci-integration` | #95–#102, #150, #197, #199 | 11 — **1 open (#98)** |
 | Release v1.0 — App Store | `epic:release-v1` | #125–#128 | 4 |
 | M9 — Biomarker Logging | `epic:m9-biomarkers` | #103–#107 | 5 |
-| M10 — Recipe Converter | `epic:m10-recipe-converter` | #118–#120, #393–#398 | 9 — see `design/m10_recipe_converter_research.md` |
+| M10 — Recipe Converter | `epic:m10-recipe-converter` | #118–#120, #393–#398 | 9 — **complete** |
 | M11 — Restaurant Directory | `epic:m11-directory` | #111–#117 | 7 |
 | M12 — Menu Analyzer | `epic:m12-menu-analyzer` | #121–#122 | 2 — **superseded by M16, closure pending** |
 | M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |

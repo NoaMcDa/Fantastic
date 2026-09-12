@@ -101,13 +101,29 @@ lib/
 │   │   │   └── services/       # MenuAnalyzer (interface)
 │   │   └── data/           # MenuAnalysisPrompt, MenuResponseParser, provider wiring
 │   │
-│   ├── recipe/
-│   │   ├── presentation/   # RecipeConverterScreen, SubstitutionList, RecipeLibraryGrid
-│   │   ├── application/    # RecipeConverterService, providers
+│   ├── recipe/            # M10 — shipped
+│   │   ├── presentation/   # RecipeConverterScreen, RecipeLibraryScreen,
+│   │   │                   #   SavedRecipeLoader, IngredientOutcomeRow,
+│   │   │                   #   RecipeMacrosSection, SaveRecipeDialog
+│   │   ├── application/    # provider wiring only — the engine is pure domain
 │   │   ├── domain/
-│   │   │   ├── models/         # Recipe, Ingredient, SubstitutionRule
-│   │   │   └── repositories/   # RecipeRepository (interface)
-│   │   └── data/           # SembastRecipeRepository, SubstitutionRuleEngine
+│   │   │   ├── models/         # IngredientOutcome (sealed: Substituted |
+│   │   │   │                   #   AlreadyKeto | Flagged | Unrecognised),
+│   │   │   │                   #   ParsedIngredient, Substitution, SavedRecipe,
+│   │   │   │                   #   MacroTotals, OutcomeSource, SuggestionResult
+│   │   │   ├── services/       # SubstitutionSuggester (interface)
+│   │   │   ├── repositories/   # SavedRecipeRepository (interface)
+│   │   │   ├── SubstitutionEngine, IngredientLineParser,
+│   │   │   └── RecipeDescriptionBuilder
+│   │   └── data/           # SembastSavedRecipeRepository, SavedRecipeMapper,
+│   │                       #   LlmSubstitutionSuggester + prompt/parser
+│   │
+│   #  **The engine is `domain/`, not `data/`.** It is pure Dart over a const
+│   #  table in `lib/core/constants/substitution_rules.dart` — no store, no
+│   #  network, nothing to inject. `data/` here holds persistence and the
+│   #  model pass's transport, which is what that layer is for.
+│   #  `SubstitutionRuleEngine` in the original sketch was named for a
+│   #  `data/` class that was never built.
 │   │
 │   └── directory/          # (alias entry point — delegates to restaurant feature)
 │
@@ -291,8 +307,13 @@ Router: `go_router` with a `ShellRoute` wrapping the tab bar.
 /restaurants/:id        → RestaurantDetailSheet (modal)
 /restaurants/:id/menu   → still unbuilt — M11's directory does not exist yet;
                           `MenuScannerScreen` above is the shipped entry point
-/recipe                 → RecipeConverterScreen
-/recipe/library         → RecipeLibraryScreen
+/recipe                 → RecipeConverterScreen (M10 — shipped; the sixth
+                          TAB, `kRecipePath`, between /adaptation and /profile)
+/recipe/library         → RecipeLibraryScreen (child route, so the tab bar
+                          stays and the screen gains its own back affordance)
+/recipe/saved/:id       → SavedRecipeLoader → RecipeConverterScreen(initial:)
+                          By id, never by `extra`: a browser reload drops
+                          `extra`, so /recipe/saved/3 must survive one
 /profile                → ProfileScreen
 /settings               → SettingsScreen
 /onboarding             → OnboardingFlow (replaces root on first launch)
