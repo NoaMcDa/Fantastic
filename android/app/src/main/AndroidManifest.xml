@@ -1,4 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- M15's macro estimation and M16's menu analysis are the app's only
+         outbound calls, both over LlmChatClient. Flutter's template declares
+         INTERNET in the debug and profile overlays only, "required for
+         development" - so debug builds could reach the network and a release
+         build never could. Without it the socket is refused before a packet
+         leaves the device, and the refusal reaches the user as
+         "no internet" on a working connection: character for character the
+         symptom of #419, which took three issues to diagnose for exactly that
+         reason. A Keto Lens scan still makes no network call - Epic #10's
+         invariant is about what the scanner does, not about what the app is
+         permitted to do. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- Keto Lens. CAMERA is requested at run time by the `camera` plugin's
          own initialize() call, which is why permission_handler is not a
          dependency - design/m6_preflight.md 2.2. READ_MEDIA_IMAGES is the
