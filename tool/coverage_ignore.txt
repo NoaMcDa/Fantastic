@@ -40,3 +40,4 @@ lib/features/keto_lens/domain/services/ingredient_classifier.dart
 lib/features/keto_lens/domain/services/label_parser.dart
 lib/features/keto_lens/domain/services/macro_classifier.dart
 lib/features/diary/domain/services/macro_estimator.dart
+lib/features/recipe/domain/repositories/saved_recipe_repository.dart
