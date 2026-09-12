@@ -91,7 +91,15 @@ lib/
 │   │   ├── domain/
 │   │   │   ├── models/         # DirectoryEntry, DirectoryFilter
 │   │   │   └── repositories/   # DirectoryReader (interface)
-│   │   └── data/           # StaticJsonDirectorySource, MlKitMenuAnalyzer
+│   │   └── data/           # StaticJsonDirectorySource
+│   │
+│   ├── menu/                # M16 — pasted-text / photographed-page menu scanner
+│   │   ├── presentation/   # MenuScannerScreen, MenuPagesTab, MenuResultView, DishCard
+│   │   ├── application/    # MenuPageReader, RemoteMenuAnalyzer
+│   │   ├── domain/
+│   │   │   ├── models/         # MenuAnalysis, AnalysedDish, DishVerdict, MenuPagesText
+│   │   │   └── services/       # MenuAnalyzer (interface)
+│   │   └── data/           # MenuAnalysisPrompt, MenuResponseParser, provider wiring
 │   │
 │   ├── recipe/
 │   │   ├── presentation/   # RecipeConverterScreen, SubstitutionList, RecipeLibraryGrid
@@ -273,12 +281,16 @@ Router: `go_router` with a `ShellRoute` wrapping the tab bar.
 /                       → HomeScreen (Dashboard)
 /lens                   → CameraScreen
 /lens/result            → ResultSheet (modal)
+/lens/menu              → MenuScannerScreen (M16 — shipped; reached from the
+                          lens tab's `תפריט` chip, a child route so the lens
+                          tab stays lit)
 /diary                  → DiaryScreen
 /diary/:date            → DiaryDayScreen
 /adaptation             → PhaseDetailScreen (modal)
 /restaurants            → DirectoryScreen
 /restaurants/:id        → RestaurantDetailSheet (modal)
-/restaurants/:id/menu   → MenuAnalyzerScreen
+/restaurants/:id/menu   → still unbuilt — M11's directory does not exist yet;
+                          `MenuScannerScreen` above is the shipped entry point
 /recipe                 → RecipeConverterScreen
 /recipe/library         → RecipeLibraryScreen
 /profile                → ProfileScreen

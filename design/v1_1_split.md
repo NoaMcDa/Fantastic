@@ -340,6 +340,18 @@ again should create the label **and** the milestone in the same one-shot run.
 
 ---
 
+**Used a third time, for M16 AI Menu Scanner** (`design/m16_menu_scanner_research.md`): one
+workflow, pushed to `chore/m16-milestone-bootstrap`, created the `epic:m16-menu-scanner`
+label and milestone #19 in run `34647532997`, idempotently (a label
+or milestone that already exists is looked up, not re-created). Two things this pass found:
+the workflow can print the new milestone's number, which the session then reads from the job
+log with the Actions tooling and passes to every `issue_write`; and **the session cannot
+delete the throwaway branch** — `git push --delete` is refused by the egress policy (403) —
+so the workflow file was removed by a commit on that branch and the branch itself has to be
+deleted from the GitHub UI.
+
+---
+
 ## 7. Open item, out of scope
 
 The **Login epic (#206–#221)** carries `epic:login`, has **no GitHub milestone and

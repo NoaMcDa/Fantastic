@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:fantastic/core/llm/llm_chat_client.dart';
+import 'package:fantastic/core/services/llm/llm_chat_client.dart';
 import 'package:fantastic/features/diary/data/estimation/macro_estimation_prompt.dart';
 import 'package:fantastic/features/diary/data/estimation/remote_macro_estimator.dart';
 import 'package:fantastic/features/diary/domain/models/estimate_failure_reason.dart';

@@ -8,6 +8,8 @@ import 'flows/edit_meal_flow.dart' as edit_meal;
 import 'flows/grace_period_flow.dart' as grace_period;
 import 'flows/keto_lens_flow.dart' as keto_lens;
 import 'flows/meal_logging_flow.dart' as meal_logging;
+import 'flows/menu_photo_flow.dart' as menu_photo;
+import 'flows/menu_text_flow.dart' as menu_text;
 import 'flows/navigation_smoke_flow.dart' as navigation_smoke;
 import 'flows/onboarding_flow.dart' as onboarding;
 import 'flows/profile_flow.dart' as profile;
@@ -51,6 +53,16 @@ void main() {
   group('keto lens', keto_lens.main);
   group('grace period', grace_period.main);
   group('profile', profile.main);
+  group('menu text', menu_text.main);
+  group('menu photo', menu_photo.main);
+  // Position matters here. This flow leaves the app over a permanently
+  // retrying broken store with no settle (`design/m8_preflight.md`), and
+  // riverpod 3's exponential backoff keeps scheduling frames — and logging
+  // `provider failed:` lines — after the test body itself has returned. The
+  // groups after it do pass, but appending the two menu groups directly
+  // after it once produced a stack overflow out of that zombie backoff, so
+  // they sit above it. If a new group crashes for no reason it owns, try
+  // moving it above this line before looking anywhere else.
   group('storage failure', storage_failure.main);
   group('add meal — manual', add_meal_manual.main);
   group('add meal — description', add_meal_description.main);

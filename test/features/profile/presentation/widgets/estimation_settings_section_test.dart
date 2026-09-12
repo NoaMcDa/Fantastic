@@ -405,6 +405,26 @@ void main() {
     expect(find.byType(ExpansionTile), findsNothing);
   });
 
+  // #360: M16 sends the recognised text of a scanned menu through the same
+  // consent, and the disclosure must name it — a disclosure that omits a
+  // thing it sends is not a disclosure.
+  testWidgets('disclosure: names menu text as sent', (tester) async {
+    await pumpSection(tester);
+
+    expect(
+      find.textContaining('כשמנתחים תפריט מסעדה נשלח הטקסט שזוהה מהתפריט'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('disclosure: says menu photographs stay on the device', (
+    tester,
+  ) async {
+    await pumpSection(tester);
+
+    expect(find.textContaining('תמונות התפריט עצמן לא נשלחות'), findsOneWidget);
+  });
+
   testWidgets('the consent row keeps a 44pt minimum touch target', (
     tester,
   ) async {

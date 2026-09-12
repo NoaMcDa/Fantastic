@@ -10,6 +10,15 @@ abstract interface class PhotoPicker {
   /// Throws [PhotoPickerException] when the picker itself fails — most
   /// often a refused photo-library permission.
   Future<String?> pickFromGallery();
+
+  /// Returns the chosen images' paths, in the order the platform returned
+  /// them, truncated to [limit]. Empty if the user backed out.
+  ///
+  /// [limit] is enforced here, in Dart, because `image_picker`'s own limit
+  /// is not honoured on every platform.
+  ///
+  /// Throws [PhotoPickerException] when the picker itself fails.
+  Future<List<String>> pickMultiple({required int limit});
 }
 
 /// Thrown when the picker could not run.

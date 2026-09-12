@@ -30,6 +30,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../../fixtures/fixtures.dart';
+import '../../../../helpers/pump_app.dart';
 
 class _MockMealLoggingService extends Mock implements MealLoggingService {}
 
@@ -342,6 +343,56 @@ void main() {
     await pumpDashboard(tester, log: DailyLogFixture.fixture(date: today()));
 
     expect(tester.takeException(), isNull);
+  });
+
+  // #409: the symptom strip's own suite already pumps it at 320px and
+  // passes (`symptom_check_in_strip_test.dart:472`) — it gives the strip
+  // the whole viewport. `DashboardScreen` never does: `SliverPadding`'s
+  // `EdgeInsets.all(16)`, the `Card`'s own margin and the strip's own
+  // internal padding all come out of the width before the strip's header
+  // `Row` ever sees it, so only pumping the *whole* screen — this
+  // composition, not the strip alone — can catch what the strip's suite
+  // cannot see.
+  //
+  // `pumpApp` (not this file's own `pumpDashboard`) is deliberate: with no
+  // repository overrides, every read throws — there is no database in a
+  // widget test — which puts the header `Row` in its widest state, the
+  // failed-read message rendered next to the title. That is exactly the
+  // state #409 was filed against, reproduced verbatim with Flutter
+  // 3.47.3's own overflow diagnostic before the fix:
+  //
+  //   A RenderFlex overflowed by 82 pixels on the right.
+  //   ...Row:.../symptom_check_in_strip.dart:53:22
+  group('#409 regression — the strip does not overflow once composed', () {
+    testWidgets('renders at 320px with no overflow', (tester) async {
+      tester.view.physicalSize = const Size(320, 700);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await pumpApp(tester, const DashboardScreen());
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(tester.takeException(), isNull);
+    });
+
+    // A fix that only satisfies 320px and breaks a wider layout is itself a
+    // regression — #409's own Testing Requirements calls this out by name.
+    // 360/390 are the next two common phone widths up from 320; 1024 is a
+    // tablet.
+    for (final width in [360.0, 390.0, 1024.0]) {
+      testWidgets('renders at ${width.toInt()}px with no overflow', (
+        tester,
+      ) async {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        await pumpApp(tester, const DashboardScreen());
+        await tester.pump(const Duration(seconds: 1));
+
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 
   // #64 completed the dashboard's adaptation row and closed the last gap

@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:fantastic/core/llm/llm_chat_client.dart';
-import 'package:fantastic/features/diary/data/estimation/estimation_credentials.dart';
-import 'package:fantastic/features/diary/data/estimation/open_router_client.dart';
+import 'package:fantastic/core/services/llm/llm_chat_client.dart';
+import 'package:fantastic/core/services/llm/llm_credentials.dart';
+import 'package:fantastic/core/services/llm/open_router_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -11,7 +11,7 @@ import 'package:http/testing.dart';
 /// A fixed token, so a test can search every produced value for it.
 const _token = 'sk-or-v1-SECRET-DO-NOT-LEAK';
 
-class _FixedCredentials implements EstimationCredentials {
+class _FixedCredentials implements LlmCredentials {
   const _FixedCredentials(this._token);
   final String? _token;
 
@@ -58,11 +58,15 @@ void main() {
     OpenRouterClient client, {
     String? imageBase64,
     String? imageMediaType,
+    int? maxOutputTokens,
+    Map<String, Object?>? responseSchema,
   }) => client.complete(
     systemPrompt: 'system',
     userPrompt: 'סלט טונה',
     imageBase64: imageBase64,
     imageMediaType: imageMediaType,
+    maxOutputTokens: maxOutputTokens,
+    responseSchema: responseSchema,
   );
 
   Map<String, Object?> bodyOf(http.Request request) =>
@@ -154,6 +158,69 @@ void main() {
 
       final user = (bodyOf(sent.single)['messages']! as List).last as Map;
       expect(user['content'], hasLength(1));
+    });
+  });
+
+  // #355's two additive parameters: needed by a 60-dish menu, harmless to a
+  // meal, and never relied on by the parser regardless of what is sent.
+  group('the two additive parameters', () {
+    test(
+      'neither given omits max_tokens and keeps the json_object fallback',
+      () async {
+        final client = clientThat((_) => http.Response(okBody('{}'), 200));
+        await complete(client);
+
+        final body = bodyOf(sent.single);
+        expect(body.containsKey('max_tokens'), isFalse);
+        expect(body['response_format'], {'type': 'json_object'});
+      },
+    );
+
+    test('maxOutputTokens is sent as max_tokens', () async {
+      final client = clientThat((_) => http.Response(okBody('{}'), 200));
+      await complete(client, maxOutputTokens: 4096);
+
+      expect(bodyOf(sent.single)['max_tokens'], 4096);
+    });
+
+    test(
+      'responseSchema requests a strict json_schema response carrying it',
+      () async {
+        final client = clientThat((_) => http.Response(okBody('{}'), 200));
+        const schema = {
+          'type': 'object',
+          'properties': {
+            'dishes': {'type': 'array'},
+          },
+        };
+        await complete(client, responseSchema: schema);
+
+        final format = bodyOf(sent.single)['response_format']! as Map;
+        expect(format['type'], 'json_schema');
+        final jsonSchema = format['json_schema']! as Map;
+        expect(jsonSchema['strict'], isTrue);
+        expect(jsonSchema['schema'], schema);
+      },
+    );
+
+    test('a responseSchema and an image coexist in one request', () async {
+      final client = clientThat((_) => http.Response(okBody('{}'), 200));
+      const schema = {'type': 'object'};
+      await complete(
+        client,
+        imageBase64: 'QUJD',
+        imageMediaType: 'image/png',
+        responseSchema: schema,
+      );
+
+      final body = bodyOf(sent.single);
+      final format = body['response_format']! as Map;
+      expect(format['type'], 'json_schema');
+
+      final user = (body['messages']! as List).last as Map;
+      final parts = user['content']! as List;
+      final images = parts.where((p) => (p as Map)['type'] == 'image_url');
+      expect(images, hasLength(1));
     });
   });
 
