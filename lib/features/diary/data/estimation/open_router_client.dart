@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:fantastic/core/llm/llm_chat_client.dart';
 import 'package:fantastic/features/diary/data/estimation/estimation_credentials.dart';
-import 'package:fantastic/features/diary/data/estimation/llm_chat_client.dart';
 import 'package:http/http.dart' as http;
 
 /// [LlmChatClient] against OpenRouter.

@@ -426,7 +426,13 @@ recognition via **Tesseract** — no network call is made during a scan, and Epi
 
 **M15's macro estimation is a different feature and does not relax that.** A
 scan still makes no request. Estimation is opt-in, needs the user's own key,
-and lives entirely behind `LlmChatClient` — named in exactly two files. See
+and lives entirely behind `LlmChatClient`. The interface itself moved to
+`lib/core/llm/llm_chat_client.dart` (#394) once the recipe converter became
+its second consumer — a `lib/features/recipe/` file importing the diary
+feature's data layer would have been a cross-feature reach. The OpenRouter
+implementation and its provider deliberately stay behind in
+`lib/features/diary/data/`, because they depend on the estimation-settings
+sembast store that belongs to the diary feature. See
 `design/m15_meal_entry_research.md` §4 and `design/technology.md`.
 
 **ML Kit was removed, and the reason matters: it has no Hebrew script model.**
