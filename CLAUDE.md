@@ -144,8 +144,13 @@ support structured outputs or the strict schema fails validation** — a 4xx rea
 `json_object` request on the same client kept working. `OpenRouterClient.complete` now
 falls back once to `json_object` on 400/404/422 (never on 401/403/429/5xx, never without a
 schema), and `MenuAnalysisPrompt.schema` is strict-mode valid (all properties required,
-`additionalProperties: false`, `description`/`modification` typed `string | null`). See
-`design/m16_structured_output_fix.md`.
+`additionalProperties: false`, `description`/`modification` typed `string | null`). The
+provider's HTTP status now rides `ChatFailed.statusCode` → `MenuAnalysisFailed.statusCode`
+→ a small line under the menu failure headline, and `tool/openrouter_probe.sh` sends the
+three request shapes live from a machine that can reach the host — this session cannot.
+**The pinned model is `dots-studio/dots-3-note-preview:free` at the owner's decision**
+(32 s on the real M15 prompt in #414's measurement, inside the 120 s timeout; `nex` is
+now the first fallback). See `design/m16_structured_output_fix.md`.
 
 ## Keto Business Logic
 

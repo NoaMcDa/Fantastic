@@ -107,8 +107,9 @@ class RemoteMenuAnalyzer implements MenuAnalyzer {
         MenuResponseParser.parse(content, sourceText: source),
         pages,
       ),
-      ChatFailed(:final reason) => MenuAnalysisFailed(
+      ChatFailed(:final reason, :final statusCode) => MenuAnalysisFailed(
         reason: _reasonFor(reason),
+        statusCode: statusCode,
       ),
     };
   }

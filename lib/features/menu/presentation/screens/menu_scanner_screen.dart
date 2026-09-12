@@ -213,7 +213,7 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
       );
     }
 
-    final failure = result is MenuAnalysisFailed ? result.reason : null;
+    final failure = result is MenuAnalysisFailed ? result : null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -262,7 +262,7 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
     ];
   }
 
-  List<Widget> _buildPhotoTab(MenuAnalysisFailureReason? failure) => [
+  List<Widget> _buildPhotoTab(MenuAnalysisFailed? failure) => [
     // Mounted for the whole time the photo tab is selected — including
     // while `_analysing` is true and while a failure is shown below it — so
     // its own collected pages are never rebuilt away. That is what makes
@@ -282,14 +282,14 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
     if (failure != null) ...[
       const SizedBox(height: 16),
       _FailureView(
-        reason: failure,
+        failure: failure,
         onRetry: () => _analysePages(_lastPages),
         onProfile: _openProfile,
       ),
     ],
   ];
 
-  List<Widget> _buildTextTab(MenuAnalysisFailureReason? failure) => [
+  List<Widget> _buildTextTab(MenuAnalysisFailed? failure) => [
     TextField(
       key: const Key('menu_text_field'),
       controller: _text,
@@ -309,11 +309,15 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
     ],
     if (failure != null) ...[
       const SizedBox(height: 16),
-      _FailureView(reason: failure, onRetry: _analyse, onProfile: _openProfile),
+      _FailureView(
+        failure: failure,
+        onRetry: _analyse,
+        onProfile: _openProfile,
+      ),
     ],
   ];
 
-  List<Widget> _buildPdfTab(MenuAnalysisFailureReason? failure) => [
+  List<Widget> _buildPdfTab(MenuAnalysisFailed? failure) => [
     MenuPdfTab(onAnalyse: _analysePdf, analysing: _analysing),
     if (_analysing) ...[
       const SizedBox(height: 16),
@@ -324,7 +328,7 @@ class _MenuScannerScreenState extends ConsumerState<MenuScannerScreen> {
     if (failure != null) ...[
       const SizedBox(height: 16),
       _FailureView(
-        reason: failure,
+        failure: failure,
         onRetry: () => _analysePdf(_lastPdfPath!),
         onProfile: _openProfile,
       ),
@@ -670,14 +674,16 @@ class _AnalysingIndicator extends StatelessWidget {
 /// `נתחו` again" — the field above this widget is never hidden or cleared.
 class _FailureView extends StatelessWidget {
   const _FailureView({
-    required this.reason,
+    required this.failure,
     required this.onRetry,
     required this.onProfile,
   });
 
-  final MenuAnalysisFailureReason reason;
+  final MenuAnalysisFailed failure;
   final VoidCallback onRetry;
   final VoidCallback onProfile;
+
+  MenuAnalysisFailureReason get reason => failure.reason;
 
   bool get _offersProfile =>
       reason == MenuAnalysisFailureReason.notConfigured ||
@@ -703,6 +709,16 @@ class _FailureView extends StatelessWidget {
           key: const Key('menu_failure_advice'),
           style: theme.textTheme.bodySmall,
         ),
+        if (failure.statusCode case final code?) ...[
+          const SizedBox(height: 4),
+          Text(
+            MenuCopy.failedStatusCode(code),
+            key: const Key('menu_failure_status'),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
         if (reason.isRetryable) ...[
           const SizedBox(height: 12),
           OutlinedButton(
