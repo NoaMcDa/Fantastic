@@ -2,13 +2,9 @@ name: CI
 
 on:
   pull_request:
-    # `branches:` filters the BASE branch, so without the M16 entry a PR from an
-    # issue branch into the milestone's integration branch triggers nothing at
-    # all - no verify, no e2e flows - and the first real gate would be the
-    # 13-issue PR to main. Reverted by that PR; `main` never carries this.
-    branches: [main, feat/m16-menu-scanner]
+    branches: [main]
   push:
-    branches: [main, feat/m16-menu-scanner]
+    branches: [main]
   workflow_dispatch:
 
 # A newer push to the same PR makes the in-flight run obsolete. Cancel it, but

@@ -1,6 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'flows/add_meal_description_flow.dart' as add_meal_description;
+import 'flows/add_meal_manual_flow.dart' as add_meal_manual;
+import 'flows/add_meal_photo_flow.dart' as add_meal_photo;
+import 'flows/edit_meal_flow.dart' as edit_meal;
 import 'flows/grace_period_flow.dart' as grace_period;
 import 'flows/keto_lens_flow.dart' as keto_lens;
 import 'flows/meal_logging_flow.dart' as meal_logging;
@@ -51,13 +55,17 @@ void main() {
   group('profile', profile.main);
   group('menu text', menu_text.main);
   group('menu photo', menu_photo.main);
-  // Last, deliberately: it leaves the app over a permanently-retrying
-  // broken store with no settle (`design/m8_preflight.md`), and riverpod 3's
-  // exponential backoff keeps scheduling frames after the test body itself
-  // returns. Every group before this one runs its own `bootApp` — a fresh
-  // container and a fresh widget tree — cleanly; a group placed *after* this
-  // one would start while that backoff was still firing into the outgoing
-  // tree, which is a `storage_failure_flow.dart` timing property, not
-  // something this issue's flows can fix from here.
+  // Position matters here. This flow leaves the app over a permanently
+  // retrying broken store with no settle (`design/m8_preflight.md`), and
+  // riverpod 3's exponential backoff keeps scheduling frames — and logging
+  // `provider failed:` lines — after the test body itself has returned. The
+  // groups after it do pass, but appending the two menu groups directly
+  // after it once produced a stack overflow out of that zombie backoff, so
+  // they sit above it. If a new group crashes for no reason it owns, try
+  // moving it above this line before looking anywhere else.
   group('storage failure', storage_failure.main);
+  group('add meal — manual', add_meal_manual.main);
+  group('add meal — description', add_meal_description.main);
+  group('add meal — photo', add_meal_photo.main);
+  group('edit meal', edit_meal.main);
 }

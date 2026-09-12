@@ -512,19 +512,31 @@ Status: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] Implement versioned JSON backup export (destination decision: platform-neutral share/download vs iOS-only iCloud)
 - [ ] Implement validated, atomic import/restore from a backup file
 
-### M15 — Meal Entry (#312) — *ready: #315, #316, #317 and #322 have no blocker*
-- [ ] #315 Add `MacroSource` to `MealEntry` + mapper + contract tests, decoding a pre-M15 record as `manual`
-- [ ] #316 Add the sealed `MealEstimate` and the `MacroEstimator` interface
-- [ ] #317 Store the BYOK API key and consent flag in their own `estimation_settings` store — **never in `user_profile`**, whose record existence is the first-launch sentinel
-- [ ] #318 Add `OpenRouterClient` with typed transport failures and an injected `http.Client`
-- [ ] #319 Implement `RemoteMacroEstimator` for a Hebrew description — prompt, tolerant parse, `NumericInput.positiveFinite` on every returned number
-- [ ] #320 Extend it to a meal photograph — downscale, re-encode, cap, base64
-- [ ] #321 Add the estimation settings screen: key field, disclosure, masked key, state line
-- [ ] #322 Put a three-mode chooser behind `AddMealFab` — inside the FAB, so both hosts get it
-- [ ] #323 Build the description mode — itemised editable review, one failure copy per reason
-- [ ] #324 Build the photo mode — **label OCR first**, estimate second, `imageRef` attached
-- [ ] #325 Show provenance on a meal card so an estimate reads as an estimate
-- [ ] #326 Add three e2e flows and close out the docs (`mvp.md`'s offline claim, the privacy labels)
+### M15 — Meal Entry (#312) — **shipped**
+- [x] #315 Add `MacroSource` to `MealEntry` + mapper + contract tests, decoding a pre-M15 record as `manual`
+- [x] #316 Add the sealed `MealEstimate` and the `MacroEstimator` interface
+- [x] #317 Store the BYOK API key and consent flag in their own `estimation_settings` store — **never in `user_profile`**, whose record existence is the first-launch sentinel
+- [x] #318 Add `OpenRouterClient` with typed transport failures and an injected `http.Client`
+- [x] #319 Implement `RemoteMacroEstimator` for a Hebrew description — prompt, tolerant parse, `NumericInput.positiveFinite` on every returned number
+- [x] #320 Extend it to a meal photograph — downscale, re-encode, cap, base64
+- [x] #321 Add the estimation settings section: key field, disclosure, masked key, state line — the screen itself had already shipped in #310
+- [x] #322 Put a three-mode chooser behind `AddMealFab` — inside the FAB, so both hosts get it
+- [x] #323 Build the description mode — itemised editable review, one failure copy per reason
+- [x] #324 Build the photo mode — **label OCR first**, estimate second, `imageRef` attached
+- [x] #325 Show provenance on a meal card so an estimate reads as an estimate
+- [x] #326 Add **four** e2e flows and close out the docs (`mvp.md`'s offline claim, the privacy labels) — the issue said three; the edit route needed one of its own
+
+- [x] #327 Add `MealLoggingService.updateMeal`, recalculating both days a moved meal touches
+- [x] #328 Let a saved meal be edited from its card, re-sourcing corrected macros to `manual`
+
+**What M15 changed, in one line each.** A `+` now asks *how* before *what*,
+from both hosts. A meal can be described in Hebrew or photographed. A
+photograph is read as a **label first** and estimated only when that fails,
+so the free offline path is never skipped. Every estimate is reviewed item by
+item before it is saved, and what the review shows is what gets logged. A
+meal carries where its macros came from, and can be corrected after saving —
+which re-sources it to `manual`, because a badge that keeps calling a
+human-corrected figure a guess is a badge people learn to ignore.
 
 ### M16 — AI Menu Scanner (#351) — *shipped; see `design/m16_menu_scanner_research.md`*
 - [x] #352 Assemble a Hebrew menu corpus — ≥ 5 real transcripts and one verbatim Tesseract transcript of a photographed menu, as fixtures

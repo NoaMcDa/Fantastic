@@ -24,9 +24,22 @@ import 'package:flutter/material.dart';
 /// the UI can tell "nothing here is bad" from "nothing here was readable".
 /// Same problem, different screen.
 class MealCard extends StatelessWidget {
-  const MealCard({required this.meal, super.key});
+  const MealCard({required this.meal, this.onTap, super.key});
 
   final MealEntry meal;
+
+  /// Called when the card is tapped, with nothing — the host already holds
+  /// [meal].
+  ///
+  /// Optional, and a callback rather than a provider read, so this widget
+  /// stays a `StatelessWidget` over its entry with no `ref`: it can still be
+  /// shown from a list, a detail view or a test with no override, and every
+  /// existing call site compiles unchanged.
+  ///
+  /// A tap does not fight the `Dismissible` the list wraps these in. A
+  /// horizontal drag is the delete gesture, a tap is the edit gesture, and
+  /// `meal_card_test.dart` asserts both still work.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +48,7 @@ class MealCard extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
+        onTap: onTap,
         title: Text(meal.mealName),
         subtitle: _Subtitle(meal: meal, summary: _macroSummary),
         trailing: Text(

@@ -178,7 +178,12 @@ Build in this sequence — each milestone is shippable to TestFlight.
 
 ## Definition of Done for MVP
 
-- All 5 core features work offline on an iPhone 12 or newer
+- All 5 core features work offline on an iPhone 12 or newer. **M15 does not
+  change this**: manual entry, Keto Lens, the tracker, the streak and the
+  diary all still work with the radio off. M15's macro estimation is an
+  **optional enhancement** that needs a network and the user's own API key,
+  it is off until they turn it on, and every one of its failures — offline
+  included — lands them in the manual form with what they typed intact
 - Hebrew OCR correctly classifies ≥ 80% of tested Israeli products
 - Streak state machine handles all edge cases (timezone changes, grace period expiry)
 - No data loss on app restart or device reboot

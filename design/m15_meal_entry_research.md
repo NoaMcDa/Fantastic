@@ -1,7 +1,10 @@
 # M15 — Meal Entry: research, pre-flight, and the milestone plan
 
 **Source issue:** #312 → rewritten as the **M15 Epic**
-**Status:** research complete, milestone filed. No code written.
+**Status:** **shipped.** All twelve issues plus #327 and #328 are merged; the
+four e2e flows are green in the `e2e flows` job. This document's research and
+pre-flight sections are kept as written — they record what was measured before
+the code existed, and §10 below records what shipping did and did not verify.
 **Read before:** picking up any M15 issue, and before trusting any number the
 app produces for a meal it did not read off a label.
 
@@ -519,3 +522,43 @@ different approach and a different dataset.
 - Israeli National Nutrition Database (מאגר התזונה הלאומי הישראלי) — <https://data.gov.il/dataset/nutrition-database> *(unreachable from this session; see §5)*
 - Israeli Ministry of Health, food-service databases — <https://www.health.gov.il/UnitsOffice/HD/PH/FCS/Pages/DataBases.aspx>
 - Open Food Facts data, API and SDKs — <https://world.openfoodfacts.org/data>
+
+---
+
+## 11. What shipping M15 measured, and what it did not
+
+Added at closure, so the "not verified" line stays honest rather than
+inheriting the pre-flight's optimism.
+
+**Verified.**
+
+- The three modes are reachable from the `+` on **both** hosts, driven end to
+  end by `add_meal_manual_flow.dart`. That separation is deliberate: the first
+  defect a real user hit was the diary telling them to tap a `+` it did not
+  have.
+- **The label is read before any network call.** `add_meal_photo_flow.dart`
+  asserts the estimator fake was called **zero** times when the scan
+  succeeded. That is the OCR-first rule, and this is the only place it is
+  checked end to end.
+- The review list's total is what reaches the form, after a removal, rounded
+  to one decimal — `0.17999999999999988` cannot reach a field.
+- An unidentified token is rendered, never dropped.
+- A saved estimate carries `MacroSource`, the card shows it, correcting a
+  macro clears it and correcting only the name does not.
+- Tap-to-edit and swipe-to-delete coexist on the same card.
+- `MealEntry.imageRef` is written for the first time since M1.
+
+**Not verified, and not claimed.**
+
+- **No real model has ever answered.** Every test and every flow fakes
+  `MacroEstimator` at the interface — the suite makes no network call by
+  construction. Nothing here measures how good an estimate actually is, and
+  the accuracy argument in §3 is still the only thing that bounds it.
+- **No camera and no gallery.** `MealPhotoSource` is faked everywhere. The
+  capture path has never run against a real picker on any platform.
+- **No photograph has ever been sent.** `MealPhotoPrep` is unit-tested against
+  generated bitmaps; no phone photo has been through it.
+- **The BYOK key has never been used against the live provider.** The
+  credentials, the transport and the prompt are all tested against fakes.
+- The quota argument (50 requests/day per key) is taken from OpenRouter's
+  published free tier and has not been observed.
