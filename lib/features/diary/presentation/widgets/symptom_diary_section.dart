@@ -4,6 +4,7 @@ import 'package:fantastic/features/diary/domain/models/symptom_log.dart';
 import 'package:fantastic/features/diary/presentation/physical_symptom_copy.dart';
 import 'package:fantastic/features/diary/presentation/symptom_scale.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_log_sheet.dart';
+import 'package:fantastic/core/widgets/app_illustration.dart';
 import 'package:fantastic/core/widgets/empty_state_widget.dart';
 import 'package:fantastic/features/diary/presentation/widgets/symptom_diary_skeleton.dart';
 import 'package:flutter/material.dart';
@@ -71,6 +72,9 @@ class _Empty extends StatelessWidget {
     // Already this feature's symptom iconography — see
     // `symptom_check_in_strip.dart`.
     icon: Icons.healing_outlined,
+    illustration: UnrecordedScalesIllustration(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    ),
     // `ui_ux_design.md`'s empty-state line, minus its "today": this screen
     // renders any past day.
     headline: 'לא הוקלטו תסמינים',

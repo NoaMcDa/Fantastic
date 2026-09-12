@@ -14,6 +14,7 @@ class EmptyStateWidget extends StatelessWidget {
   const EmptyStateWidget({
     required this.icon,
     required this.headline,
+    this.illustration,
     this.subtitle,
     this.action,
     super.key,
@@ -21,7 +22,20 @@ class EmptyStateWidget extends StatelessWidget {
 
   /// Decorative. The text beside it already carries the meaning, so it is
   /// excluded from semantics rather than announced twice.
+  ///
+  /// Used when [illustration] is null, and still the right choice for an
+  /// empty state that has no drawing of its own — the profile screen's, for
+  /// one. [icon] stays required so every call site names a fallback rather
+  /// than rendering nothing if its illustration is ever dropped.
   final IconData icon;
+
+  /// Drawn in place of [icon] when given.
+  ///
+  /// A [Widget] rather than a named illustration so this stays composition
+  /// only: `lib/core/widgets/` may not know what a meal or a symptom is.
+  /// Callers pass the muted colour in, so the drawing follows the theme the
+  /// same way the icon does.
+  final Widget? illustration;
 
   /// What is absent. One line, stated plainly.
   final String headline;
@@ -65,7 +79,13 @@ class EmptyStateWidget extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: _iconSize, color: mutedColor, semanticLabel: null),
+            illustration ??
+                Icon(
+                  icon,
+                  size: _iconSize,
+                  color: mutedColor,
+                  semanticLabel: null,
+                ),
             const SizedBox(height: _gapAfterIcon),
             Text(
               headline,
