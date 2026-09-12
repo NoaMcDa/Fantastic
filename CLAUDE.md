@@ -137,6 +137,16 @@ the PDF itself. **A Keto Lens *scan* still sends nothing**: this does not relax 
 #10's no-network invariant, it adds a second, separate feature next to it — see
 `design/m16_menu_scanner_research.md`.
 
+**A menu analysis is the only request that asks for a `json_schema` response format, and
+the gateway refuses that request before any model sees it when the endpoint does not
+support structured outputs or the strict schema fails validation** — a 4xx read as
+`badResponse` ("הניתוח נכשל") on every input mode, instantly, while Daily Intake's
+`json_object` request on the same client kept working. `OpenRouterClient.complete` now
+falls back once to `json_object` on 400/404/422 (never on 401/403/429/5xx, never without a
+schema), and `MenuAnalysisPrompt.schema` is strict-mode valid (all properties required,
+`additionalProperties: false`, `description`/`modification` typed `string | null`). See
+`design/m16_structured_output_fix.md`.
+
 ## Keto Business Logic
 
 **Keto Ratio:** `Fat / (NetCarbs + Protein)` | **Net Carbs:** `TotalCarbs − Fiber`

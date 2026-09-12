@@ -34,8 +34,11 @@ abstract interface class LlmChatClient {
     int? maxOutputTokens,
 
     /// A JSON Schema the reply should conform to. Sent as a structured-output
-    /// request where the provider supports it and as a hint elsewhere; a
-    /// caller must parse defensively regardless.
+    /// request where the provider supports it; where the provider refuses
+    /// that request **the implementation falls back to a plain JSON-object
+    /// request on its own** rather than reporting a failure, so a caller
+    /// never learns whether the schema was enforced and must parse
+    /// defensively regardless.
     Map<String, Object?>? responseSchema,
   });
 }

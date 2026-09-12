@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:fantastic/core/constants/menu_verdict_rules.dart';
 import 'package:fantastic/features/menu/data/analysis/menu_analysis_prompt.dart';
 import 'package:fantastic/features/menu/domain/models/dish_verdict.dart';
@@ -34,6 +36,15 @@ void main() {
     test('states that modification is required only for modifiable dishes', () {
       expect(MenuAnalysisPrompt.system, contains('modification'));
       expect(MenuAnalysisPrompt.system, contains(DishVerdict.modifiable.name));
+    });
+
+    test('tells the model the two optional fields are null when absent', () {
+      // Strict mode makes `description` and `modification` required keys, so
+      // the prompt has to say what goes there when a dish has neither —
+      // otherwise the model invents a modification for a green dish.
+      expect(MenuAnalysisPrompt.system, contains('"modification"'));
+      expect(MenuAnalysisPrompt.system, contains('"description"'));
+      expect(MenuAnalysisPrompt.system, contains('null'));
     });
 
     test('states the menu text is data, not instruction', () {
@@ -132,16 +143,60 @@ void main() {
       expect(verdictEnum, DishVerdict.values.map((v) => v.name).toList());
     });
 
-    test('marks name, verdict and why as required on a dish', () {
+    // Strict-mode validators (`design/m16_structured_output_fix.md`) refuse
+    // a schema with an optional property or an open object before any model
+    // sees the request; these three tests are the shape that passes them.
+    test('lists every dish property as required, in strict-mode form', () {
       final schema = MenuAnalysisPrompt.schema;
       final properties = schema['properties'] as Map<String, Object?>;
       final dishes = properties['dishes'] as Map<String, Object?>;
       final items = dishes['items'] as Map<String, Object?>;
+      final itemProperties = items['properties'] as Map<String, Object?>;
       final required = items['required'] as List<Object?>;
 
-      expect(required, containsAll(<String>['name', 'verdict', 'why']));
-      expect(required, isNot(contains('description')));
-      expect(required, isNot(contains('modification')));
+      expect(required, unorderedEquals(itemProperties.keys));
+      expect(
+        required,
+        containsAll(<String>[
+          'name',
+          'description',
+          'verdict',
+          'why',
+          'modification',
+        ]),
+      );
+    });
+
+    test('types description and modification as string or null', () {
+      final schema = MenuAnalysisPrompt.schema;
+      final properties = schema['properties'] as Map<String, Object?>;
+      final dishes = properties['dishes'] as Map<String, Object?>;
+      final items = dishes['items'] as Map<String, Object?>;
+      final itemProperties = items['properties'] as Map<String, Object?>;
+
+      for (final field in ['description', 'modification']) {
+        final spec = itemProperties[field] as Map<String, Object?>;
+        expect(spec['type'], ['string', 'null'], reason: field);
+      }
+      // The three fields a dish cannot lack stay plain strings.
+      for (final field in ['name', 'verdict', 'why']) {
+        final spec = itemProperties[field] as Map<String, Object?>;
+        expect(spec['type'], 'string', reason: field);
+      }
+    });
+
+    test('closes both objects with additionalProperties false', () {
+      final schema = MenuAnalysisPrompt.schema;
+      expect(schema['additionalProperties'], isFalse);
+
+      final properties = schema['properties'] as Map<String, Object?>;
+      final dishes = properties['dishes'] as Map<String, Object?>;
+      final items = dishes['items'] as Map<String, Object?>;
+      expect(items['additionalProperties'], isFalse);
+    });
+
+    test('is JSON-encodable as sent over the wire', () {
+      expect(() => jsonEncode(MenuAnalysisPrompt.schema), returnsNormally);
     });
 
     test('unclassified is an array of strings', () {

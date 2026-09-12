@@ -224,6 +224,134 @@ void main() {
     });
   });
 
+  // The fallback behind `design/m16_structured_output_fix.md`: a `json_schema`
+  // request the gateway refuses is re-sent once as the `json_object` request
+  // M15 has been verified live with. This is the branch the menu scanner
+  // died on across all three input modes while the meal estimator, which
+  // never sends a schema, worked.
+  group('the structured-output fallback', () {
+    const schema = {
+      'type': 'object',
+      'properties': {
+        'dishes': {'type': 'array'},
+      },
+    };
+
+    /// Answers the first request with [firstStatus] and every later one
+    /// with a good body.
+    OpenRouterClient refusingFirst(int firstStatus) => clientThat(
+      (_) => http.Response(
+        sent.length == 1 ? 'unsupported' : okBody('{"dishes":[]}'),
+        sent.length == 1 ? firstStatus : 200,
+      ),
+    );
+
+    for (final status in [400, 404, 422]) {
+      test(
+        'a $status on a json_schema request is retried as json_object',
+        () async {
+          final result = await complete(
+            refusingFirst(status),
+            responseSchema: schema,
+            maxOutputTokens: 6000,
+          );
+
+          expect(result, const ChatSucceeded('{"dishes":[]}'));
+          expect(sent, hasLength(2));
+
+          final first = bodyOf(sent.first);
+          final second = bodyOf(sent.last);
+          expect((first['response_format']! as Map)['type'], 'json_schema');
+          expect(second['response_format'], {'type': 'json_object'});
+
+          // Only `response_format` changes: the same prompts, the same model,
+          // the same token budget, the same temperature.
+          expect(second['messages'], first['messages']);
+          expect(second['model'], first['model']);
+          expect(second['max_tokens'], 6000);
+          expect(second['temperature'], 0);
+          expect(sent.last.headers['Authorization'], 'Bearer $_token');
+        },
+      );
+    }
+
+    test('a request without a schema is never retried', () async {
+      final result = await complete(refusingFirst(400));
+
+      expect(result, const ChatFailed(ChatFailureReason.badResponse));
+      expect(sent, hasLength(1));
+    });
+
+    // A key, a quota and a provider outage are not questions about the
+    // request's shape, and a second request answers none of them — the
+    // 429 case in particular is one the class promises never to retry.
+    for (final entry in {
+      401: ChatFailureReason.unauthorised,
+      403: ChatFailureReason.unauthorised,
+      429: ChatFailureReason.rateLimited,
+      500: ChatFailureReason.badResponse,
+      503: ChatFailureReason.badResponse,
+    }.entries) {
+      test('a ${entry.key} on a json_schema request is not retried', () async {
+        final result = await complete(
+          refusingFirst(entry.key),
+          responseSchema: schema,
+        );
+
+        expect(result, ChatFailed(entry.value));
+        expect(sent, hasLength(1));
+      });
+    }
+
+    test('a fallback that is refused too is badResponse after exactly two '
+        'requests', () async {
+      final client = clientThat((_) => http.Response('no', 400));
+
+      final result = await complete(client, responseSchema: schema);
+
+      expect(result, const ChatFailed(ChatFailureReason.badResponse));
+      expect(sent, hasLength(2));
+    });
+
+    test(
+      'a fallback answered 401 is unauthorised, 429 is rateLimited',
+      () async {
+        for (final entry in {
+          401: ChatFailureReason.unauthorised,
+          429: ChatFailureReason.rateLimited,
+        }.entries) {
+          sent = [];
+          final client = clientThat(
+            (_) => http.Response('no', sent.length == 1 ? 400 : entry.key),
+          );
+
+          expect(
+            await complete(client, responseSchema: schema),
+            ChatFailed(entry.value),
+          );
+          expect(sent, hasLength(2));
+        }
+      },
+    );
+
+    test('a json_schema request that succeeds is sent exactly once', () async {
+      final client = clientThat((_) => http.Response(okBody('{"a":1}'), 200));
+
+      await complete(client, responseSchema: schema);
+
+      expect(sent, hasLength(1));
+    });
+
+    test('rejectsRequestShape names exactly 400, 404 and 422', () {
+      for (final status in [400, 404, 422]) {
+        expect(OpenRouterClient.rejectsRequestShape(status), isTrue);
+      }
+      for (final status in [200, 401, 403, 429, 500, 503]) {
+        expect(OpenRouterClient.rejectsRequestShape(status), isFalse);
+      }
+    });
+  });
+
   group('failure mapping', () {
     // Every status branch, named. This class is almost entirely error
     // handling, so a gap here is an untested failure path in front of a user.
