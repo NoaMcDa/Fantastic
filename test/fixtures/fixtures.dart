@@ -11,6 +11,7 @@ export 'hebrew_label_fixture.dart';
 export 'meal_entry_fixture.dart';
 export 'macro_verdict_fixture.dart';
 export 'meal_estimate_fixture.dart';
+export 'photographed_menu_ocr_fixture.dart';
 export 'real_ocr_fixture.dart';
 export 'streak_state_fixture.dart';
 export 'symptom_log_fixture.dart';
