@@ -18,6 +18,7 @@ export 'menu_analysis_fixture.dart';
 export 'menu_reply_fixture.dart';
 export 'photographed_menu_ocr_fixture.dart';
 export 'real_ocr_fixture.dart';
+export 'recipe_fixture.dart';
 export 'rendered_menu_ocr_fixture.dart';
 export 'saved_recipe_fixture.dart';
 export 'streak_state_fixture.dart';
