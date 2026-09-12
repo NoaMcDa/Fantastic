@@ -85,4 +85,58 @@ abstract final class MenuCopy {
     final allButLast = pages.sublist(0, pages.length - 1).join(', ');
     return '$allButLast ו-${pages.last}';
   }
+
+  // --- MenuScannerScreen (#364) ---
+
+  /// The screen's app-bar title.
+  static const String scannerTitle = 'ניתוח תפריט';
+
+  /// The two input-mode tab labels. `photoPagesTab` names the mode #365
+  /// wires up; until then it renders [photoTabComingSoon].
+  static const String pasteTextTab = 'הדביקו טקסט';
+  static const String photoPagesTab = 'צלמו עמודים';
+
+  /// The photo tab's whole body until #365 replaces it — the reason this
+  /// issue can ship the text mode on its own.
+  static const String photoTabComingSoon = 'בקרוב';
+
+  static const String textFieldHint = 'הדביקו כאן את הטקסט של התפריט';
+
+  static const String analyseButton = 'נתחו';
+
+  /// The analysing state's label. Always paired with the indicator
+  /// (`Key('menu_analysing')`) — never an indicator alone, per
+  /// `design/m6_handoff.md`'s labelled-progress rule.
+  static const String analysingLabel = 'מנתח את התפריט…';
+
+  /// Leaves a result and returns to input, with the pasted text kept.
+  static const String analyseAnotherMenu = 'נתחו תפריט אחר';
+
+  /// A headline per `MenuAnalysisFailureReason` — research §7's table.
+  /// `emptyInput`'s is unreachable (the button is disabled on blank text)
+  /// and worded anyway, so an unhandled case is a compile error rather than
+  /// a blank headline.
+  static const String failedEmptyInputHeadline = 'לא הודבק טקסט לניתוח';
+  static const String failedOcrUnavailableHeadline = 'הסורק לא זמין במכשיר הזה';
+  static const String failedNoTextFoundHeadline = 'לא זוהה טקסט בתמונות';
+  static const String failedNotConfiguredHeadline = 'ניתוח תפריטים לא מופעל';
+  static const String failedOfflineHeadline = 'אין חיבור לאינטרנט';
+  static const String failedRateLimitedHeadline = 'חרגתם ממכסת הבקשות היומית';
+  static const String failedUnauthorisedHeadline = 'המפתח נדחה';
+  static const String failedBadResponseHeadline = 'הניתוח נכשל';
+  static const String failedNoDishesFoundHeadline = 'לא זוהו מנות בתפריט';
+
+  /// The "way out" beneath each headline above, in the same order.
+  static const String adviceEmptyInput = 'יש להדביק טקסט לפני הניתוח.';
+  static const String adviceOcrUnavailable =
+      'הדביקו את טקסט התפריט בלשונית "הדביקו טקסט" במקום.';
+  static const String adviceNoTextFound =
+      'צלמו שוב את העמודים, או הדביקו את הטקסט של התפריט.';
+  static const String adviceNotConfigured =
+      'הפעילו ניתוח תפריטים בפרופיל כדי להמשיך.';
+  static const String adviceOffline =
+      'בדקו את החיבור לאינטרנט ונסו שוב. הטקסט שהדבקתם נשמר.';
+  static const String adviceUnauthorised = 'בדקו את המפתח שהוזן בפרופיל.';
+  static const String adviceBadResponse = 'נסו שוב.';
+  static const String adviceNoDishesFound = 'ערכו את הטקסט ונסו שוב.';
 }
