@@ -13,6 +13,7 @@ import 'flows/menu_text_flow.dart' as menu_text;
 import 'flows/navigation_smoke_flow.dart' as navigation_smoke;
 import 'flows/onboarding_flow.dart' as onboarding;
 import 'flows/profile_flow.dart' as profile;
+import 'flows/recipe_converter_flow.dart' as recipe_converter;
 import 'flows/storage_failure_flow.dart' as storage_failure;
 import 'flows/streak_flow.dart' as streak;
 import 'flows/symptom_diary_flow.dart' as symptom_diary;
@@ -55,6 +56,7 @@ void main() {
   group('profile', profile.main);
   group('menu text', menu_text.main);
   group('menu photo', menu_photo.main);
+  group('recipe converter', recipe_converter.main);
   // Position matters here. This flow leaves the app over a permanently
   // retrying broken store with no settle (`design/m8_preflight.md`), and
   // riverpod 3's exponential backoff keeps scheduling frames — and logging
