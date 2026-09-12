@@ -99,6 +99,7 @@ connection. `ref.onDispose` still frees it when the container goes. See
 | StreakState | `streak_state` | singleton (0) |
 | UserProfile | `user_profile` | singleton |
 | EstimationSettings | `estimation_settings` | singleton |
+| SavedRecipe | `saved_recipes` | auto-increment |
 
 **Codec rules:** (enforced by mapper tests)
 - `DateTime` → `millisecondsSinceEpoch` (never string)
@@ -201,7 +202,7 @@ Per `design/tests.md`:
 | M8 — CI & Integration | `epic:m8-ci-integration` | #95–#102, #150, #197, #199 | 11 — **1 open (#98)** |
 | Release v1.0 — App Store | `epic:release-v1` | #125–#128 | 4 |
 | M9 — Biomarker Logging | `epic:m9-biomarkers` | #103–#107 | 5 |
-| M10 — Recipe Converter | `epic:m10-recipe-converter` | #118–#120, #393–#398 | 9 — see `design/m10_recipe_converter_research.md` |
+| M10 — Recipe Converter | `epic:m10-recipe-converter` | #118–#120, #393–#398 | 9 — **complete** (see `design/m10_recipe_converter_research.md` §12) |
 | M11 — Restaurant Directory | `epic:m11-directory` | #111–#117 | 7 |
 | ~~M12 — Menu Analyzer~~ | `epic:m12-menu-analyzer` | ~~#121–#122~~ | **closed — superseded by M16**; milestone #14 retired |
 | M13 — Apple Health Sync | `epic:m13-health-sync` | #108–#110 | 3 |

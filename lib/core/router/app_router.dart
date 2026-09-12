@@ -14,6 +14,8 @@ import 'package:fantastic/features/onboarding/presentation/screens/onboarding_sc
 import 'package:fantastic/features/onboarding/presentation/screens/onboarding_screen4.dart';
 import 'package:fantastic/features/profile/presentation/screens/profile_screen.dart';
 import 'package:fantastic/features/recipe/presentation/screens/recipe_converter_screen.dart';
+import 'package:fantastic/features/recipe/presentation/screens/recipe_library_screen.dart';
+import 'package:fantastic/features/recipe/presentation/screens/saved_recipe_loader.dart';
 import 'package:fantastic/features/restaurant/presentation/restaurant_placeholder.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -119,6 +121,28 @@ GoRouter appRouter(Ref ref) => GoRouter(
         GoRoute(
           path: kRecipePath,
           builder: (_, _) => const RecipeConverterScreen(),
+          routes: [
+            // Both children are relative paths — `'library'`, not
+            // `'/library'` — and both stay inside the `ShellRoute` as a
+            // result, mirroring `/adaptation`'s `phase` child. A leading
+            // slash would make either top-level and lose the tab bar.
+            // `AppShell.activeIndexForLocation` matches on
+            // `startsWith('/recipe')`, so both light the recipe tab with no
+            // change to that method — see `app_shell_test.dart`.
+            GoRoute(
+              path: 'library',
+              builder: (_, _) => const RecipeLibraryScreen(),
+            ),
+            GoRoute(
+              path: 'saved/:id',
+              // A missing or non-numeric id becomes null here, never a
+              // throw — `SavedRecipeLoader` renders the empty converter
+              // with a notice rather than crashing on a bad deep link.
+              builder: (_, state) => SavedRecipeLoader(
+                id: int.tryParse(state.pathParameters['id'] ?? ''),
+              ),
+            ),
+          ],
         ),
         GoRoute(path: kProfilePath, builder: (_, _) => const ProfileScreen()),
       ],

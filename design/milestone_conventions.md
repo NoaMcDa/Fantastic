@@ -44,7 +44,7 @@ as superseded on 2026-09-12.
 | M8 | `epic:m8-ci-integration` | Integration test suite, GitHub Actions CI workflow, coverage gate |
 | Release v1.0 | `epic:release-v1` | App Store metadata, privacy labels, TestFlight beta, submission. **Ships the MVP** — runs on M0–M8's schedule, before M9 |
 | M9 | `epic:m9-biomarkers` | Ketone, glucose and weight logging with 30-day trends |
-| M10 | `epic:m10-recipe-converter` | Hebrew/English keto substitution engine, converter and saved-recipe library |
+| M10 | `epic:m10-recipe-converter` | Paste a recipe and get it back line by line — each ingredient fine, swapped with its adjusted quantity and a reason, flagged to leave out, or honestly marked unknown; an opt-in model pass for the unknown lines; and a serving loggable as a meal. Every answer says where it came from |
 | M11 | `epic:m11-directory` | Curated Israeli keto venue directory — search, filters, detail and map |
 | ~~M12~~ | `epic:m12-menu-analyzer` | ~~Menu OCR → per-dish keto verdicts and modification tips~~ — **closed 2026-09-12, superseded by M16**; milestone #14 retired |
 | M13 | `epic:m13-health-sync` | HealthKit body-weight read and macro write, iOS-only behind a platform seam |
@@ -71,7 +71,7 @@ own milestone rather than a shared `epic:post-mvp` bucket — see §1.2 and
 | Capability | Milestone | Rationale for deferral |
 |---|---|---|
 | Biomarker logging (ketones, glucose, weight) | M9 | Not critical to first-week retention |
-| Recipe converter | M10 | Non-critical to core loop |
+| Recipe converter | M10 | Non-critical to core loop — though #397 ties it to one: a serving of a converted recipe logs as a meal |
 | Restaurant directory | M11 | Requires manual content curation |
 | Menu analyzer (camera → dish extraction) | ~~M12~~ → M16 | Deferred out of the MVP as M12; M12 closed as superseded 2026-09-12 and M16 shipped the capability |
 | Apple Health / HealthKit integration | M13 | Requires entitlement review |

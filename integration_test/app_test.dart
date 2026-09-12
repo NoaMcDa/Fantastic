@@ -15,6 +15,7 @@ import 'flows/menu_text_flow.dart' as menu_text;
 import 'flows/navigation_smoke_flow.dart' as navigation_smoke;
 import 'flows/onboarding_flow.dart' as onboarding;
 import 'flows/profile_flow.dart' as profile;
+import 'flows/recipe_converter_flow.dart' as recipe_converter;
 import 'flows/storage_failure_flow.dart' as storage_failure;
 import 'flows/streak_flow.dart' as streak;
 import 'flows/symptom_diary_flow.dart' as symptom_diary;
@@ -57,6 +58,7 @@ void main() {
   group('profile', profile.main);
   group('menu text', menu_text.main);
   group('menu photo', menu_photo.main);
+  group('recipe converter', recipe_converter.main);
   group('menu pdf', menu_pdf.main);
   // Above `storage failure` deliberately, per the note below: this one drives
   // a real HTTP round trip through the real provider graph, and giving it a

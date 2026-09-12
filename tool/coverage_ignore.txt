@@ -42,5 +42,6 @@ lib/features/keto_lens/domain/services/macro_classifier.dart
 lib/features/diary/domain/services/macro_estimator.dart
 lib/features/menu/domain/services/menu_analyzer.dart
 lib/features/recipe/domain/repositories/saved_recipe_repository.dart
+lib/features/recipe/domain/services/substitution_suggester.dart
 # `PdfPageExtractor` — method signatures only, no bodies (#405).
 lib/features/menu/domain/services/pdf_page_extractor.dart

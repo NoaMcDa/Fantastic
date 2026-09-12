@@ -26,14 +26,30 @@
 
 ## App Structure
 
-Tab bar (bottom, 5 items):
+Tab bar (bottom, 6 items):
 
 ```
-[ מצלמה ]  [ יומן ]  [ בית ]  [ מסעדות ]  [ פרופיל ]
- Lens       Diary    Home    Directory   Profile
+index    0        1         2        3         4          5
+       [ בית ]  [ מצלמה ]  [ יומן ]  [ התאמה ]  [ מתכונים ]  [ פרופיל ]
+        Home     Lens      Diary    Adaptation  Recipes     Profile
 ```
 
-Home is the default tab.
+Home is index 0 and the default tab. Listed in `kTabPaths` index order, which
+is what `AppShell` renders and what every `Key('tab_*')` finder addresses — the
+bar itself is RTL, so index 0 paints **rightmost** on screen.
+
+**This diagram was wrong in two independent ways until M10 corrected it**, and
+both were the same mistake: it drew the plan rather than the app.
+
+- It listed `מסעדות` (Directory), which has never been built — M11 is still
+  open. A designer reading it would have laid out a tab that does not exist.
+- It omitted `התאמה` (Adaptation), which shipped in M3 and has been a tab ever
+  since.
+
+Neither error was catchable by a test, because no test reads this file. The
+authority on what tabs exist is `kTabPaths` in `lib/core/router/app_router.dart`
+and `AppShell._labels` beside it; when they and this diagram disagree, they are
+right. `מתכונים` (#119) is the sixth and the first post-MVP tab.
 
 ---
 
@@ -346,28 +362,63 @@ part of M16.
 
 ---
 
-### 8. Recipe Converter
+### 8. Recipe Converter (M10 — shipped)
 
-**Layout:** Two-column flow — Original → Keto
+**Layout:** one column of stacked rows, one per ingredient line. **Not two
+columns** — a side-by-side original/keto table does not survive 320 px in RTL,
+and the original amount of an ingredient being replaced describes a different,
+inedible recipe, so showing it as a peer of the replacement gives it a standing
+it has not earned.
 
 #### Input Section
-- Text area: paste any recipe (Hebrew or English)
-- Or: "סרוק ממתכון" (scan from a recipe card — uses camera)
+- Text area: paste an ingredient list, one ingredient per line.
+- **Paste only.** The `סרוק ממתכון` camera import this section originally
+  specified was not built and is not planned for M10: Keto Lens reads a printed
+  *nutrition panel*, and a recipe card is prose in arbitrary layout. Scanning one
+  is a different OCR problem from the one the app has solved.
 
 #### Conversion Results
-Side-by-side ingredient substitution list:
-```
-קמח חיטה (200g)  →  קמח שקדים (180g) + פסיליום (20g)
-סוכר (100g)      →  אריתריטול (80g)
-שמן סויה          →  שמן זית / חמאה
-```
+Every non-blank line becomes exactly one of four outcomes, each visually
+distinct, with its own row key (`outcome_<variant>_<index>`):
 
-Below: macro totals for original vs. keto version (fat / carbs / protein per serving).
+| Outcome | What it means | Shows |
+|---|---|---|
+| `Substituted` | The table knows a keto replacement | The replacement, the **ratio-adjusted** quantity, and the reason |
+| `AlreadyKeto` | The line is fine as written | An approval mark |
+| `Flagged` | Remove it — no replacement works | `הסירו מהמתכון — לא מתאים לקטו` |
+| `Unrecognised` | Nothing in the table knows this line | `לא זוהה`, and **never styled as approved** |
 
-Save button → saved to Recipe library.
+That fourth row is the point of the design. An unknown ingredient silently
+rendered as fine is how a 40 g-carb line becomes invisible — the same failure
+`EstimateReviewList` exists to prevent for estimated meals.
+
+A row whose outcome came from the **model pass** (#396) additionally carries
+`RecipeCopy.suggestedMarker` — `הצעה אוטומטית — בדקו`. A clean claim from a
+model is not evidence, and a badge that does not distinguish the two trains
+people to ignore it.
+
+#### Per-serving macros (#397)
+Below the results, once the recipe is **saved**: a servings field, `ערכים למנה`,
+the itemised review list the description mode uses, and a per-serving row.
+
+- **Only the per-serving figures are shown as "per serving", and only they can
+  be logged.** A recipe is a batch, not a meal.
+- **The original is never estimated.** This section used to ask for "macro totals
+  for original vs. keto version"; that costs a second request and a quota slot
+  for a number nobody logs, so only the converted list is estimated.
+- `Flagged` and `Unrecognised` lines are excluded from the estimate and listed
+  as unidentified, so their absence from the total is visible.
+- `הוסיפו מנה ליומן` hands one serving to `AddMealBottomSheet` as
+  `MacroSource.estimatedFromText` — the same editable form as every other way
+  of logging a meal.
 
 #### Recipe Library
-Grid of saved converted recipes with a thumbnail (if photo taken) and macro badge.
+`/recipe/library`, reached from the converter's app-bar action. **A list, newest
+first — not a grid, and no thumbnail:** nothing photographs a pasted recipe, so a
+thumbnail slot would be permanently empty. Each card shows the title, the save
+date, a counts line, and a per-serving macro line **only when one is stored** —
+an absent estimate is not zero. Swipe to delete; tap to reopen the conversion
+exactly as it was saved.
 
 ---
 

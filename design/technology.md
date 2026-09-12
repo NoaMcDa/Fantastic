@@ -232,7 +232,24 @@ Take an arbitrary recipe (Hebrew or English text) and produce a keto-equivalent 
 | Claude API (AI conversion) | Handles arbitrary recipes, understands context | Network required, API cost, latency |
 | Hybrid: local rules + AI fallback | Best of both worlds | More complex |
 
-**Recommended:** Hybrid — local `SubstitutionRuleEngine` for common ingredients, Claude API (Haiku, cheapest) for unrecognised ingredients when network is available.
+**Recommended:** Hybrid — local rule engine for common ingredients, a model pass for
+unrecognised ones when the network is available.
+
+**Shipped in M10, and the model half is not what this section proposed.** There is no
+Claude API call and no `anthropic_sdk_dart`: the second pass goes through
+`LlmChatClient` (`lib/core/services/llm/`), the same seam M15 built for macro estimation
+and M16 reuses for menus, so it adds **no package** and no second provider to configure.
+The user's own key and the one consent flag cover all three features. Two things this
+section did not anticipate:
+
+- **The deterministic half does the work.** `SubstitutionRules` ships 16 substitutions and
+  126 staples, so a real Hebrew recipe comes back mostly resolved without any network at
+  all. The model is asked only about the lines the table does not know, only on a tap, and
+  only with ingredient *names* — never quantities, never the raw pasted lines.
+- **Every model-proposed replacement is re-checked against `IngredientRules`** and dropped
+  if it names a forbidden seed oil or an insulin-spiking sweetener. "When network is
+  available" was the only condition this section put on the fallback; trusting the answer
+  was the missing one.
 
 **Local substitution table (sample):**
 ```
@@ -420,7 +437,8 @@ dependencies:
   health: ^10.x
   flutter_local_notifications: ^17.x
   mapkit_flutter: ^0.x
-  anthropic_sdk_dart: ^0.x          # recipe converter AI fallback
+  # anthropic_sdk_dart — NOT added. M10's model pass reuses M15's `LlmChatClient`
+  #   seam (`lib/core/services/llm/`), so the recipe converter adds no dependency.
   path_provider: ^2.x
   share_plus: ^9.x
 

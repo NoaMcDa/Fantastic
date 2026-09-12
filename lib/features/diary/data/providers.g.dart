@@ -229,9 +229,9 @@ String _$estimationCredentialsHash() =>
 ///
 /// **`keepAlive`, and it is load-bearing rather than an optimisation (#419).**
 /// Every screen that estimates — `AddMealDescriptionSheet`, `AddMealPhotoSheet`,
-/// `MenuScannerScreen` — reaches its engine with a bare `ref.read` inside a
-/// button handler and holds no listener, because the result is awaited once
-/// rather than watched. An autoDispose client is therefore disposed one frame
+/// `MenuScannerScreen`, and `RecipeConverterScreen`'s #396 suggestion pass —
+/// reaches its engine with a bare `ref.read` inside a button handler and holds
+/// no listener, because the result is awaited once rather than watched. An autoDispose client is therefore disposed one frame
 /// into the request, `ref.onDispose` closes the `http.Client` under it, and
 /// **closing a client cancels what it is carrying**: `BrowserClient.close`
 /// aborts every open `fetch` and `IOClient.close` force-closes the socket.
@@ -244,6 +244,13 @@ String _$estimationCredentialsHash() =>
 /// anyway. `onDispose` still runs when the container itself goes, so nothing
 /// leaks. Do not "tidy" this back to `@riverpod`: the regression test is
 /// `test/features/diary/data/estimation/llm_chat_client_lifecycle_test.dart`.
+///
+/// That test guards the mechanism for **every** consumer, which is why
+/// `substitutionSuggesterProvider` (M10) needs no twin of it: the suggester is
+/// autoDispose and *is* disposed a frame into its request, but it owns no
+/// `onDispose` and merely holds the client this provider keeps open. The
+/// dependents list above is the thing to keep current — a consumer missing
+/// from it is a consumer whose breakage nobody will predict.
 
 @ProviderFor(llmChatClient)
 const llmChatClientProvider = LlmChatClientProvider._();
@@ -260,9 +267,9 @@ const llmChatClientProvider = LlmChatClientProvider._();
 ///
 /// **`keepAlive`, and it is load-bearing rather than an optimisation (#419).**
 /// Every screen that estimates — `AddMealDescriptionSheet`, `AddMealPhotoSheet`,
-/// `MenuScannerScreen` — reaches its engine with a bare `ref.read` inside a
-/// button handler and holds no listener, because the result is awaited once
-/// rather than watched. An autoDispose client is therefore disposed one frame
+/// `MenuScannerScreen`, and `RecipeConverterScreen`'s #396 suggestion pass —
+/// reaches its engine with a bare `ref.read` inside a button handler and holds
+/// no listener, because the result is awaited once rather than watched. An autoDispose client is therefore disposed one frame
 /// into the request, `ref.onDispose` closes the `http.Client` under it, and
 /// **closing a client cancels what it is carrying**: `BrowserClient.close`
 /// aborts every open `fetch` and `IOClient.close` force-closes the socket.
@@ -275,6 +282,13 @@ const llmChatClientProvider = LlmChatClientProvider._();
 /// anyway. `onDispose` still runs when the container itself goes, so nothing
 /// leaks. Do not "tidy" this back to `@riverpod`: the regression test is
 /// `test/features/diary/data/estimation/llm_chat_client_lifecycle_test.dart`.
+///
+/// That test guards the mechanism for **every** consumer, which is why
+/// `substitutionSuggesterProvider` (M10) needs no twin of it: the suggester is
+/// autoDispose and *is* disposed a frame into its request, but it owns no
+/// `onDispose` and merely holds the client this provider keeps open. The
+/// dependents list above is the thing to keep current — a consumer missing
+/// from it is a consumer whose breakage nobody will predict.
 
 final class LlmChatClientProvider
     extends $FunctionalProvider<LlmChatClient, LlmChatClient, LlmChatClient>
@@ -291,9 +305,9 @@ final class LlmChatClientProvider
   ///
   /// **`keepAlive`, and it is load-bearing rather than an optimisation (#419).**
   /// Every screen that estimates — `AddMealDescriptionSheet`, `AddMealPhotoSheet`,
-  /// `MenuScannerScreen` — reaches its engine with a bare `ref.read` inside a
-  /// button handler and holds no listener, because the result is awaited once
-  /// rather than watched. An autoDispose client is therefore disposed one frame
+  /// `MenuScannerScreen`, and `RecipeConverterScreen`'s #396 suggestion pass —
+  /// reaches its engine with a bare `ref.read` inside a button handler and holds
+  /// no listener, because the result is awaited once rather than watched. An autoDispose client is therefore disposed one frame
   /// into the request, `ref.onDispose` closes the `http.Client` under it, and
   /// **closing a client cancels what it is carrying**: `BrowserClient.close`
   /// aborts every open `fetch` and `IOClient.close` force-closes the socket.
@@ -306,6 +320,13 @@ final class LlmChatClientProvider
   /// anyway. `onDispose` still runs when the container itself goes, so nothing
   /// leaks. Do not "tidy" this back to `@riverpod`: the regression test is
   /// `test/features/diary/data/estimation/llm_chat_client_lifecycle_test.dart`.
+  ///
+  /// That test guards the mechanism for **every** consumer, which is why
+  /// `substitutionSuggesterProvider` (M10) needs no twin of it: the suggester is
+  /// autoDispose and *is* disposed a frame into its request, but it owns no
+  /// `onDispose` and merely holds the client this provider keeps open. The
+  /// dependents list above is the thing to keep current — a consumer missing
+  /// from it is a consumer whose breakage nobody will predict.
   const LlmChatClientProvider._()
     : super(
         from: null,
