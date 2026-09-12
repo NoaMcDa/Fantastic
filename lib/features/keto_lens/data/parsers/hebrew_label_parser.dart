@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:fantastic/features/keto_lens/data/parsers/hebrew_text_normaliser.dart';
+import 'package:fantastic/core/utils/hebrew_text_normaliser.dart';
 import 'package:fantastic/features/keto_lens/domain/models/parsed_label.dart';
 import 'package:fantastic/features/keto_lens/domain/models/serving_basis.dart';
 import 'package:fantastic/features/keto_lens/domain/services/label_parser.dart';

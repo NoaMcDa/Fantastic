@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:fantastic/core/llm/llm_chat_client.dart';
 import 'package:fantastic/features/diary/data/estimation/estimate_response_parser.dart';
-import 'package:fantastic/features/diary/data/estimation/llm_chat_client.dart';
 import 'package:fantastic/features/diary/data/estimation/macro_estimation_prompt.dart';
 import 'package:fantastic/features/diary/data/estimation/meal_photo_prep.dart';
 import 'package:fantastic/features/diary/data/estimation/photo_bytes_reader.dart';
