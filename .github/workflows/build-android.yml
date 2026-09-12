@@ -184,6 +184,40 @@ jobs:
             echo "ok: $required"
           done
 
+      - name: Release APK declares the INTERNET permission
+        # The app's only outbound calls are M15's macro estimation and M16's
+        # menu analysis. Flutter's template puts INTERNET in the debug and
+        # profile overlays only, so a debug build reaches the network and a
+        # release build cannot - and the refusal surfaces to the user as
+        # "no internet" on a working connection, which is the #419 symptom
+        # that took three issues to diagnose. Nothing else catches this:
+        # `flutter analyze` does not read manifests, and nobody has ever run
+        # this app on Android.
+        #
+        # Read out of the built APK rather than grepped from the source file,
+        # because what ships is the *merged* manifest - a grep would pass even
+        # if the merge dropped it.
+        run: |
+          set -euo pipefail
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          test -f "$apk" || { echo "::error::no APK at $apk"; exit 1; }
+
+          # aapt first, aapt2 as the fallback: both dump the merged manifest's
+          # permissions, and which of the two a given build-tools release ships
+          # is not worth betting a red run on.
+          tool=$(ls "$ANDROID_HOME"/build-tools/*/aapt 2>/dev/null | sort -V | tail -1 || true)
+          [ -n "$tool" ] || tool=$(ls "$ANDROID_HOME"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1 || true)
+          if [ -z "$tool" ]; then
+            echo "::error::neither aapt nor aapt2 under $ANDROID_HOME/build-tools - cannot read the merged manifest"
+            exit 1
+          fi
+
+          if ! "$tool" dump permissions "$apk" | grep -q "android.permission.INTERNET"; then
+            echo "::error::the release APK cannot reach the network - M15 estimation and M16 menu analysis are dead in it"
+            exit 1
+          fi
+          echo "ok: android.permission.INTERNET"
+
       # The other half of the restore/save split above. A cache save must
       # never be able to fail a build that already passed, hence
       # continue-on-error: a concurrent run holding the same key is a warning
