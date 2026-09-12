@@ -33,8 +33,20 @@ enum MenuAnalysisFailureReason {
   badResponse,
 
   /// A well-formed response that named no dish at all.
-  noDishesFound;
+  noDishesFound,
+
+  /// The file could not be opened as a PDF at all — not a PDF, corrupt, or
+  /// password-protected. Not worth retrying with the same file.
+  pdfUnreadable,
+
+  /// The PDF opened but no page had a usable text layer, and this build has
+  /// no OCR engine to read the pages as images.
+  pdfNeedsOcr;
 
   /// Whether a retry with the same input can succeed.
+  ///
+  /// [pdfUnreadable] and [pdfNeedsOcr] are both properties of the file or
+  /// the build, not of the moment — retrying with the identical PDF on the
+  /// identical device changes nothing, so neither joins this list.
   bool get isRetryable => this == offline || this == badResponse;
 }

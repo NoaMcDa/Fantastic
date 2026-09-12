@@ -38,27 +38,46 @@ class FileSelectorDocumentPicker implements DocumentPicker {
   /// `file_selector` call cannot be substituted (there is no `file_selector`
   /// platform implementation registered in a widget-test environment, and no
   /// platform at all to open a real dialog on), so this is where the actual
-  /// decision logic — null-on-cancel, empty-path-on-web, catch-and-wrap —
-  /// lives and gets exercised.
+  /// decision logic — null-on-cancel, no-path-on-web, catch-and-wrap — lives
+  /// and gets exercised.
+  ///
+  /// **Cancel and "no path" are deliberately not the same outcome.** An
+  /// earlier version of this method mapped both to `null`, which made a web
+  /// user's PDF pick a silent no-op — indistinguishable from backing out of
+  /// the dialog, with nothing rendered either way
+  /// (`design/user_bugs_handoff.md` records this exact shape of bug, in a
+  /// different feature). So only a genuine cancellation (`open` returning
+  /// `null`) is passed through as `null`; a file with no filesystem path
+  /// throws [DocumentPickerException], which `MenuPdfTab` already has a
+  /// rendered failure path for.
   @visibleForTesting
   static Future<String?> resultOf(Future<XFile?> Function() open) async {
+    final XFile? file;
     try {
-      final file = await open();
-      // Null means the user backed out of the picker. Not an error, and not
-      // something to tell them about.
-      if (file == null) return null;
-      // On the web a picked file carries bytes but no filesystem path, which
-      // XFile represents as an empty string rather than null. Returning that
-      // empty string as-is would read to a caller as "chose a file at no
-      // path" rather than "the platform cannot give one" — so it is mapped
-      // to null explicitly instead of passed through.
-      return file.path.isEmpty ? null : file.path;
+      file = await open();
     } on Object catch (error) {
       // A platform channel can throw an Error, not only an Exception — the
       // same reason `guardPersistence` and `ImagePickerPhotoPicker` catch
       // Object rather than Exception.
       throw DocumentPickerException('$error');
     }
+
+    // Null means the user backed out of the picker. Not an error, and not
+    // something to tell them about.
+    if (file == null) return null;
+
+    // On the web a picked file carries bytes but no filesystem path, which
+    // XFile represents as an empty string rather than null. That is not a
+    // cancellation — the user did choose a file — so it is reported as its
+    // own failure rather than silently mapped to the same `null` a
+    // cancellation returns.
+    if (file.path.isEmpty) {
+      throw const DocumentPickerException(
+        'the picked file has no filesystem path on this platform',
+      );
+    }
+
+    return file.path;
   }
 }
 

@@ -44,16 +44,14 @@ void main() {
       expect(result, isNull);
     });
 
-    test(
-      'a file with no path (the web case) returns null, not an empty string',
-      () async {
-        final result = await FileSelectorDocumentPicker.resultOf(
-          () async => XFile(''),
-        );
-
-        expect(result, isNull);
-      },
-    );
+    test('a file with no path (the web case) throws DocumentPickerException '
+        'rather than returning null indistinguishably from a cancel — '
+        '#408, see design/user_bugs_handoff.md', () async {
+      await expectLater(
+        FileSelectorDocumentPicker.resultOf(() async => XFile('')),
+        throwsA(isA<DocumentPickerException>()),
+      );
+    });
 
     test('a platform Exception becomes a DocumentPickerException with the '
         'detail intact', () async {

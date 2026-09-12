@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('MenuAnalysisFailureReason', () {
-    test('has exactly nine values', () {
-      expect(MenuAnalysisFailureReason.values, hasLength(9));
+    test('has exactly eleven values', () {
+      // Nine from the original set, plus #408's two PDF-only reasons
+      // (pdfUnreadable, pdfNeedsOcr).
+      expect(MenuAnalysisFailureReason.values, hasLength(11));
     });
 
     test('isRetryable is true for exactly offline and badResponse', () {
