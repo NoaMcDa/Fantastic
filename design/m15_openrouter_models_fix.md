@@ -2,7 +2,7 @@
 
 ## Summary
 
-M15 shipped with three free-tier OpenRouter model IDs that had all retired upstream within weeks. A user with a valid API key reported the estimation feature returning "אין חיבור אינטרנט" (no internet). The root cause was not the retired models alone — it was **timeout coupling in the error path**. The replacement model was chosen for JSON quality and existed, but it took 32 seconds to answer, exceeding the 30-second timeout and mapping to the identical offline error message. The fix pinned `nex-agi/nex-n2.5-pro:free` (8–12 s response time) and verified latency against the real system prompt, not a smoke test.
+M15 shipped with three free-tier OpenRouter model IDs that had all retired upstream within weeks. A user with a valid API key reported the estimation feature returning "אין חיבור אינטרנט" (no internet). The root cause was not the retired models alone — it was **timeout coupling in the error path**. The replacement model was chosen for JSON quality and existed, but it took 32 seconds to answer, exceeding the 30-second timeout and mapping to the identical offline error message. The fix pinned `nex-agi/nex-n2.5-pro:free` (8–12 s response time) and verified latency against the real system prompt, not a smoke test. The timeout was later increased to 2 minutes to accommodate slower models and network conditions.
 
 ## Issue #411 — Model Retirement
 
@@ -19,7 +19,7 @@ M15 shipped with three free-tier OpenRouter model IDs that had all retired upstr
 
 **What happened:** PR #412 replaced the three retired IDs with three candidates that existed.
 
-**What went wrong:** The primary choice, `dots-studio/dots-3-note-preview:free`, produced cleaner JSON on test prompts but took **32 seconds to answer the real system prompt** in `MacroEstimationPrompt.system`. The timeout is `Duration(seconds: 30)`. `RemoteMacroEstimator` maps `ChatFailureReason.timeout` to `EstimateFailureReason.offline` — line 120 — so a 32-second response surfaces identically to "אין חיבור אינטרנט".
+**What went wrong:** The primary choice, `dots-studio/dots-3-note-preview:free`, produced cleaner JSON on test prompts but took **32 seconds to answer the real system prompt** in `MacroEstimationPrompt.system`. The timeout was then `Duration(seconds: 30)`. `RemoteMacroEstimator` maps `ChatFailureReason.timeout` to `EstimateFailureReason.offline` — line 120 — so a 32-second response surfaces identically to "אין חיבור אינטרנט". The timeout is now `Duration(seconds: 120)`, accommodating slower responses.
 
 **Why it wasn't caught:** Testing was done with short prompts — "estimate the macros of this meal" — not the full system prompt the app actually sends. Latency is a **correctness property here**: a number the user can rely on and an indeterminate spinner are not the same failure, and both happen at `timeout`. The prompt that matters is the one the user hands the app, not a convenient short version.
 

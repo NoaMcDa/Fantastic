@@ -270,8 +270,8 @@ void main() {
       );
     });
 
-    // Milliseconds rather than the shipped thirty seconds. Waiting out the
-    // real window would add half a minute to every CI run of the whole
+    // Milliseconds rather than the shipped two minutes. Waiting out the
+    // real window would add two minutes to every CI run of the whole
     // suite, which is how a correct test becomes one people delete.
     test('a slow response is abandoned and reported as timeout', () async {
       final client = clientThat((_) async {
@@ -285,8 +285,8 @@ void main() {
       );
     });
 
-    test('the shipped timeout is thirty seconds', () {
-      expect(OpenRouterClient.defaultTimeout, const Duration(seconds: 30));
+    test('the shipped timeout is two minutes', () {
+      expect(OpenRouterClient.defaultTimeout, const Duration(seconds: 120));
     });
   });
 

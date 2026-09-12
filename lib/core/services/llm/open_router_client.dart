@@ -97,10 +97,10 @@ class OpenRouterClient implements LlmChatClient {
   /// The shipped value.
   ///
   /// Injectable rather than a bare constant so the timeout test can prove the
-  /// branch in milliseconds. Waiting out the real thirty seconds would add
+  /// branch in milliseconds. Waiting out the real two minutes would add
   /// them to every CI run of the whole suite, which is how a correct test
   /// becomes one people delete.
-  static const Duration defaultTimeout = Duration(seconds: 30);
+  static const Duration defaultTimeout = Duration(seconds: 120);
 
   @override
   Future<ChatResult> complete({
