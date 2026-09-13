@@ -278,7 +278,10 @@ void main() {
     test('a request without a schema is never retried', () async {
       final result = await complete(refusingFirst(400));
 
-      expect(result, const ChatFailed(ChatFailureReason.badResponse));
+      expect(
+        result,
+        const ChatFailed(ChatFailureReason.badResponse, statusCode: 400),
+      );
       expect(sent, hasLength(1));
     });
 
@@ -298,7 +301,7 @@ void main() {
           responseSchema: schema,
         );
 
-        expect(result, ChatFailed(entry.value));
+        expect(result, ChatFailed(entry.value, statusCode: entry.key));
         expect(sent, hasLength(1));
       });
     }
@@ -309,7 +312,10 @@ void main() {
 
       final result = await complete(client, responseSchema: schema);
 
-      expect(result, const ChatFailed(ChatFailureReason.badResponse));
+      expect(
+        result,
+        const ChatFailed(ChatFailureReason.badResponse, statusCode: 400),
+      );
       expect(sent, hasLength(2));
     });
 
@@ -327,7 +333,7 @@ void main() {
 
           expect(
             await complete(client, responseSchema: schema),
-            ChatFailed(entry.value),
+            ChatFailed(entry.value, statusCode: entry.key),
           );
           expect(sent, hasLength(2));
         }
@@ -369,7 +375,10 @@ void main() {
       test('${entry.key} maps to ${entry.value.name}', () async {
         final client = clientThat((_) => http.Response('nope', entry.key));
 
-        expect(await complete(client), ChatFailed(entry.value));
+        expect(
+          await complete(client),
+          ChatFailed(entry.value, statusCode: entry.key),
+        );
       });
     }
 
@@ -383,7 +392,7 @@ void main() {
 
       expect(
         await complete(client),
-        const ChatFailed(ChatFailureReason.badResponse),
+        const ChatFailed(ChatFailureReason.badResponse, statusCode: 404),
       );
     });
 
@@ -413,18 +422,50 @@ void main() {
       );
     });
 
+    test('a timeout and a socket failure carry no status code', () async {
+      final timedOut = await complete(
+        clientThat((_) async {
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          return http.Response(okBody('{}'), 200);
+        }, timeout: const Duration(milliseconds: 20)),
+      );
+      final offline = await complete(
+        clientThat((_) => throw http.ClientException('socket')),
+      );
+
+      expect((timedOut as ChatFailed).statusCode, isNull);
+      expect((offline as ChatFailed).statusCode, isNull);
+    });
+
+    test('toString names the status and nothing else', () {
+      expect(
+        const ChatFailed(
+          ChatFailureReason.badResponse,
+          statusCode: 404,
+        ).toString(),
+        'ChatFailed(badResponse, http 404)',
+      );
+      expect(
+        const ChatFailed(ChatFailureReason.offline).toString(),
+        'ChatFailed(offline)',
+      );
+    });
+
     test('the shipped timeout is two minutes', () {
       expect(OpenRouterClient.defaultTimeout, const Duration(seconds: 120));
     });
   });
 
   group('a 200 that is not usable', () {
+    // Each carries `statusCode: 200` — "the model answered, and we could
+    // not use it" is a different fix from a 400 or a 404 under the same
+    // headline, and the status is how the two are told apart.
     Future<void> expectBad(String body) async {
       final client = clientThat((_) => http.Response(body, 200));
 
       expect(
         await complete(client),
-        const ChatFailed(ChatFailureReason.badResponse),
+        const ChatFailed(ChatFailureReason.badResponse, statusCode: 200),
       );
     }
 

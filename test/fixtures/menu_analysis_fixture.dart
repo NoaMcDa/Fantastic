@@ -35,5 +35,6 @@ abstract final class MenuAnalysisFixture {
   /// A failed analysis. Every reason has one.
   static MenuAnalysisFailed failed({
     MenuAnalysisFailureReason reason = MenuAnalysisFailureReason.badResponse,
-  }) => MenuAnalysisFailed(reason: reason);
+    int? statusCode,
+  }) => MenuAnalysisFailed(reason: reason, statusCode: statusCode);
 }

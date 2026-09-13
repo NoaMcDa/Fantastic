@@ -76,22 +76,40 @@ final class ChatSucceeded extends ChatResult {
 /// The round trip did not produce an answer.
 @immutable
 final class ChatFailed extends ChatResult {
-  const ChatFailed(this.reason);
+  const ChatFailed(this.reason, {this.statusCode});
 
   final ChatFailureReason reason;
 
+  /// The HTTP status the provider answered with, when it answered at all.
+  ///
+  /// Null for a failure that never got a status: no credential, no route,
+  /// a timeout. **A status code is the one piece of detail safe to carry**:
+  /// it cannot echo a header or a body, and it is what tells a 404 (a
+  /// retired model id) from a 400 (a request shape refused) from a 200
+  /// whose content was unusable — three failures that all read
+  /// [ChatFailureReason.badResponse] and each need a different fix.
+  /// `design/m16_structured_output_fix.md` records a whole round trip with
+  /// the user that this field would have made unnecessary.
+  final int? statusCode;
+
   @override
   bool operator ==(Object other) =>
-      identical(this, other) || other is ChatFailed && other.reason == reason;
+      identical(this, other) ||
+      other is ChatFailed &&
+          other.reason == reason &&
+          other.statusCode == statusCode;
 
   @override
-  int get hashCode => reason.hashCode;
+  int get hashCode => Object.hash(reason, statusCode);
 
-  /// **Carries no detail, and that is the point.** An upstream error body can
-  /// echo a request header, and this value is the one thing that crosses into
-  /// a layer that might log it.
+  /// **Carries no body and no header, and that is the point.** An upstream
+  /// error body can echo a request header, and this value is the one thing
+  /// that crosses into a layer that might log it. The status code is a
+  /// number the provider chose, never text it or we wrote.
   @override
-  String toString() => 'ChatFailed(${reason.name})';
+  String toString() => statusCode == null
+      ? 'ChatFailed(${reason.name})'
+      : 'ChatFailed(${reason.name}, http $statusCode)';
 }
 
 /// Why a round trip produced no answer.

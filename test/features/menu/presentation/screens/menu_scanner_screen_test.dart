@@ -861,6 +861,32 @@ void main() {
       expect(find.text(MenuCopy.failedBadResponseHeadline), findsOneWidget);
     });
 
+    // The one technical line a failure may carry, so a report of
+    // "הניתוח נכשל" can also say whether the provider answered 400, 404 or
+    // 200 — three different fixes under one headline.
+    testWidgets('a failure with a status code shows it beneath the advice', (
+      tester,
+    ) async {
+      analyzer.result = MenuAnalysisFixture.failed(
+        reason: MenuAnalysisFailureReason.badResponse,
+        statusCode: 400,
+      );
+      await pumpScreen(tester);
+      await typeAndAnalyse(tester, 'תפריט לבדיקה');
+
+      expect(find.byKey(const Key('menu_failure_status')), findsOneWidget);
+      expect(find.text(MenuCopy.failedStatusCode(400)), findsOneWidget);
+      expect(find.text(MenuCopy.failedBadResponseHeadline), findsOneWidget);
+    });
+
+    testWidgets('a failure without a status code shows no status line', (
+      tester,
+    ) async {
+      await failWith(tester, MenuAnalysisFailureReason.offline);
+
+      expect(find.byKey(const Key('menu_failure_status')), findsNothing);
+    });
+
     testWidgets('noDishesFound', (tester) async {
       await failWith(tester, MenuAnalysisFailureReason.noDishesFound);
       expect(find.text(MenuCopy.failedNoDishesFoundHeadline), findsOneWidget);

@@ -132,4 +132,36 @@ void main() {
       }
     });
   });
+
+  group('MenuAnalysisFailed.statusCode', () {
+    test('is null unless given', () {
+      const failed = MenuAnalysisFailed(
+        reason: MenuAnalysisFailureReason.badResponse,
+      );
+      expect(failed.statusCode, isNull);
+    });
+
+    test('is part of equality and hashing', () {
+      const a = MenuAnalysisFailed(
+        reason: MenuAnalysisFailureReason.badResponse,
+        statusCode: 400,
+      );
+      const b = MenuAnalysisFailed(
+        reason: MenuAnalysisFailureReason.badResponse,
+        statusCode: 400,
+      );
+      const c = MenuAnalysisFailed(
+        reason: MenuAnalysisFailureReason.badResponse,
+        statusCode: 404,
+      );
+      const d = MenuAnalysisFailed(
+        reason: MenuAnalysisFailureReason.badResponse,
+      );
+
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
+      expect(a, isNot(c));
+      expect(a, isNot(d));
+    });
+  });
 }

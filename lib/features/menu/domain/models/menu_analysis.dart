@@ -79,17 +79,30 @@ final class MenuAnalysed extends MenuAnalysis {
 /// An attempt that did not reach a verdict at all.
 @immutable
 final class MenuAnalysisFailed extends MenuAnalysis {
-  const MenuAnalysisFailed({required this.reason});
+  const MenuAnalysisFailed({required this.reason, this.statusCode});
 
   /// Which failure it was. The screen's copy and its retry affordance both
   /// key off this.
   final MenuAnalysisFailureReason reason;
 
+  /// The HTTP status the model provider answered with, when the failure
+  /// came from an answer at all; null for every failure that did not (no
+  /// key, offline, timeout, nothing recognised, a bad reply shape).
+  ///
+  /// Shown beneath the headline as a small technical line, because
+  /// [MenuAnalysisFailureReason.badResponse] covers a refused request, a
+  /// retired model id and an unusable answer alike, and a user who reports
+  /// "הניתוח נכשל" cannot otherwise tell us which. It changes no copy, no
+  /// retry affordance and no verdict.
+  final int? statusCode;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is MenuAnalysisFailed && other.reason == reason;
+      other is MenuAnalysisFailed &&
+          other.reason == reason &&
+          other.statusCode == statusCode;
 
   @override
-  int get hashCode => reason.hashCode;
+  int get hashCode => Object.hash(reason, statusCode);
 }

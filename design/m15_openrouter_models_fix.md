@@ -98,3 +98,11 @@ rather than the call sites.
 
 Issue #419 — the provider-lifecycle defect above. Issues #411 and #414 are closed by
 PR #412 and PR #416; neither made the feature work for the reporting user.
+
+## Later: the pin moved to `dots` (2026-09-12, M16)
+
+After the menu scanner failed on every input mode, the product owner chose
+`dots-studio/dots-3-note-preview:free` as the pinned model; `nex-agi/nex-n2.5-pro:free`
+is now the first fallback. The 32 s answer measured above fits the 120 s timeout that
+replaced the 30 s one. The decision, its trade-offs and what remains unmeasured are in
+`design/m16_structured_output_fix.md`.
